@@ -2,8 +2,9 @@ package dispatchers
 
 import (
 	"errors"
-	"footprint/internal/usage"
 	"strings"
+
+	"github.com/Skryensya/footprint/internal/usage"
 )
 
 func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, error) {
@@ -11,9 +12,6 @@ func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, 
 	lastValid := root
 	pathLen := 0
 
-	// ──────────────────────────────
-	// 1. Detect "help" command first
-	// ──────────────────────────────
 	for i, tok := range tokens {
 		if tok == "help" {
 			targetPath := tokens[:i]
@@ -35,9 +33,6 @@ func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, 
 		}
 	}
 
-	// ──────────────────────────────
-	// 2. Traverse command path
-	// ──────────────────────────────
 	for _, tok := range tokens {
 		child, ok := current.Children[tok]
 		if !ok {
@@ -50,9 +45,6 @@ func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, 
 
 	args := tokens[pathLen:]
 
-	// ──────────────────────────────
-	// 3. --help / -h always wins
-	// ──────────────────────────────
 	if hasHelpFlag(flags) {
 		return Resolution{
 			Node:    lastValid,
@@ -62,24 +54,15 @@ func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, 
 		}, nil
 	}
 
-	// ──────────────────────────────
-	// 4. Validate flags
-	// ──────────────────────────────
 	valid := validFlagsForNode(current, root)
 	if err := validateFlags(flags, valid); err != nil {
 		return Resolution{}, err
 	}
 
-	// ──────────────────────────────
-	// 5. Validate arguments
-	// ──────────────────────────────
 	if err := validateArgs(current.Args, args); err != nil {
 		return Resolution{}, err
 	}
 
-	// ──────────────────────────────
-	// 6. Non-executable node → help
-	// ──────────────────────────────
 	if current.Action == nil {
 		return Resolution{
 			Node:    current,
@@ -89,9 +72,6 @@ func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, 
 		}, nil
 	}
 
-	// ──────────────────────────────
-	// 7. Execute
-	// ──────────────────────────────
 	return Resolution{
 		Node:    current,
 		Args:    args,
@@ -112,14 +92,12 @@ func hasHelpFlag(flags []string) bool {
 func validFlagsForNode(node *DispatchNode, root *DispatchNode) map[string]bool {
 	valid := make(map[string]bool)
 
-	// global flags (root)
 	for _, f := range root.Flags {
 		for _, name := range f.Names {
 			valid[name] = true
 		}
 	}
 
-	// local flags
 	for _, f := range node.Flags {
 		for _, name := range f.Names {
 			valid[name] = true

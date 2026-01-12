@@ -3,19 +3,11 @@ package dispatchers
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"os/exec"
 	"sort"
 	"strings"
-)
 
-func page(content string) error {
-	cmd := exec.Command("less", "-FRSX")
-	cmd.Stdin = strings.NewReader(content)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
+	"github.com/Skryensya/footprint/internal/ui"
+)
 
 func collectLeafCommands(node *DispatchNode, out *[]*DispatchNode) {
 	if node.Action != nil {
@@ -32,9 +24,6 @@ func HelpAction(node *DispatchNode, root *DispatchNode) CommandFunc {
 	return func(args []string, flags []string) error {
 		var out bytes.Buffer
 
-		// ──────────────────────────────
-		// HEADER
-		// ──────────────────────────────
 		out.WriteString(strings.Join(node.Path, " "))
 		if node.Summary != "" {
 			out.WriteString(" - ")
@@ -42,16 +31,10 @@ func HelpAction(node *DispatchNode, root *DispatchNode) CommandFunc {
 		}
 		out.WriteString("\n\n")
 
-		// ──────────────────────────────
-		// USAGE
-		// ──────────────────────────────
 		out.WriteString("usage: ")
 		out.WriteString(node.Usage)
 		out.WriteString("\n\n")
 
-		// ──────────────────────────────
-		// ROOT HELP (git-style overview)
-		// ──────────────────────────────
 		if node == root {
 			out.WriteString("These are common fp commands used in various situations:\n\n")
 
@@ -93,9 +76,6 @@ func HelpAction(node *DispatchNode, root *DispatchNode) CommandFunc {
 			}
 		}
 
-		// ──────────────────────────────
-		// NON-ROOT: show child commands
-		// ──────────────────────────────
 		if node != root && len(node.Children) > 0 {
 			out.WriteString("COMMANDS\n")
 
@@ -118,9 +98,6 @@ func HelpAction(node *DispatchNode, root *DispatchNode) CommandFunc {
 			out.WriteString("\n")
 		}
 
-		// ──────────────────────────────
-		// FLAGS (local)
-		// ──────────────────────────────
 		if len(node.Flags) > 0 {
 			out.WriteString("FLAGS\n")
 			for _, f := range node.Flags {
@@ -133,13 +110,11 @@ func HelpAction(node *DispatchNode, root *DispatchNode) CommandFunc {
 			out.WriteString("\n")
 		}
 
-		// ──────────────────────────────
-		// FOOTER
-		// ──────────────────────────────
 		out.WriteString(
 			"See 'fp help <command>' to read about a specific command.\n",
 		)
 
-		return page(out.String())
+		ui.Pager(out.String())
+		return nil
 	}
 }

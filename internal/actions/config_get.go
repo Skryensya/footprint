@@ -1,36 +1,35 @@
 package actions
 
-import "fmt"
+import (
+	"fmt"
 
-func ConfigGet(args []string, flags []string) error {
-	key := ""
+	"github.com/Skryensya/footprint/internal/config"
+	"github.com/Skryensya/footprint/internal/usage"
+)
 
-	if len(args) > 0 {
-		key = args[0]
+func ConfigGet(args []string, _ []string) error {
+	if len(args) < 1 {
+		return usage.MissingArgument("key")
 	}
 
-	// LOAD config map from disk
-	// IF key not present:
-	//     OUTPUT "key is not set"
-	//     EXIT successfully
-	// ELSE:
-	//     OUTPUT value
+	key := args[0]
 
-	if hasFlag(flags, "--json") {
-		if key == "" {
-			fmt.Println(`{"config":{}}`)
-			return nil
-		}
-
-		fmt.Printf(`{"%s":"value"}`+"\n", key)
-		return nil
+	lines, err := config.ReadLines()
+	if err != nil {
+		return err
 	}
 
-	if key == "" {
-		fmt.Println("no key provided")
-		return nil
+	configMap, err := config.Parse(lines)
+	if err != nil {
+		return err
 	}
 
-	fmt.Printf("%s = value\n", key)
+	value, found := configMap[key]
+
+	if !found {
+		return usage.InvalidConfigKey(key)
+	}
+
+	fmt.Println(value)
 	return nil
 }

@@ -2,11 +2,12 @@ package actions
 
 import (
 	"fmt"
-	"footprint/internal/config"
+
+	"github.com/Skryensya/footprint/internal/app"
 )
 
 func ShowVersion(args []string, flags []string) error {
-	fmt.Printf("fp version %v\n", config.Version)
+	fmt.Printf("fp version %v\n", app.Version)
 	return nil
 
 }

@@ -1,14 +1,37 @@
 package actions
 
-import "fmt"
+import (
+	"fmt"
 
-func ConfigSet(args []string, flags []string) error {
-	// args ya validados por el dispatcher
+	"github.com/Skryensya/footprint/internal/config"
+	"github.com/Skryensya/footprint/internal/usage"
+)
+
+func ConfigSet(args []string, _ []string) error {
+	if len(args) < 2 {
+		return usage.MissingArgument("key value")
+	}
+
 	key := args[0]
 	value := args[1]
 
-	// Aquí iría la lógica real de persistencia
-	fmt.Printf("set %s = %s\n", key, value)
+	lines, err := config.ReadLines()
+	if err != nil {
+		return err
+	}
+
+	lines, updated := config.Set(lines, key, value)
+
+	if err := config.WriteLines(lines); err != nil {
+		return err
+	}
+
+	action := "added"
+	if updated {
+		action = "updated"
+	}
+
+	fmt.Printf("%s %s=%s\n", action, key, value)
 
 	return nil
 }

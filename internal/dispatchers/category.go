@@ -1,7 +1,5 @@
 package dispatchers
 
-// CommandCategory represents a high-level intent grouping
-// for commands shown in root help.
 type CommandCategory int
 
 const (

@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"footprint/internal/cli"
-	"footprint/internal/dispatchers"
-	"footprint/internal/usage"
 	"os"
+
+	"github.com/Skryensya/footprint/internal/cli"
+	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/Skryensya/footprint/internal/usage"
 )
 
 func main() {

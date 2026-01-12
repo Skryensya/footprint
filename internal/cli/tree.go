@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"footprint/internal/actions"
-	"footprint/internal/dispatchers"
+	"github.com/Skryensya/footprint/internal/actions"
+	"github.com/Skryensya/footprint/internal/dispatchers"
 )
 
 func BuildTree() *dispatchers.DispatchNode {
@@ -62,13 +62,7 @@ func BuildTree() *dispatchers.DispatchNode {
 		config,
 		"Get a config value",
 		"fp config get <key>",
-		[]dispatchers.FlagDescriptor{
-			{
-				Names:       []string{"--json"},
-				Description: "Output result as JSON",
-				Scope:       dispatchers.FlagScopeLocal,
-			},
-		},
+		nil,
 		[]dispatchers.ArgSpec{
 			{
 				Name:        "key",
@@ -98,6 +92,38 @@ func BuildTree() *dispatchers.DispatchNode {
 			},
 		},
 		actions.ConfigSet,
+	).Category = dispatchers.CategoryConfig
+
+	dispatchers.NewNode(
+		"unset",
+		config,
+		"Remove a config value",
+		"fp config unset <key> <value>",
+		[]dispatchers.FlagDescriptor{
+			{
+				Names:       []string{"--all"},
+				Description: "Delete all the config key=value pairs",
+				Scope:       dispatchers.FlagScopeLocal,
+			},
+		},
+		[]dispatchers.ArgSpec{
+			{
+				Name:        "key",
+				Description: "Configuration key to delete",
+				Required:    false,
+			},
+		},
+		actions.ConfigUnset,
+	).Category = dispatchers.CategoryConfig
+
+	dispatchers.NewNode(
+		"list",
+		config,
+		"List all the configuration as key=value pairs",
+		"fp config list",
+		nil,
+		nil,
+		actions.ConfigList,
 	).Category = dispatchers.CategoryConfig
 
 	dispatchers.NewNode(
