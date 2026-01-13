@@ -30,7 +30,7 @@ func BuildTree() *dispatchers.DispatchNode {
 	dispatchers.NewNode(
 		"version",
 		root,
-		"Show fp version",
+		"Show current fp version",
 		"fp version",
 		nil,
 		nil,
