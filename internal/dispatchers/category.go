@@ -6,14 +6,17 @@ const (
 	CategoryUncategorized CommandCategory = iota
 	CategoryInfo
 	CategoryConfig
+	CategoryRepo
 )
 
 func (c CommandCategory) String() string {
 	switch c {
 	case CategoryInfo:
-		return "information and diagnostics"
+		return "Information and diagnostics"
 	case CategoryConfig:
-		return "configuration and preferences"
+		return "Configuration and preferences"
+	case CategoryRepo:
+		return "Handle repository tracking"
 	default:
 		return "other commands"
 	}
@@ -21,6 +24,7 @@ func (c CommandCategory) String() string {
 
 var categoryOrder = []CommandCategory{
 	CategoryInfo,
+	CategoryRepo,
 	CategoryConfig,
 	CategoryUncategorized,
 }

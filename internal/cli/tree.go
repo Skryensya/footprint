@@ -126,6 +126,90 @@ func BuildTree() *dispatchers.DispatchNode {
 		actions.ConfigList,
 	).Category = dispatchers.CategoryConfig
 
+	repo := dispatchers.NewNode(
+		"repo",
+		root,
+		"Manage repository tracking",
+		"fp repo <command>",
+		nil,
+		nil,
+		nil,
+	)
+
+	dispatchers.NewNode(
+		"track",
+		repo,
+		"Start tracking a repository",
+		"fp repo track <path>",
+		nil,
+		[]dispatchers.ArgSpec{
+			{
+				Name:        "path",
+				Description: "Path to a git repository (defaults to current directory)",
+				Required:    false,
+			},
+		},
+		actions.RepoTrack,
+	).Category = dispatchers.CategoryRepo
+
+	dispatchers.NewNode(
+		"untrack",
+		repo,
+		"Stop tracking a repository",
+		"fp repo untrack <path>",
+		nil,
+		[]dispatchers.ArgSpec{
+			{
+				Name:        "path",
+				Description: "Path to a git repository (defaults to current directory)",
+				Required:    false,
+			},
+		},
+		actions.RepoUntrack,
+	).Category = dispatchers.CategoryRepo
+
+	dispatchers.NewNode(
+		"list",
+		repo,
+		"Show all the repositories being tracked",
+		"fp repo list",
+		nil,
+		nil,
+		actions.RepoList,
+	).Category = dispatchers.CategoryRepo
+
+	dispatchers.NewNode(
+		"status",
+		repo,
+		"Show repository tracking status",
+		"fp repo status <path>",
+		nil,
+		[]dispatchers.ArgSpec{
+			{
+				Name:        "path",
+				Description: "Path to a git repository (defaults to current directory)",
+				Required:    false,
+			},
+		},
+		actions.RepoStatus,
+	).Category = dispatchers.CategoryRepo
+
+	dispatchers.NewNode(
+		"adopt-remote",
+		repo,
+		"Update repository id to reflect new remote",
+		"fp repo adopt-remote <path>",
+		nil,
+		[]dispatchers.ArgSpec{
+			{
+				Name:        "path",
+				Description: "Path to a git repository (defaults to current directory)",
+				Required:    false,
+			},
+		},
+		actions.RepoAdoptRemote,
+	).Category = dispatchers.CategoryRepo
+
 	dispatchers.NewNode(
 		"help",
 		root,
