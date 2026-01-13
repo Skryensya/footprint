@@ -1,6 +1,6 @@
 package app
 
-const (
+var (
 	Name    = "footprint"
 	Version = "dev"
 )
