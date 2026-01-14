@@ -101,7 +101,7 @@ func RepoRecord(_ []string, flags []string) error {
 }
 
 func resolveSource() telemetry.Source {
-	switch os.Getenv("FP_HOOK") {
+	switch os.Getenv("FP_SOURCE") {
 	case "post-commit":
 		return telemetry.SourcePostCommit
 	case "post-rewrite":

@@ -17,15 +17,16 @@ func HooksInstall(_ []string, flags []string) error {
 		return usage.InvalidFlag("--repo | --global")
 	}
 
-	var hooksPath string
-	var err error
+	var (
+		hooksPath string
+		err       error
+	)
 
 	if repo {
 		root, err := git.RepoRoot(".")
 		if err != nil {
 			return usage.NotInGitRepo()
 		}
-
 		hooksPath, err = git.RepoHooksPath(root)
 	} else {
 		hooksPath, err = git.GlobalHooksPath()
@@ -35,9 +36,19 @@ func HooksInstall(_ []string, flags []string) error {
 		return err
 	}
 
-	if !force {
-		fmt.Println("fp will take control of git hooks")
-		fmt.Println("existing hooks will be backed up")
+	needsConfirm := false
+	status := hooks.Status(hooksPath)
+
+	for _, installed := range status {
+		if installed {
+			needsConfirm = true
+			break
+		}
+	}
+
+	if needsConfirm && !force {
+		fmt.Println("fp detected existing git hooks")
+		fmt.Println("they will be backed up and replaced")
 		fmt.Print("continue? [y/N]: ")
 
 		var resp string
