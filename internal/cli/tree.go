@@ -236,6 +236,23 @@ Use -n to limit the number of entries shown.`,
 		Category: dispatchers.CategoryInspectActivity,
 	})
 
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "log",
+		Parent:  root,
+		Summary: "Stream new events in real time",
+		Description: `Watches for new git events and prints them as they occur.
+
+This command runs continuously like 'tail -f', polling the database
+for new events. Only events that occur after the command starts are
+shown; historical events are not displayed.
+
+Press Ctrl+C to stop.`,
+		Usage:    "fp log",
+		Action:   trackingactions.Log,
+		Flags:    LogFlags,
+		Category: dispatchers.CategoryInspectActivity,
+	})
+
 	// -- setup
 
 	dispatchers.Command(dispatchers.CommandSpec{

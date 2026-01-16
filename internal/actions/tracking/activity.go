@@ -2,7 +2,6 @@ package tracking
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -80,32 +79,8 @@ func activity(_ []string, flags []string, deps Deps) error {
 	var output bytes.Buffer
 
 	for _, event := range events {
-		if oneline {
-			message := truncateMessage(event.CommitMessage, 15)
-
-			output.WriteString(fmt.Sprintf(
-				"%s %-9s %-13s %-20s %-8s %.7s %s\n",
-				event.Timestamp.Format("2006-01-02 15:04"),
-				event.Status.String(),
-				event.Source.String(),
-				event.RepoID,
-				event.Branch,
-				event.Commit,
-				message,
-			))
-			continue
-		}
-
-		output.WriteString(fmt.Sprintf(
-			"%s %-9s %-13s %-20s %-8s %.7s\n    %s\n",
-			event.Timestamp.Format("2006-01-02 15:04"),
-			event.Status.String(),
-			event.Source.String(),
-			event.RepoID,
-			event.Branch,
-			event.Commit,
-			event.CommitMessage,
-		))
+		output.WriteString(FormatEvent(event, oneline))
+		output.WriteString("\n")
 	}
 
 	deps.Pager(output.String())

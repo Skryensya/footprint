@@ -1,151 +1,175 @@
 # Footprint
 
-footprint is a local tool that records activity from Git repositories and stores it on your machine.
+Footprint is a local tool that records activity from Git repositories and stores it on your machine.
 
 It helps you keep a structured history of work without using external services or sending data anywhere.
 
 ## What it does
 
-footprint records events that happen in a Git repository and saves them locally.
+Footprint records events that happen in Git repositories and saves them locally in a SQLite database.
 
-The data is stored in a way that can be inspected, processed, or exported later by the user.
+Recorded events include commits, merges, checkouts, rebases, and pushes.
 
-Everything stays under your control.
+The data can be inspected, filtered, or exported later. Everything stays under your control.
 
 ## What it does not do
 
-* footprint does not upload data
-* footprint does not track time
-* footprint does not monitor behavior
-* footprint does not depend on online services
+* Footprint does not upload data
+* Footprint does not track time
+* Footprint does not monitor behavior
+* Footprint does not depend on online services
 
-## Current state
+## Installation
 
-footprint records Git activity and stores it in a local database.
-
-That is its full responsibility today.
-
-## Usage
-
-footprint is a command line tool called `fp`.
-
-It is meant to be used inside Git repositories you want to track.
-
-The basic workflow is simple.
-
-You install the Git hooks.
-You choose which repositories to track.
-footprint records activity automatically.
-You can later inspect what was recorded.
-
-### Install Git hooks
-
-The first step is to install the Git hooks.
-
-Run this inside a Git repository:
+Build from source:
 
 ```
-fp hooks install
+make build
 ```
 
-You can check which hooks are installed:
+This creates the `fp` binary in the current directory.
+
+## Quick start
 
 ```
-fp hooks status
+fp setup              # Install git hooks (in current repo)
+fp track              # Start tracking the current repository
 ```
 
-You can remove them later with:
+From now on, footprint records activity automatically. You can inspect it with:
 
 ```
-fp hooks uninstall
+fp activity           # Show recorded events
+fp log                # Watch for new events in real time
 ```
 
-### Track a repository
+## Commands
 
-After installing the hooks, choose which repositories to track.
+### Getting started
 
-Run this inside a Git repository:
-
-```
-fp repo track
-```
-
-You can check the status at any time:
+Install git hooks in the current repository:
 
 ```
-fp repo status
+fp setup
 ```
 
-Stop tracking a repository:
+Install git hooks globally (applies to all repositories):
 
 ```
-fp repo untrack
+fp setup --global
 ```
 
-### Inspect recorded activity
-
-To see what has been recorded:
+Start tracking a repository:
 
 ```
-fp activity list
+fp track [path]
 ```
 
-This shows recorded activity, newest first.
+### Inspecting activity
 
-### Manage repositories
+Show recorded activity (newest first):
+
+```
+fp activity
+```
+
+Filter activity with flags:
+
+```
+fp activity --oneline              # Compact one-line format
+fp activity --since=2024-01-01     # Events after date
+fp activity --until=2024-12-31     # Events before date
+fp activity --status=pending       # Filter by status
+fp activity --source=post-commit   # Filter by source
+fp activity --repo=<id>            # Filter by repository
+fp activity --limit=50             # Limit results
+```
+
+Watch for new events in real time:
+
+```
+fp log
+fp log --oneline
+```
+
+This runs continuously like `tail -f`. Press Ctrl+C to stop.
+
+### Repository status
+
+Check tracking status of current repository:
+
+```
+fp status [path]
+```
 
 List all tracked repositories:
 
 ```
-fp repo list
+fp repos
+fp list              # Alias for repos
 ```
 
-If a repository remote changes and you want to keep the same history:
+### Managing repositories
+
+Stop tracking a repository:
 
 ```
-fp repo adopt-remote
+fp untrack [path]
+```
+
+Update repository ID after remote URL changes:
+
+```
+fp sync-remote [path]
+```
+
+### Managing hooks
+
+Check installed hooks:
+
+```
+fp check
+fp check --global
+```
+
+Remove hooks:
+
+```
+fp teardown
+fp teardown --global
 ```
 
 ### Configuration
 
-You can manage configuration values using:
-
 ```
-fp config list
-fp config get <key>
-fp config set <key> <value>
-fp config unset <key>
-```
-
-Configuration is stored locally and applies only to your machine.
-
-### Help and version
-
-To see all commands:
-
-```
-fp --help
+fp config list                  # Show all config values
+fp config get <key>             # Get a value
+fp config set <key> <value>     # Set a value
+fp config unset <key>           # Remove a value
+fp config unset --all           # Remove all values
 ```
 
-To see help for a specific command:
+Configuration is stored in `~/.fprc`.
+
+### Help
 
 ```
-fp help <command>
+fp --help                # Show all commands
+fp help <command>        # Help for a specific command
+fp help <topic>          # Conceptual documentation
+fp version               # Show version
 ```
 
-To check the installed version:
+Available help topics: `overview`, `workflow`, `hooks`, `data`.
 
-```
-fp version
-```
+## Data storage
 
-## Roadmap
+Events are stored in a SQLite database at:
 
-Planned features include:
+- macOS: `~/Library/Application Support/Footprint/store.db`
+- Linux: `~/.config/Footprint/store.db`
 
-* Exporting data to CSV
-* Optional sync to a user owned Git repository
-* Adding a full testing suite
+Tracked repositories are stored in `~/.fprc`.
 
 ## Privacy
 

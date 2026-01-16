@@ -129,4 +129,12 @@ var (
 			Scope:       dispatchers.FlagScopeGlobal,
 		},
 	}
+
+	LogFlags = []dispatchers.FlagDescriptor{
+		{
+			Names:       []string{"--oneline"},
+			Description: "Show one event per line",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+	}
 )
