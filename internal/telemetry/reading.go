@@ -2,15 +2,21 @@ package telemetry
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 )
 
-func ListEvents(
-	db *sql.DB,
-	status *Status,
-	source *Source,
-) ([]RepoEvent, error) {
+type EventFilter struct {
+	Status *Status
+	Source *Source
+	Since  *time.Time
+	Until  *time.Time
+	RepoID *string
+	Limit  int
+}
+
+func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 
 	base := `
 		SELECT
@@ -30,14 +36,29 @@ func ListEvents(
 		args    []any
 	)
 
-	if status != nil {
+	if filter.Status != nil {
 		clauses = append(clauses, "status_id = ?")
-		args = append(args, int(*status))
+		args = append(args, int(*filter.Status))
 	}
 
-	if source != nil {
+	if filter.Source != nil {
 		clauses = append(clauses, "source_id = ?")
-		args = append(args, int(*source))
+		args = append(args, int(*filter.Source))
+	}
+
+	if filter.Since != nil {
+		clauses = append(clauses, "timestamp >= ?")
+		args = append(args, filter.Since.Format(time.RFC3339))
+	}
+
+	if filter.Until != nil {
+		clauses = append(clauses, "timestamp <= ?")
+		args = append(args, filter.Until.Format(time.RFC3339))
+	}
+
+	if filter.RepoID != nil {
+		clauses = append(clauses, "repo_id = ?")
+		args = append(args, *filter.RepoID)
 	}
 
 	query := base
@@ -47,6 +68,10 @@ func ListEvents(
 	}
 
 	query += " ORDER BY timestamp DESC"
+
+	if filter.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", filter.Limit)
+	}
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
