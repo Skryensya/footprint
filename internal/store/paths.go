@@ -1,4 +1,4 @@
-package telemetry
+package store
 
 import (
 	"path/filepath"
@@ -7,5 +7,5 @@ import (
 )
 
 func DBPath() string {
-	return filepath.Join(paths.AppDataDir(), "telemetry.db")
+	return filepath.Join(paths.AppDataDir(), "store.db")
 }

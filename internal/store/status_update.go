@@ -1,4 +1,4 @@
-package telemetry
+package store
 
 import "database/sql"
 

@@ -21,7 +21,7 @@ type actionDependencies struct {
 	Printf       func(format string, a ...any) (n int, err error)
 	Version      func() string
 
-	// telemetry
+	// store
 	// InsertEvent func(string, map[string]string) error
 
 	// misc
@@ -37,7 +37,7 @@ func defaultDeps() actionDependencies {
 		DeriveRepoID: repo.DeriveID,
 		IsTracked:    repo.IsTracked,
 
-		// InsertEvent: telemetry.InsertEvent,
+		// InsertEvent: store.InsertEvent,
 		Now:     time.Now,
 		Printf:  fmt.Printf,
 		Version: func() string { return app.Version },

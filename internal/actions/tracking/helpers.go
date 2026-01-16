@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Skryensya/footprint/internal/telemetry"
+	"github.com/Skryensya/footprint/internal/store"
 )
 
 func resolvePath(args []string) (string, error) {
@@ -54,35 +54,35 @@ func truncateMessage(message string, max int) string {
 	return message[:max] + "..."
 }
 
-func parseStatus(s string) (telemetry.Status, bool) {
+func parseStatus(s string) (store.Status, bool) {
 	switch strings.ToLower(s) {
 	case "pending":
-		return telemetry.StatusPending, true
+		return store.StatusPending, true
 	case "exported":
-		return telemetry.StatusExported, true
+		return store.StatusExported, true
 	case "orphaned":
-		return telemetry.StatusOrphaned, true
+		return store.StatusOrphaned, true
 	case "skipped":
-		return telemetry.StatusSkipped, true
+		return store.StatusSkipped, true
 	default:
 		return 0, false
 	}
 }
 
-func parseSource(s string) (telemetry.Source, bool) {
+func parseSource(s string) (store.Source, bool) {
 	switch strings.ToLower(s) {
 	case "post-commit":
-		return telemetry.SourcePostCommit, true
+		return store.SourcePostCommit, true
 	case "post-rewrite":
-		return telemetry.SourcePostRewrite, true
+		return store.SourcePostRewrite, true
 	case "post-checkout":
-		return telemetry.SourcePostCheckout, true
+		return store.SourcePostCheckout, true
 	case "post-merge":
-		return telemetry.SourcePostMerge, true
+		return store.SourcePostMerge, true
 	case "pre-push":
-		return telemetry.SourcePrePush, true
+		return store.SourcePrePush, true
 	case "manual":
-		return telemetry.SourceManual, true
+		return store.SourceManual, true
 	default:
 		return 0, false
 	}

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/telemetry"
+	"github.com/Skryensya/footprint/internal/store"
 )
 
 func Activity(args []string, flags []string) error {
@@ -20,7 +20,7 @@ func activity(_ []string, flags []string, deps Deps) error {
 	}
 
 	var (
-		filter  telemetry.EventFilter
+		filter  store.EventFilter
 		oneline bool
 	)
 

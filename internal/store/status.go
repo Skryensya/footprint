@@ -1,4 +1,4 @@
-package telemetry
+package store
 
 type Status int
 

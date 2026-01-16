@@ -1,7 +1,7 @@
 package tracking
 
 import (
-	"github.com/Skryensya/footprint/internal/telemetry"
+	"github.com/Skryensya/footprint/internal/store"
 )
 
 func Record(args []string, flags []string) error {
@@ -65,7 +65,7 @@ func record(_ []string, flags []string, deps Deps) error {
 	db, err := deps.OpenDB(deps.DBPath())
 	if err != nil {
 		if verbose {
-			deps.Println("could not open telemetry db")
+			deps.Println("could not open store db")
 		}
 		return nil
 	}
@@ -76,14 +76,14 @@ func record(_ []string, flags []string, deps Deps) error {
 
 	msg, _ := deps.CommitMessage()
 
-	err = deps.InsertEvent(db, telemetry.RepoEvent{
+	err = deps.InsertEvent(db, store.RepoEvent{
 		RepoID:        string(repoID),
 		RepoPath:      repoRoot,
 		Commit:        commit,
 		CommitMessage: msg,
 		Branch:        branch,
 		Timestamp:     deps.Now().UTC(),
-		Status:        telemetry.StatusPending,
+		Status:        store.StatusPending,
 		Source:        source,
 	})
 
@@ -104,19 +104,19 @@ func record(_ []string, flags []string, deps Deps) error {
 	return nil
 }
 
-func resolveSource(deps Deps) telemetry.Source {
+func resolveSource(deps Deps) store.Source {
 	switch deps.Getenv("FP_SOURCE") {
 	case "post-commit":
-		return telemetry.SourcePostCommit
+		return store.SourcePostCommit
 	case "post-rewrite":
-		return telemetry.SourcePostRewrite
+		return store.SourcePostRewrite
 	case "post-checkout":
-		return telemetry.SourcePostCheckout
+		return store.SourcePostCheckout
 	case "post-merge":
-		return telemetry.SourcePostMerge
+		return store.SourcePostMerge
 	case "pre-push":
-		return telemetry.SourcePrePush
+		return store.SourcePrePush
 	default:
-		return telemetry.SourceManual
+		return store.SourceManual
 	}
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/Skryensya/footprint/internal/git"
 	repodomain "github.com/Skryensya/footprint/internal/repo"
-	"github.com/Skryensya/footprint/internal/telemetry"
+	"github.com/Skryensya/footprint/internal/store"
 	"github.com/Skryensya/footprint/internal/ui"
 )
 
@@ -28,12 +28,12 @@ type Deps struct {
 	IsTracked   func(repodomain.RepoID) (bool, error)
 	ListTracked func() ([]repodomain.RepoID, error)
 
-	// telemetry
+	// store
 	DBPath      func() string
 	OpenDB      func(string) (*sql.DB, error)
 	InitDB      func(*sql.DB) error
-	InsertEvent func(*sql.DB, telemetry.RepoEvent) error
-	ListEvents  func(*sql.DB, telemetry.EventFilter) ([]telemetry.RepoEvent, error)
+	InsertEvent func(*sql.DB, store.RepoEvent) error
+	ListEvents  func(*sql.DB, store.EventFilter) ([]store.RepoEvent, error)
 
 	// io
 	Printf  func(string, ...any) (int, error)
@@ -60,11 +60,11 @@ func DefaultDeps() Deps {
 		IsTracked:   repodomain.IsTracked,
 		ListTracked: repodomain.ListTracked,
 
-		DBPath:      telemetry.DBPath,
-		OpenDB:      telemetry.Open,
-		InitDB:      telemetry.Init,
-		InsertEvent: telemetry.InsertEvent,
-		ListEvents:  telemetry.ListEvents,
+		DBPath:      store.DBPath,
+		OpenDB:      store.Open,
+		InitDB:      store.Init,
+		InsertEvent: store.InsertEvent,
+		ListEvents:  store.ListEvents,
 
 		Printf:  fmt.Printf,
 		Println: fmt.Println,
