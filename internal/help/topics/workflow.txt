@@ -1,0 +1,31 @@
+WORKFLOW
+
+fp is designed to be invisible during normal work. Once set up, it
+records your git activity automatically.
+
+GETTING STARTED
+
+    1. Install hooks globally (recommended):
+       $ fp setup --global
+
+    2. Or install hooks in a specific repo:
+       $ cd /path/to/repo
+       $ fp setup
+
+    3. Start tracking a repository:
+       $ fp track
+
+DAILY USAGE
+
+After setup, fp works in the background. Your typical interactions:
+
+    $ fp activity           # See recent activity across all repos
+    $ fp activity -n 50     # See more entries
+    $ fp status             # Check if current repo is tracked
+    $ fp repos              # List all tracked repositories
+
+MENTAL MODEL
+
+Think of fp as a local, private activity log. Every commit, merge,
+checkout, rebase, and push in a tracked repo creates an entry.
+No data leaves your machine.

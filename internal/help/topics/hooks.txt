@@ -1,0 +1,38 @@
+HOOKS
+
+fp uses git hooks to automatically record events. This is how fp
+captures your activity without requiring manual commands.
+
+SUPPORTED HOOKS
+
+    post-commit     After each commit
+    post-merge      After merges (including pulls)
+    post-checkout   After switching branches
+    post-rewrite    After rebase or amend
+    pre-push        Before pushes (records push intent)
+
+INSTALLATION MODES
+
+Global (recommended):
+    $ fp setup --global
+
+    Installs hooks in git's global hooks directory. All repositories
+    will automatically use fp hooks.
+
+Per-repository:
+    $ fp setup
+
+    Installs hooks only in the current repository's .git/hooks/.
+    Use this if you prefer fine-grained control.
+
+HOOK BEHAVIOR
+
+Each hook calls 'fp record' with appropriate flags. The record command:
+    - Checks if the repository is tracked
+    - If tracked, writes the event to the local database
+    - If not tracked, exits silently (no error)
+
+EXISTING HOOKS
+
+If you have existing hooks, fp will detect them and offer to back
+them up before installation. Use 'fp check' to see hook status.

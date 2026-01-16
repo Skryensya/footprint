@@ -1,0 +1,39 @@
+DATA
+
+fp records metadata about git events. It does not store file contents,
+diffs, or commit messages.
+
+WHAT IS RECORDED
+
+For each event:
+    - Timestamp (when the event occurred)
+    - Event type (commit, merge, checkout, rebase, push)
+    - Repository ID (derived from remote URL or local path)
+    - Commit SHA (when applicable)
+    - Branch name (when applicable)
+
+STORAGE LOCATION
+
+Events are stored in a SQLite database at:
+    $XDG_CONFIG_HOME/Footprint/events.db
+
+On most systems this resolves to:
+    ~/.config/Footprint/events.db
+
+REPOSITORY IDENTIFICATION
+
+Repositories are identified by a hash of their primary remote URL
+(usually 'origin'). This means:
+    - The same repo cloned to different paths shares one ID
+    - Repos without remotes use a hash of the local path
+    - Changing remotes requires 'fp sync-remote' to update the ID
+
+VIEWING DATA
+
+    $ fp activity           # Human-readable event list
+    $ fp activity -n 100    # Show more entries
+
+DATA RETENTION
+
+fp does not automatically delete old events. The database will grow
+over time. You can manually delete the database file to reset.
