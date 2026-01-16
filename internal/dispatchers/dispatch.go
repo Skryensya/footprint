@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/Skryensya/footprint/internal/help"
 	"github.com/Skryensya/footprint/internal/usage"
 )
 
@@ -19,17 +20,42 @@ func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, 
 				targetPath = tokens[i+1:]
 			}
 
-			target := resolveNode(root, targetPath)
-			if target == nil {
-				return Resolution{}, usage.UnknownCommand(strings.Join(targetPath, " "))
+			// Handle "fp help topics" - list all topics
+			if len(targetPath) == 1 && targetPath[0] == "topics" {
+				return Resolution{
+					Node:    root,
+					Args:    nil,
+					Flags:   flags,
+					Execute: TopicsListAction(),
+				}, nil
 			}
 
-			return Resolution{
-				Node:    target,
-				Args:    nil,
-				Flags:   flags,
-				Execute: HelpAction(target, root),
-			}, nil
+			// Try to resolve as a command first
+			target := resolveNode(root, targetPath)
+			if target != nil {
+				return Resolution{
+					Node:    target,
+					Args:    nil,
+					Flags:   flags,
+					Execute: HelpAction(target, root),
+				}, nil
+			}
+
+			// Try to resolve as a help topic
+			if len(targetPath) == 1 {
+				topic := help.LookupTopic(targetPath[0])
+				if topic != nil {
+					return Resolution{
+						Node:    root,
+						Args:    nil,
+						Flags:   flags,
+						Execute: TopicHelpAction(topic),
+					}, nil
+				}
+			}
+
+			// Neither command nor topic found
+			return Resolution{}, usage.UnknownCommand(strings.Join(targetPath, " "))
 		}
 	}
 
@@ -64,11 +90,17 @@ func Dispatch(root *DispatchNode, tokens []string, flags []string) (Resolution, 
 	}
 
 	if current.Action == nil {
+		// No command specified: show help but exit with code 1 (like git)
+		exitCode := 0
+		if current == root && len(tokens) == 0 {
+			exitCode = 1
+		}
 		return Resolution{
-			Node:    current,
-			Args:    nil,
-			Flags:   flags,
-			Execute: HelpAction(current, root),
+			Node:     current,
+			Args:     nil,
+			Flags:    flags,
+			Execute:  HelpAction(current, root),
+			ExitCode: exitCode,
 		}, nil
 	}
 
