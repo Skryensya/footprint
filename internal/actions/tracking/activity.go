@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -15,7 +16,7 @@ func Activity(args []string, flags []string) error {
 func activity(_ []string, flags []string, deps Deps) error {
 	db, err := deps.OpenDB(deps.DBPath())
 	if err != nil {
-		return nil
+		return fmt.Errorf("failed to open database: %w", err)
 	}
 
 	var (
@@ -72,7 +73,10 @@ func activity(_ []string, flags []string, deps Deps) error {
 	}
 
 	events, err := deps.ListEvents(db, filter)
-	if err != nil || len(events) == 0 {
+	if err != nil {
+		return fmt.Errorf("failed to list events: %w", err)
+	}
+	if len(events) == 0 {
 		return nil
 	}
 

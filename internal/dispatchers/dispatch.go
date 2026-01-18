@@ -1,7 +1,6 @@
 package dispatchers
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/Skryensya/footprint/internal/help"
@@ -142,7 +141,7 @@ func validFlagsForNode(node *DispatchNode, root *DispatchNode) map[string]bool {
 func validateFlags(flags []string, valid map[string]bool) error {
 	for _, f := range flags {
 		if !valid[f] {
-			return errors.New("#TODO: not valid flags")
+			return usage.InvalidFlag(f)
 		}
 	}
 	return nil

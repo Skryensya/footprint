@@ -15,12 +15,16 @@ func record(_ []string, flags []string, deps Deps) error {
 	defer func() { _ = recover() }()
 
 	// Show note when running manually (no FP_SOURCE env var)
-	if deps.Getenv("FP_SOURCE") == "" && !manual {
+	isFromHook := deps.Getenv("FP_SOURCE") != ""
+	if !isFromHook && !manual {
 		deps.Println("Note: fp record is usually executed automatically by git hooks.")
 	}
 
+	// Show errors when running manually or with --verbose
+	showErrors := verbose || manual
+
 	if !deps.GitIsAvailable() {
-		if verbose {
+		if showErrors {
 			deps.Println("git not available")
 		}
 		return nil
@@ -28,7 +32,7 @@ func record(_ []string, flags []string, deps Deps) error {
 
 	repoRoot, err := deps.RepoRoot(".")
 	if err != nil {
-		if verbose {
+		if showErrors {
 			deps.Println("not in a git repository")
 		}
 		return nil
@@ -38,7 +42,7 @@ func record(_ []string, flags []string, deps Deps) error {
 
 	repoID, err := deps.DeriveID(remoteURL, repoRoot)
 	if err != nil {
-		if verbose {
+		if showErrors {
 			deps.Println("could not derive repo id")
 		}
 		return nil
@@ -46,7 +50,7 @@ func record(_ []string, flags []string, deps Deps) error {
 
 	tracked, err := deps.IsTracked(repoID)
 	if err != nil || !tracked {
-		if verbose {
+		if showErrors {
 			deps.Println("repository not tracked")
 		}
 		return nil
@@ -54,7 +58,7 @@ func record(_ []string, flags []string, deps Deps) error {
 
 	commit, err := deps.HeadCommit()
 	if err != nil {
-		if verbose {
+		if showErrors {
 			deps.Println("could not read HEAD commit")
 		}
 		return nil
@@ -64,7 +68,7 @@ func record(_ []string, flags []string, deps Deps) error {
 
 	db, err := deps.OpenDB(deps.DBPath())
 	if err != nil {
-		if verbose {
+		if showErrors {
 			deps.Println("could not open store db")
 		}
 		return nil
@@ -89,7 +93,7 @@ func record(_ []string, flags []string, deps Deps) error {
 		Source:        source,
 	})
 
-	if verbose {
+	if showErrors {
 		if err != nil {
 			deps.Printf("failed to record event: %v\n", err)
 		} else {
