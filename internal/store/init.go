@@ -1,14 +1,9 @@
 package store
 
-import (
-	"database/sql"
-	_ "embed"
-)
+import "database/sql"
 
-//go:embed schema.sql
-var schema string
-
-func Init(db *sql.DB) error {
-	_, err := db.Exec(schema)
-	return err
+// Init is deprecated. Migrations are now run automatically by Open.
+// Kept for backward compatibility with existing code.
+func Init(_ *sql.DB) error {
+	return nil
 }

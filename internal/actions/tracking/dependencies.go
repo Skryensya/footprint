@@ -20,6 +20,7 @@ type Deps struct {
 	HeadCommit     func() (string, error)
 	CurrentBranch  func() (string, error)
 	CommitMessage  func() (string, error)
+	CommitAuthor   func() (string, error)
 
 	// repo
 	DeriveID    func(string, string) (repodomain.RepoID, error)
@@ -53,6 +54,7 @@ func DefaultDeps() Deps {
 		HeadCommit:     git.HeadCommit,
 		CurrentBranch:  git.CurrentBranch,
 		CommitMessage:  git.CommitMessage,
+		CommitAuthor:   git.CommitAuthor,
 
 		DeriveID:    repodomain.DeriveID,
 		Track:       repodomain.Track,

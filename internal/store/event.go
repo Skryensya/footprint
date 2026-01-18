@@ -9,6 +9,7 @@ type RepoEvent struct {
 	Commit        string
 	CommitMessage string
 	Branch        string
+	Author        string
 	Timestamp     time.Time
 	Status        Status
 	Source        Source

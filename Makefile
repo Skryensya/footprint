@@ -1,6 +1,6 @@
 VERSION := $(shell git describe --tags --dirty --always)
 
-.PHONY: build test test-actions
+.PHONY: build test test-actions test-hooks
 
 build: test
 	go build \
@@ -13,3 +13,6 @@ test:
 
 test-actions:
 	go test -count=1 ./internal/actions
+
+test-hooks: build
+	./scripts/test-hooks.sh

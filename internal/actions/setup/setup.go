@@ -1,6 +1,9 @@
 package setup
 
 import (
+	"strings"
+
+	"github.com/Skryensya/footprint/internal/hooks"
 	"github.com/Skryensya/footprint/internal/usage"
 )
 
@@ -37,17 +40,16 @@ func setup(_ []string, flags []string, deps Deps) error {
 		return err
 	}
 
-	needsConfirm := false
-	status := deps.HooksStatus(hooksPath)
-
-	for _, installed := range status {
+	// Check existing hooks before install
+	statusBefore := deps.HooksStatus(hooksPath)
+	backedUp := 0
+	for _, installed := range statusBefore {
 		if installed {
-			needsConfirm = true
-			break
+			backedUp++
 		}
 	}
 
-	if needsConfirm && !force {
+	if backedUp > 0 && !force {
 		deps.Println("fp detected existing git hooks")
 		deps.Println("they will be backed up and replaced")
 		deps.Print("continue? [y/N]: ")
@@ -63,6 +65,23 @@ func setup(_ []string, flags []string, deps Deps) error {
 		return err
 	}
 
-	deps.Println("fp setup complete")
+	// Output summary
+	location := "repository"
+	if global {
+		location = "global"
+	}
+
+	if backedUp > 0 {
+		deps.Printf("Installed %d %s hooks (%d backed up)\n", len(hooks.ManagedHooks), location, backedUp)
+	} else {
+		deps.Printf("Installed %d %s hooks\n", len(hooks.ManagedHooks), location)
+	}
+	deps.Printf("  %s\n", strings.Join(hooks.ManagedHooks, ", "))
+
+	if !global {
+		deps.Println("")
+		deps.Println("Run 'fp track' to start recording activity")
+	}
+
 	return nil
 }

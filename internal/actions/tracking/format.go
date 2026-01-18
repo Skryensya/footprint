@@ -23,14 +23,19 @@ func FormatEvent(e store.RepoEvent, oneline bool) string {
 		)
 	}
 
+	authorLine := ""
+	if e.Author != "" {
+		authorLine = fmt.Sprintf("\n    by %s", e.Author)
+	}
+
 	return fmt.Sprintf(
-		"%s %-9s %-13s %-20s %-8s %.7s\n    %s",
+		"%s %-9s %-13s %.7s %s\n    %s%s",
 		e.Timestamp.Format("2006-01-02 15:04"),
 		e.Status.String(),
 		e.Source.String(),
-		e.RepoID,
-		e.Branch,
 		e.Commit,
+		e.Branch,
 		e.CommitMessage,
+		authorLine,
 	)
 }

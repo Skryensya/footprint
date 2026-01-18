@@ -75,6 +75,7 @@ func record(_ []string, flags []string, deps Deps) error {
 	source := resolveSource(deps)
 
 	msg, _ := deps.CommitMessage()
+	author, _ := deps.CommitAuthor()
 
 	err = deps.InsertEvent(db, store.RepoEvent{
 		RepoID:        string(repoID),
@@ -82,6 +83,7 @@ func record(_ []string, flags []string, deps Deps) error {
 		Commit:        commit,
 		CommitMessage: msg,
 		Branch:        branch,
+		Author:        author,
 		Timestamp:     deps.Now().UTC(),
 		Status:        store.StatusPending,
 		Source:        source,

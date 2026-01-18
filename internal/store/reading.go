@@ -26,6 +26,7 @@ func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 			commit_hash,
 			commit_message,
 			branch,
+			COALESCE(author, ''),
 			timestamp,
 			status_id,
 			source_id
@@ -97,6 +98,7 @@ func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 			&e.Commit,
 			&e.CommitMessage,
 			&e.Branch,
+			&e.Author,
 			&ts,
 			&statusID,
 			&sourceID,
@@ -144,6 +146,7 @@ func ListEventsSince(db *sql.DB, afterID int64) ([]RepoEvent, error) {
 			commit_hash,
 			commit_message,
 			branch,
+			COALESCE(author, ''),
 			timestamp,
 			status_id,
 			source_id
@@ -175,6 +178,7 @@ func ListEventsSince(db *sql.DB, afterID int64) ([]RepoEvent, error) {
 			&e.Commit,
 			&e.CommitMessage,
 			&e.Branch,
+			&e.Author,
 			&ts,
 			&statusID,
 			&sourceID,
