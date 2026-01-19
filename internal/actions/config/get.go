@@ -15,18 +15,7 @@ func get(args []string, _ []string, deps Deps) error {
 
 	key := args[0]
 
-	lines, err := deps.ReadLines()
-	if err != nil {
-		return err
-	}
-
-	configMap, err := deps.Parse(lines)
-	if err != nil {
-		return err
-	}
-
-	value, found := configMap[key]
-
+	value, found := deps.Get(key)
 	if !found {
 		return usage.InvalidConfigKey(key)
 	}

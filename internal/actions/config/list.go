@@ -5,12 +5,7 @@ func List(args []string, flags []string) error {
 }
 
 func list(_ []string, _ []string, deps Deps) error {
-	lines, err := deps.ReadLines()
-	if err != nil {
-		return err
-	}
-
-	configMap, err := deps.Parse(lines)
+	configMap, err := deps.GetAll()
 	if err != nil {
 		return err
 	}

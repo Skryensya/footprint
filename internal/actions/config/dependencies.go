@@ -12,6 +12,8 @@ type Deps struct {
 	Parse      func([]string) (map[string]string, error)
 	Set        func([]string, string, string) ([]string, bool)
 	Unset      func([]string, string) ([]string, bool)
+	Get        func(string) (string, bool)
+	GetAll     func() (map[string]string, error)
 	Printf     func(string, ...any) (int, error)
 	Println    func(...any) (int, error)
 }
@@ -23,6 +25,8 @@ func DefaultDeps() Deps {
 		Parse:      config.Parse,
 		Set:        config.Set,
 		Unset:      config.Unset,
+		Get:        config.Get,
+		GetAll:     config.GetAll,
 		Printf:     fmt.Printf,
 		Println:    fmt.Println,
 	}
