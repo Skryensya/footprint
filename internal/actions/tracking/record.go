@@ -12,8 +12,6 @@ func record(_ []string, flags []string, deps Deps) error {
 	verbose := hasFlag(flags, "--verbose")
 	manual := hasFlag(flags, "--manual")
 
-	defer func() { _ = recover() }()
-
 	// Show note when running manually (no FP_SOURCE env var)
 	isFromHook := deps.Getenv("FP_SOURCE") != ""
 	if !isFromHook && !manual {
@@ -73,6 +71,7 @@ func record(_ []string, flags []string, deps Deps) error {
 		}
 		return nil
 	}
+	defer db.Close()
 
 	_ = deps.InitDB(db)
 
@@ -105,6 +104,11 @@ func record(_ []string, flags []string, deps Deps) error {
 				source.String(),
 			)
 		}
+	}
+
+	// Check if we should auto-export
+	if err == nil {
+		MaybeExport(db, deps)
 	}
 
 	return nil
