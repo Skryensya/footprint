@@ -1,6 +1,12 @@
 package tracking
 
 import (
+	"os"
+	"path/filepath"
+
+	"github.com/Skryensya/footprint/internal/paths"
+	repodomain "github.com/Skryensya/footprint/internal/repo"
+	"github.com/Skryensya/footprint/internal/store"
 	"github.com/Skryensya/footprint/internal/usage"
 )
 
@@ -47,6 +53,7 @@ func adopt(args []string, _ []string, deps Deps) error {
 		return usage.InvalidRepo()
 	}
 
+	// Update tracking
 	if _, err := deps.Untrack(localID); err != nil {
 		return err
 	}
@@ -56,5 +63,50 @@ func adopt(args []string, _ []string, deps Deps) error {
 	}
 
 	deps.Printf("adopted identity:\n  %s\n→ %s\n", localID, remoteID)
+
+	// Migrate pending events in database
+	db, err := deps.OpenDB(deps.DBPath())
+	if err == nil {
+		defer db.Close()
+		_ = deps.InitDB(db)
+
+		migrated, err := store.MigratePendingRepoID(db, string(localID), string(remoteID))
+		if err == nil && migrated > 0 {
+			deps.Printf("migrated %d pending events\n", migrated)
+		}
+	}
+
+	// Rename export directory if it exists
+	if renamed := renameExportDir(localID, remoteID); renamed {
+		deps.Println("renamed export directory")
+	}
+
 	return nil
+}
+
+// renameExportDir renames the export directory from old repo ID to new repo ID.
+// Returns true if the directory was renamed.
+func renameExportDir(oldID, newID repodomain.RepoID) bool {
+	exportRepo := paths.ExportRepoDir()
+	reposDir := filepath.Join(exportRepo, "repos")
+
+	oldDir := filepath.Join(reposDir, oldID.ToFilesystemSafe())
+	newDir := filepath.Join(reposDir, newID.ToFilesystemSafe())
+
+	// Check if old directory exists
+	if _, err := os.Stat(oldDir); os.IsNotExist(err) {
+		return false
+	}
+
+	// Check if new directory already exists (don't overwrite)
+	if _, err := os.Stat(newDir); err == nil {
+		return false
+	}
+
+	// Rename the directory
+	if err := os.Rename(oldDir, newDir); err != nil {
+		return false
+	}
+
+	return true
 }

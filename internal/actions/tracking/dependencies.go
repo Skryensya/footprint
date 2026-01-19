@@ -17,6 +17,8 @@ type Deps struct {
 	GitIsAvailable func() bool
 	RepoRoot       func(string) (string, error)
 	OriginURL      func(string) (string, error)
+	ListRemotes    func(string) ([]string, error)
+	GetRemoteURL   func(string, string) (string, error)
 	HeadCommit     func() (string, error)
 	CurrentBranch  func() (string, error)
 	CommitMessage  func() (string, error)
@@ -51,6 +53,8 @@ func DefaultDeps() Deps {
 		GitIsAvailable: git.IsAvailable,
 		RepoRoot:       git.RepoRoot,
 		OriginURL:      git.OriginURL,
+		ListRemotes:    git.ListRemotes,
+		GetRemoteURL:   git.GetRemoteURL,
 		HeadCommit:     git.HeadCommit,
 		CurrentBranch:  git.CurrentBranch,
 		CommitMessage:  git.CommitMessage,
