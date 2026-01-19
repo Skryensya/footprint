@@ -1,9 +1,11 @@
 #!/bin/bash
-# Test script that creates a temporary repo, triggers all hooks, and cleans up
+# Test script that creates a test repo, triggers all hooks, and cleans up
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FP_BIN="$SCRIPT_DIR/../fp"
+PROJECT_DIR="$SCRIPT_DIR/.."
+FP_BIN="$PROJECT_DIR/fp"
+TEST_REPO="$PROJECT_DIR/test-fp-repo"
 
 # Verify fp binary exists
 if [ ! -x "$FP_BIN" ]; then
@@ -11,16 +13,20 @@ if [ ! -x "$FP_BIN" ]; then
     echo "Run 'make build' first"
     exit 1
 fi
-TEMP_REPO=$(mktemp -d)
+
+# Clean up any existing test repo
+rm -rf "$TEST_REPO"
+mkdir -p "$TEST_REPO"
 
 cleanup() {
-    rm -rf "$TEMP_REPO"
-    echo "Cleaned up: $TEMP_REPO"
+    "$FP_BIN" untrack "$TEST_REPO" 2>/dev/null || true
+    rm -rf "$TEST_REPO"
+    echo "Cleaned up: $TEST_REPO"
 }
 trap cleanup EXIT
 
-echo "=== Creating test repo: $TEMP_REPO ==="
-cd "$TEMP_REPO"
+echo "=== Creating test repo: $TEST_REPO ==="
+cd "$TEST_REPO"
 git init -q
 # Use global git config if available, otherwise set test user
 if ! git config user.email &>/dev/null; then
