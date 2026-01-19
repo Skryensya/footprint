@@ -208,12 +208,12 @@ func runGitInRepo(repoPath string, args ...string) (string, error) {
 	return runGit(fullArgs...)
 }
 
-// truncateCommit returns the first n characters of a commit hash.
-func truncateCommit(commit string, n int) string {
-	if len(commit) <= n {
+// truncateCommit returns the first maxLen characters of a commit hash.
+func truncateCommit(commit string, maxLen int) string {
+	if len(commit) <= maxLen {
 		return commit
 	}
-	return commit[:n]
+	return commit[:maxLen]
 }
 
 // parseParents parses the output of git rev-parse commit^@ into a slice of parent hashes.

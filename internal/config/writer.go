@@ -23,13 +23,13 @@ func WriteLines(lines []string) error {
 	}
 	defer file.Close()
 
-	w := bufio.NewWriter(file)
+	writer := bufio.NewWriter(file)
 
 	for _, line := range lines {
-		if _, err := w.WriteString(line + "\n"); err != nil {
+		if _, err := writer.WriteString(line + "\n"); err != nil {
 			return err
 		}
 	}
 
-	return w.Flush()
+	return writer.Flush()
 }

@@ -7,6 +7,26 @@ PROJECT_DIR="$SCRIPT_DIR/.."
 FP_BIN="$PROJECT_DIR/fp"
 TEST_REPO="$PROJECT_DIR/test-fp-repo"
 
+# Colors (subtle)
+DIM='\033[2m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+section() {
+    echo ""
+    echo -e "${CYAN}=== $1 ===${NC}"
+}
+
+log() {
+    echo -e "${DIM}$1${NC}"
+}
+
+success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
 # Verify fp binary exists
 if [ ! -x "$FP_BIN" ]; then
     echo "ERROR: fp binary not found at $FP_BIN"
@@ -21,11 +41,11 @@ mkdir -p "$TEST_REPO"
 cleanup() {
     "$FP_BIN" untrack "$TEST_REPO" 2>/dev/null || true
     rm -rf "$TEST_REPO"
-    echo "Cleaned up: $TEST_REPO"
+    log "Cleaned up: $TEST_REPO"
 }
 trap cleanup EXIT
 
-echo "=== Creating test repo: $TEST_REPO ==="
+section "Creating test repo: $TEST_REPO"
 cd "$TEST_REPO"
 git init -q
 # Use global git config if available, otherwise set test user
@@ -34,16 +54,13 @@ if ! git config user.email &>/dev/null; then
     git config user.name "Test User"
 fi
 
-echo "=== Setting up fp ==="
+section "Setting up fp"
 "$FP_BIN" setup --force
 "$FP_BIN" track
 
-# Verify setup
-echo ""
-echo "=== Verifying setup ==="
+section "Verifying setup"
 "$FP_BIN" status
 "$FP_BIN" check
-echo ""
 
 # Verify hooks exist
 if [ ! -f ".git/hooks/post-commit" ]; then
@@ -51,24 +68,21 @@ if [ ! -f ".git/hooks/post-commit" ]; then
     exit 1
 fi
 
-echo "=== Triggering hooks ==="
+section "Triggering hooks"
 
-# post-commit: 5 commits
-echo "[post-commit] 5 commits..."
+log "[post-commit] 5 commits..."
 for i in 1 2 3 4 5; do
     echo "content $i" > "file$i.txt"
     git add .
     git commit -q -m "commit $i"
 done
 
-# post-checkout: create and switch branches
-echo "[post-checkout] branch switches..."
+log "[post-checkout] branch switches..."
 git checkout -q -b feature-a
 git checkout -q -b feature-b
 git checkout -q main
 
-# post-commit: commits on branches
-echo "[post-commit] commits on branches..."
+log "[post-commit] commits on branches..."
 git checkout -q feature-a
 echo "feature a work" > feature-a.txt
 git add . && git commit -q -m "feature a work"
@@ -77,21 +91,18 @@ git checkout -q feature-b
 echo "feature b work" > feature-b.txt
 git add . && git commit -q -m "feature b work"
 
-# post-merge: merge branches
-echo "[post-merge] merging branches..."
+log "[post-merge] merging branches..."
 git checkout -q main
 git merge -q feature-a -m "merge feature-a"
 git merge -q feature-b -m "merge feature-b"
 
-# post-rewrite: amend commits
-echo "[post-rewrite] amending commits..."
+log "[post-rewrite] amending commits..."
 echo "will be amended" > amended.txt
 git add . && git commit -q -m "before amend"
 echo "after amend" >> amended.txt
 git add . && git commit -q --amend -m "after amend"
 
-# post-rewrite: rebase
-echo "[post-rewrite] rebasing..."
+log "[post-rewrite] rebasing..."
 git checkout -q -b rebase-branch
 echo "rebase 1" > rb1.txt && git add . && git commit -q -m "rebase commit 1"
 echo "rebase 2" > rb2.txt && git add . && git commit -q -m "rebase commit 2"
@@ -100,8 +111,7 @@ echo "main progress" > main-progress.txt && git add . && git commit -q -m "main 
 git checkout -q rebase-branch
 git rebase -q main
 
-# More commits and checkouts to reach ~20 events
-echo "[post-commit] more commits..."
+log "[post-commit] more commits..."
 git checkout -q main
 for i in 6 7 8; do
     echo "extra $i" > "extra$i.txt"
@@ -109,18 +119,17 @@ for i in 6 7 8; do
     git commit -q -m "extra commit $i"
 done
 
-echo "[post-checkout] final switches..."
+log "[post-checkout] final switches..."
 git checkout -q feature-a
 git checkout -q feature-b
 git checkout -q main
 
-echo ""
-echo "=== Results ==="
+section "Results"
 EVENT_COUNT=$("$FP_BIN" activity --oneline 2>/dev/null | wc -l | tr -d ' ')
 echo "Total events recorded: $EVENT_COUNT"
 echo ""
 echo "Last 10 events:"
 "$FP_BIN" activity --oneline 2>/dev/null | head -10
 
-echo ""
-echo "=== Done ==="
+section "Done"
+success "All hooks triggered successfully"

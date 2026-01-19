@@ -40,7 +40,17 @@ From now on, footprint records activity automatically. You can inspect it with:
 
 ```
 fp activity           # Show recorded events
-fp log                # Watch for new events in real time
+fp watch              # Watch for new events in real time
+```
+
+## Global flags
+
+These flags work with any command:
+
+```
+fp --no-color <command>        # Disable colored output
+fp --no-pager <command>        # Do not use pager for output
+fp --pager=<cmd> <command>     # Use specified pager for this command
 ```
 
 ## Commands
@@ -51,6 +61,7 @@ Install git hooks in the current repository:
 
 ```
 fp setup
+fp setup --force           # Skip confirmation prompt
 ```
 
 Install git hooks globally (applies to all repositories):
@@ -63,6 +74,7 @@ Start tracking a repository:
 
 ```
 fp track [path]
+fp track --remote=<name> [path]   # Use specific remote instead of 'origin'
 ```
 
 ### Inspecting activity
@@ -79,8 +91,8 @@ Filter activity with flags:
 fp activity --oneline              # Compact one-line format
 fp activity --since=2024-01-01     # Events after date
 fp activity --until=2024-12-31     # Events before date
-fp activity --status=pending       # Filter by status
-fp activity --source=post-commit   # Filter by source
+fp activity --status=<status>      # pending, exported, orphaned, skipped
+fp activity --source=<source>      # post-commit, post-merge, post-checkout, post-rewrite, pre-push, manual, backfill
 fp activity --repo=<id>            # Filter by repository
 fp activity --limit=50             # Limit results
 ```
@@ -88,8 +100,8 @@ fp activity --limit=50             # Limit results
 Watch for new events in real time:
 
 ```
-fp log
-fp log --oneline
+fp watch
+fp watch --oneline
 ```
 
 This runs continuously like `tail -f`. Press Ctrl+C to stop.
@@ -115,6 +127,7 @@ Stop tracking a repository:
 
 ```
 fp untrack [path]
+fp untrack --id=<repo-id>    # Untrack by ID (useful for orphaned repos)
 ```
 
 Update repository ID after remote URL changes:
@@ -122,6 +135,41 @@ Update repository ID after remote URL changes:
 ```
 fp sync-remote [path]
 ```
+
+### Exporting data
+
+Export pending events to CSV:
+
+```
+fp export
+fp export --force            # Export even if interval hasn't passed
+fp export --dry-run          # Preview what would be exported
+fp export --open             # Open export directory in file manager
+fp export --set-remote=<url> # Set remote URL for export repository
+```
+
+The export repository is a git repository where CSV files are committed.
+Default location: `~/.config/Footprint/exports`
+
+Configuration:
+- `export_interval` - Seconds between exports (default: 3600 = 1 hour)
+- `export_repo` - Path to export repository
+- `export_last` - Unix timestamp of last export (managed internally)
+
+### Importing historical data
+
+Import existing commits from a repository:
+
+```
+fp backfill [path]
+fp backfill --since=2024-01-01     # Import commits after date
+fp backfill --until=2024-12-31     # Import commits before date
+fp backfill --limit=100            # Limit number of commits
+fp backfill --branch=<name>        # Use specific branch name for all commits
+fp backfill --dry-run              # Preview what would be imported
+```
+
+Events are inserted with source "BACKFILL" and status "pending". Run `fp export --force` afterward to export the backfilled events.
 
 ### Managing hooks
 
@@ -137,6 +185,7 @@ Remove hooks:
 ```
 fp teardown
 fp teardown --global
+fp teardown --force          # Skip confirmation prompt
 ```
 
 ### Configuration
@@ -150,6 +199,24 @@ fp config unset --all           # Remove all values
 ```
 
 Configuration is stored in `~/.fprc`.
+
+Available configuration keys:
+
+| Key | Description |
+|-----|-------------|
+| `pager` | Override the default pager. Set to `cat` to disable paging. |
+| `export_interval` | Seconds between automatic exports (default: 3600) |
+| `export_repo` | Path to export repository |
+
+Pager precedence:
+1. `--no-pager` flag → direct output
+2. stdout not a TTY → direct output
+3. `--pager=<cmd>` flag → uses specified pager, `cat` bypasses
+4. `pager` config → uses configured pager, `cat` bypasses
+5. `$PAGER` env var → uses env pager, `cat` bypasses
+6. Default → `less -FRSX`
+
+Pagers can include arguments: `fp config set pager "less -R"`
 
 ### Help
 

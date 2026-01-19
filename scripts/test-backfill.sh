@@ -1,11 +1,29 @@
 #!/bin/bash
 set -e
 
-# Colors
-RED='\033[0;31m'
+# Colors (subtle)
+DIM='\033[2m'
+CYAN='\033[0;36m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
+
+section() {
+    echo ""
+    echo -e "${CYAN}=== $1 ===${NC}"
+}
+
+log() {
+    echo -e "${DIM}$1${NC}"
+}
+
+success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+fail() {
+    echo -e "${RED}✗${NC} $1"
+}
 
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,15 +34,15 @@ FP="$PROJECT_DIR/fp"
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
-echo -e "${YELLOW}=== Test: fp backfill ===${NC}"
-echo "Temp directory: $TEMP_DIR"
+section "Test: fp backfill"
+log "Temp directory: $TEMP_DIR"
 
 # Create a test repository
 TEST_REPO="$TEMP_DIR/test-repo"
 mkdir -p "$TEST_REPO"
 cd "$TEST_REPO"
 
-echo -e "\n${YELLOW}1. Creating test repository with commits...${NC}"
+log "1. Creating test repository with commits..."
 git init -q
 git config user.email "test@example.com"
 git config user.name "Test User"
@@ -56,74 +74,74 @@ GIT_AUTHOR_DATE="2025-01-05T10:00:00" GIT_COMMITTER_DATE="2025-01-05T10:00:00" \
   git commit -q -m "Fifth commit"
 
 COMMIT_COUNT=$(git rev-list --count HEAD)
-echo "Created $COMMIT_COUNT commits"
+log "Created $COMMIT_COUNT commits"
 
-echo -e "\n${YELLOW}2. Tracking repository...${NC}"
+log "2. Tracking repository..."
 $FP track .
-echo "Repository tracked"
 
-echo -e "\n${YELLOW}3. Testing --dry-run...${NC}"
+log "3. Testing --dry-run..."
 DRY_RUN_OUTPUT=$($FP backfill --dry-run)
 echo "$DRY_RUN_OUTPUT"
 
 if echo "$DRY_RUN_OUTPUT" | grep -q "Found 5 commits"; then
-  echo -e "${GREEN}✓ Dry run found all 5 commits${NC}"
+  success "Dry run found all 5 commits"
 else
-  echo -e "${RED}✗ Dry run did not find expected commits${NC}"
+  fail "Dry run did not find expected commits"
   exit 1
 fi
 
-echo -e "\n${YELLOW}4. Testing --limit flag...${NC}"
+log "4. Testing --limit flag..."
 LIMIT_OUTPUT=$($FP backfill --dry-run --limit=2)
 if echo "$LIMIT_OUTPUT" | grep -q "Found 2 commits"; then
-  echo -e "${GREEN}✓ Limit flag works correctly${NC}"
+  success "Limit flag works correctly"
 else
-  echo -e "${RED}✗ Limit flag did not work${NC}"
+  fail "Limit flag did not work"
   exit 1
 fi
 
-echo -e "\n${YELLOW}5. Testing --since flag...${NC}"
+log "5. Testing --since flag..."
 SINCE_OUTPUT=$($FP backfill --dry-run --since=2025-01-04)
 SINCE_COUNT=$(echo "$SINCE_OUTPUT" | grep -c "^  " || true)
 # --since filters commits, so we should get fewer than 5
 if [ "$SINCE_COUNT" -lt 5 ] && [ "$SINCE_COUNT" -gt 0 ]; then
-  echo -e "${GREEN}✓ Since flag works correctly (found $SINCE_COUNT commits)${NC}"
+  success "Since flag works correctly (found $SINCE_COUNT commits)"
 else
-  echo -e "${RED}✗ Since flag did not work (expected 1-4, got $SINCE_COUNT)${NC}"
+  fail "Since flag did not work (expected 1-4, got $SINCE_COUNT)"
   exit 1
 fi
 
-echo -e "\n${YELLOW}6. Running actual backfill...${NC}"
+log "6. Running actual backfill..."
 $FP backfill --background
 sleep 1
 
-echo -e "\n${YELLOW}7. Verifying events were inserted...${NC}"
+log "7. Verifying events were inserted..."
 # Filter by the test repo path to avoid counting events from other repos
 ACTIVITY_OUTPUT=$($FP activity --source=backfill --oneline | grep "$TEST_REPO" || true)
 echo "$ACTIVITY_OUTPUT"
 
 BACKFILL_COUNT=$(echo "$ACTIVITY_OUTPUT" | grep -c "BACKFILL" || true)
 if [ "$BACKFILL_COUNT" -eq 5 ]; then
-  echo -e "${GREEN}✓ All 5 commits were backfilled${NC}"
+  success "All 5 commits were backfilled"
 else
-  echo -e "${RED}✗ Expected 5 backfilled events, got $BACKFILL_COUNT${NC}"
+  fail "Expected 5 backfilled events, got $BACKFILL_COUNT"
   exit 1
 fi
 
-echo -e "\n${YELLOW}8. Testing idempotency (run backfill again)...${NC}"
+log "8. Testing idempotency (run backfill again)..."
 $FP backfill --background
 sleep 1
 
 ACTIVITY_OUTPUT_2=$($FP activity --source=backfill --oneline | grep "$TEST_REPO" || true)
 BACKFILL_COUNT_2=$(echo "$ACTIVITY_OUTPUT_2" | grep -c "BACKFILL" || true)
 if [ "$BACKFILL_COUNT_2" -eq 5 ]; then
-  echo -e "${GREEN}✓ Idempotent: still 5 events (no duplicates)${NC}"
+  success "Idempotent: still 5 events (no duplicates)"
 else
-  echo -e "${RED}✗ Duplicates created: expected 5, got $BACKFILL_COUNT_2${NC}"
+  fail "Duplicates created: expected 5, got $BACKFILL_COUNT_2"
   exit 1
 fi
 
-echo -e "\n${YELLOW}9. Cleaning up tracking...${NC}"
+log "9. Cleaning up tracking..."
 $FP untrack .
 
-echo -e "\n${GREEN}=== All backfill tests passed! ===${NC}"
+section "Done"
+success "All backfill tests passed!"

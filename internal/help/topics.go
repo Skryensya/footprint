@@ -65,8 +65,8 @@ func LookupTopic(name string) *Topic {
 func AllTopics() []*Topic {
 	result := make([]*Topic, 0, len(TopicOrder))
 	for _, name := range TopicOrder {
-		if t := topics[name]; t != nil {
-			result = append(result, t)
+		if topic := topics[name]; topic != nil {
+			result = append(result, topic)
 		}
 	}
 	return result

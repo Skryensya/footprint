@@ -24,6 +24,12 @@ var (
 	infoStyle    lipgloss.Style
 	headerStyle  lipgloss.Style
 	mutedStyle   lipgloss.Style
+	color1Style  lipgloss.Style
+	color2Style  lipgloss.Style
+	color3Style  lipgloss.Style
+	color4Style  lipgloss.Style
+	color5Style  lipgloss.Style
+	color6Style  lipgloss.Style
 )
 
 // Init initializes the style package with the given enabled state.
@@ -71,6 +77,14 @@ func initStyles() {
 
 	// Dim/gray for muted text
 	mutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+
+	// Color styles for visual distinction
+	color1Style = lipgloss.NewStyle().Foreground(lipgloss.Color("6")) // cyan
+	color2Style = lipgloss.NewStyle().Foreground(lipgloss.Color("5")) // magenta
+	color3Style = lipgloss.NewStyle().Foreground(lipgloss.Color("4")) // blue
+	color4Style = lipgloss.NewStyle().Foreground(lipgloss.Color("3")) // yellow
+	color5Style = lipgloss.NewStyle().Foreground(lipgloss.Color("2")) // green
+	color6Style = lipgloss.NewStyle().Foreground(lipgloss.Color("1")) // red
 }
 
 // Enabled returns whether styling is currently enabled.
@@ -79,94 +93,94 @@ func Enabled() bool {
 }
 
 // Success styles text for successful operations.
-func Success(s string) string {
+func Success(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return successStyle.Render(s)
+	return successStyle.Render(text)
 }
 
 // Warning styles text for warning messages.
-func Warning(s string) string {
+func Warning(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return warningStyle.Render(s)
+	return warningStyle.Render(text)
 }
 
 // Error styles text for error messages.
-func Error(s string) string {
+func Error(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return errorStyle.Render(s)
+	return errorStyle.Render(text)
 }
 
 // Info styles text for informational messages.
-func Info(s string) string {
+func Info(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return infoStyle.Render(s)
+	return infoStyle.Render(text)
 }
 
 // Header styles text for section headers or titles.
-func Header(s string) string {
+func Header(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return headerStyle.Render(s)
+	return headerStyle.Render(text)
 }
 
 // Muted styles text for less important or secondary information.
-func Muted(s string) string {
+func Muted(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return mutedStyle.Render(s)
+	return mutedStyle.Render(text)
 }
 
 // Color1 through Color6 are neutral colors for visual distinction only.
 // They have no semantic meaning.
 
-func Color1(s string) string {
+func Color1(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render(s) // cyan
+	return color1Style.Render(text)
 }
 
-func Color2(s string) string {
+func Color2(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Render(s) // magenta
+	return color2Style.Render(text)
 }
 
-func Color3(s string) string {
+func Color3(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Render(s) // blue
+	return color3Style.Render(text)
 }
 
-func Color4(s string) string {
+func Color4(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(s) // yellow
+	return color4Style.Render(text)
 }
 
-func Color5(s string) string {
+func Color5(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render(s) // green
+	return color5Style.Render(text)
 }
 
-func Color6(s string) string {
+func Color6(text string) string {
 	if !enabled {
-		return s
+		return text
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render(s) // red
+	return color6Style.Render(text)
 }

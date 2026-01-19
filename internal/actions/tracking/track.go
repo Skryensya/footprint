@@ -48,13 +48,8 @@ func track(args []string, flags []string, deps Deps) error {
 	return nil
 }
 
-// resolveRemoteURL determines which remote URL to use for tracking.
-// Priority:
-//  1. --remote flag if specified
-//  2. 'origin' remote if it exists
-//  3. Single remote if only one exists
-//  4. Error if multiple remotes exist without 'origin'
-//  5. Empty string if no remotes (will use local path)
+// resolveRemoteURL returns the remote URL to use.
+// Priority: --remote flag > origin > single remote > error if ambiguous.
 func resolveRemoteURL(repoRoot string, flags []string, deps Deps) (string, error) {
 	// Check for --remote flag
 	specifiedRemote := getFlagValue(flags, "--remote")

@@ -45,21 +45,21 @@ func FormatEvent(e store.RepoEvent, oneline bool) string {
 }
 
 // formatSource applies distinct colors to each hook source.
-func formatSource(s store.Source) string {
-	switch s {
+func formatSource(source store.Source) string {
+	switch source {
 	case store.SourcePostCommit:
-		return style.Color1(s.String()) // cyan
+		return style.Color1(source.String()) // cyan
 	case store.SourcePostMerge:
-		return style.Color2(s.String()) // magenta
+		return style.Color2(source.String()) // magenta
 	case store.SourcePostCheckout:
-		return style.Color3(s.String()) // blue
+		return style.Color3(source.String()) // blue
 	case store.SourcePostRewrite:
-		return style.Color4(s.String()) // yellow
+		return style.Color4(source.String()) // yellow
 	case store.SourcePrePush:
-		return style.Color5(s.String()) // green
+		return style.Color5(source.String()) // green
 	case store.SourceManual:
-		return style.Color6(s.String()) // red
+		return style.Color6(source.String()) // red
 	default:
-		return s.String()
+		return source.String()
 	}
 }

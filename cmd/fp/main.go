@@ -27,6 +27,11 @@ func main() {
 		ui.DisablePager()
 	}
 
+	// Set pager override if --pager=<cmd> is set
+	if pager := getFlagValue(flags, "--pager"); pager != "" {
+		ui.SetPager(pager)
+	}
+
 	root := cli.BuildTree()
 
 	res, err := dispatchers.Dispatch(root, commands, flags)
@@ -78,4 +83,14 @@ func hasFlag(flags []string, name string) bool {
 		}
 	}
 	return false
+}
+
+func getFlagValue(flags []string, name string) string {
+	prefix := name + "="
+	for _, f := range flags {
+		if len(f) > len(prefix) && f[:len(prefix)] == prefix {
+			return f[len(prefix):]
+		}
+	}
+	return ""
 }

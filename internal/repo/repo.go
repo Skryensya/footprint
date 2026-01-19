@@ -164,18 +164,18 @@ func IsTracked(id RepoID) (bool, error) {
 //   - "local:/path/to/repo" -> "local__path__to__repo"
 // The transformation is deterministic and reversible (for display).
 func (id RepoID) ToFilesystemSafe() string {
-	s := string(id)
+	idString := string(id)
 
 	// Replace colon (from local: prefix) with double underscore
-	s = strings.ReplaceAll(s, ":", "__")
+	idString = strings.ReplaceAll(idString, ":", "__")
 
 	// Replace path separators with double underscores
-	s = strings.ReplaceAll(s, "/", "__")
+	idString = strings.ReplaceAll(idString, "/", "__")
 
 	// Remove leading underscores
-	for len(s) > 0 && s[0] == '_' {
-		s = s[1:]
+	for len(idString) > 0 && idString[0] == '_' {
+		idString = idString[1:]
 	}
 
-	return s
+	return idString
 }

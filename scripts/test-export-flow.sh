@@ -16,27 +16,23 @@ else
     EXPORT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/footprint/export"
 fi
 
-# Colors for output
-RED='\033[0;31m'
+# Colors (subtle)
+DIM='\033[2m'
+CYAN='\033[0;36m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
+
+section() {
+    echo ""
+    echo -e "${CYAN}=== $1 ===${NC}"
+}
 
 log() {
-    echo -e "${BLUE}==>${NC} $1"
+    echo -e "${DIM}$1${NC}"
 }
 
 success() {
     echo -e "${GREEN}✓${NC} $1"
-}
-
-section() {
-    echo ""
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${YELLOW}  $1${NC}"
-    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
 }
 
 # Cleanup function
@@ -54,9 +50,7 @@ cleanup() {
 # Setup trap for cleanup on exit
 trap cleanup EXIT
 
-# ============================================================================
 section "SETUP: Creating test environment"
-# ============================================================================
 
 mkdir -p "$TEST_DIR"
 cd "$TEST_DIR"
@@ -75,9 +69,7 @@ fi
 log "Clearing previous export data..."
 rm -rf "$EXPORT_DIR/repos"
 
-# ============================================================================
 section "REPO 1: webapp - Regular commits and feature branch"
-# ============================================================================
 
 mkdir -p "$TEST_DIR/webapp" && cd "$TEST_DIR/webapp"
 git init
@@ -115,9 +107,7 @@ success "webapp: 5 commits + 1 merge"
 
 cd "$TEST_DIR"
 
-# ============================================================================
 section "REPO 2: api-server - Multiple branches and rebases"
-# ============================================================================
 
 mkdir -p api-server && cd api-server
 git init
@@ -158,9 +148,7 @@ success "api-server: 6 commits + 1 merge"
 
 cd "$TEST_DIR"
 
-# ============================================================================
 section "REPO 3: docs - Simple documentation updates"
-# ============================================================================
 
 mkdir -p docs && cd docs
 git init
@@ -190,9 +178,7 @@ success "docs: 5 commits"
 
 cd "$TEST_DIR"
 
-# ============================================================================
 section "FIRST EXPORT"
-# ============================================================================
 
 log "Checking pending events before export..."
 $FP activity --oneline | head -20
@@ -213,9 +199,7 @@ fi
 
 success "First export completed"
 
-# ============================================================================
 section "REPO 1: webapp - More development"
-# ============================================================================
 
 cd "$TEST_DIR/webapp"
 
@@ -233,9 +217,7 @@ success "webapp: 2 more commits + 1 amend"
 
 cd "$TEST_DIR"
 
-# ============================================================================
 section "REPO 2: api-server - Hotfix branch"
-# ============================================================================
 
 cd "$TEST_DIR/api-server"
 
@@ -253,9 +235,7 @@ success "api-server: 2 more commits + 1 merge"
 
 cd "$TEST_DIR"
 
-# ============================================================================
 section "REPO 3: docs - Quick updates"
-# ============================================================================
 
 cd "$TEST_DIR/docs"
 
@@ -269,9 +249,7 @@ success "docs: 2 more commits"
 
 cd "$TEST_DIR"
 
-# ============================================================================
 section "SECOND EXPORT"
-# ============================================================================
 
 log "Checking pending events before second export..."
 $FP activity --oneline | head -10
@@ -289,9 +267,7 @@ done
 
 success "Second export completed"
 
-# ============================================================================
 section "VERIFICATION: Check CSV contents"
-# ============================================================================
 
 log "Listing all CSV files with row counts..."
 find "$EXPORT_DIR/repos" -name "commits.csv" 2>/dev/null | while read -r csv; do
@@ -307,9 +283,7 @@ find "$EXPORT_DIR/repos" -name "commits.csv" 2>/dev/null | while read -r csv; do
     fi
 done
 
-# ============================================================================
 section "VERIFICATION: Check enriched data"
-# ============================================================================
 
 log "Checking if enrichment data is present..."
 find "$EXPORT_DIR/repos" -name "commits.csv" 2>/dev/null | while read -r csv; do
@@ -335,9 +309,7 @@ find "$EXPORT_DIR/repos" -name "commits.csv" 2>/dev/null | while read -r csv; do
     fi
 done
 
-# ============================================================================
 section "SUMMARY"
-# ============================================================================
 
 echo ""
 echo "Test completed successfully!"

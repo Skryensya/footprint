@@ -24,6 +24,12 @@ var (
 			Description: "Do not use pager for output",
 			Scope:       dispatchers.FlagScopeGlobal,
 		},
+		{
+			Names:       []string{"--pager"},
+			ValueHint:   "<cmd>",
+			Description: "Use specified pager for this command",
+			Scope:       dispatchers.FlagScopeGlobal,
+		},
 	}
 
 	ConfigUnsetFlags = []dispatchers.FlagDescriptor{

@@ -9,22 +9,22 @@ func Repos(args []string, flags []string) error {
 }
 
 func repos(_ []string, _ []string, deps Deps) error {
-	repos, err := deps.ListTracked()
+	trackedRepos, err := deps.ListTracked()
 	if err != nil {
 		return err
 	}
 
-	if len(repos) == 0 {
+	if len(trackedRepos) == 0 {
 		deps.Println("no tracked repositories")
 		return nil
 	}
 
-	sort.Slice(repos, func(i, j int) bool {
-		return repos[i] < repos[j]
+	sort.Slice(trackedRepos, func(i, j int) bool {
+		return trackedRepos[i] < trackedRepos[j]
 	})
 
-	for _, r := range repos {
-		deps.Println(r)
+	for _, repoID := range trackedRepos {
+		deps.Println(repoID)
 	}
 
 	return nil

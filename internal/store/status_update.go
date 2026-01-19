@@ -12,7 +12,7 @@ func UpdateStatus(
 	_, err := db.Exec(
 		`UPDATE repo_events
 		 SET status_id = ?
-		 WHERE repo_id = ? AND commit_hash IS ? AND source_id = ?`,
+		 WHERE repo_id = ? AND commit_hash = ? AND source_id = ?`,
 		int(status),
 		repoID,
 		commit,
