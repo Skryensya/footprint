@@ -46,6 +46,17 @@ func hasFlag(flags []string, name string) bool {
 	return false
 }
 
+// getFlagValue extracts the value from a flag like --remote=upstream
+func getFlagValue(flags []string, name string) string {
+	prefix := name + "="
+	for _, f := range flags {
+		if strings.HasPrefix(f, prefix) {
+			return strings.TrimPrefix(f, prefix)
+		}
+	}
+	return ""
+}
+
 func truncateMessage(message string, max int) string {
 	message = strings.TrimSpace(message)
 	if len(message) <= max {
@@ -83,6 +94,8 @@ func parseSource(s string) (store.Source, bool) {
 		return store.SourcePrePush, true
 	case "manual":
 		return store.SourceManual, true
+	case "backfill":
+		return store.SourceBackfill, true
 	default:
 		return 0, false
 	}

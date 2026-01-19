@@ -9,6 +9,7 @@ const (
 	SourcePostMerge    Source = 3
 	SourcePrePush      Source = 4
 	SourceManual       Source = 5
+	SourceBackfill     Source = 6
 )
 
 func (s Source) String() string {
@@ -25,6 +26,8 @@ func (s Source) String() string {
 		return "PRE-PUSH"
 	case SourceManual:
 		return "MANUAL"
+	case SourceBackfill:
+		return "BACKFILL"
 	default:
 		return "UNKNOWN"
 	}

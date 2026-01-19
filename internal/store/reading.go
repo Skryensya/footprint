@@ -200,3 +200,48 @@ func ListEventsSince(db *sql.DB, afterID int64) ([]RepoEvent, error) {
 
 	return out, rows.Err()
 }
+
+// GetPendingEvents returns all events with status=pending for export.
+func GetPendingEvents(db *sql.DB) ([]RepoEvent, error) {
+	pending := StatusPending
+	return ListEvents(db, EventFilter{Status: &pending})
+}
+
+// UpdateEventStatuses updates the status for a list of event IDs.
+func UpdateEventStatuses(db *sql.DB, ids []int64, status Status) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids)+1)
+	args[0] = int(status)
+
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i+1] = id
+	}
+
+	query := fmt.Sprintf(
+		"UPDATE repo_events SET status_id = ? WHERE id IN (%s)",
+		strings.Join(placeholders, ","),
+	)
+
+	_, err := db.Exec(query, args...)
+	return err
+}
+
+// MigratePendingRepoID updates repo_id for all pending events from oldID to newID.
+// Returns the number of events updated.
+func MigratePendingRepoID(db *sql.DB, oldID, newID string) (int64, error) {
+	query := `
+		UPDATE repo_events
+		SET repo_id = ?
+		WHERE repo_id = ? AND status_id = ?
+	`
+	result, err := db.Exec(query, newID, oldID, int(StatusPending))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

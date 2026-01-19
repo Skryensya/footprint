@@ -12,7 +12,7 @@ func BuildTree() *dispatchers.DispatchNode {
 	root := dispatchers.Root(dispatchers.RootSpec{
 		Name:    "fp",
 		Summary: "Track and inspect Git activity across repositories",
-		Usage:   "fp [--help] [--version] <command> [<args>]",
+		Usage:   "fp [--help] [--version] [--no-color] [--no-pager] <command> [<args>]",
 		Flags:   RootFlags,
 	})
 
@@ -116,11 +116,16 @@ checkouts, rebases, pushes) that occur in it. Events are stored locally
 in a SQLite database.
 
 The repository is identified by its remote URL (usually 'origin'). If no
-remote exists, a hash of the local path is used instead.
+'origin' remote exists but exactly one other remote is available, that
+remote is used. If multiple remotes exist without 'origin', use --remote
+to specify which one to use.
+
+If no remote exists at all, a local path identifier is used instead.
 
 If no path is provided, the current directory is used.`,
-		Usage:    "fp track [path]",
+		Usage:    "fp track [--remote=<name>] [path]",
 		Args:     OptionalRepoPathArg,
+		Flags:    TrackFlags,
 		Action:   trackingactions.Track,
 		Category: dispatchers.CategoryGetStarted,
 	})
@@ -134,9 +139,14 @@ If no path is provided, the current directory is used.`,
 Future git events in this repository will no longer be recorded.
 Existing recorded events are not deleted.
 
-If no path is provided, the current directory is used.`,
-		Usage:    "fp untrack [path]",
+If no path is provided, the current directory is used.
+
+Use --id to untrack by repository ID directly. This is useful when the
+repository directory no longer exists but the tracking entry remains.
+Repository IDs can be found via 'fp repos'.`,
+		Usage:    "fp untrack [path] [--id=<repo-id>]",
 		Args:     OptionalRepoPathArg,
+		Flags:    UntrackFlags,
 		Action:   trackingactions.Untrack,
 		Category: dispatchers.CategoryManageRepos,
 	})
@@ -237,7 +247,7 @@ Use -n to limit the number of entries shown.`,
 	})
 
 	dispatchers.Command(dispatchers.CommandSpec{
-		Name:    "log",
+		Name:    "watch",
 		Parent:  root,
 		Summary: "Stream new events in real time",
 		Description: `Watches for new git events and prints them as they occur.
@@ -247,10 +257,60 @@ for new events. Only events that occur after the command starts are
 shown; historical events are not displayed.
 
 Press Ctrl+C to stop.`,
-		Usage:    "fp log",
+		Usage:    "fp watch",
 		Action:   trackingactions.Log,
-		Flags:    LogFlags,
+		Flags:    WatchFlags,
 		Category: dispatchers.CategoryInspectActivity,
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "export",
+		Parent:  root,
+		Summary: "Export pending events to CSV",
+		Description: `Exports all pending events to a CSV file in the export repository.
+
+By default, exports only run if the configured interval has passed since
+the last export. Use --force to export immediately regardless of interval.
+
+The export repository is a git repository where CSV files are committed.
+Default location: ~/.config/Footprint/exports
+
+Configuration:
+  export_interval  Seconds between exports (default: 3600 = 1 hour)
+  export_repo      Path to export repository
+  export_last      Unix timestamp of last export (managed internally)
+
+Use 'fp config set export_interval 1800' to change the interval.`,
+		Usage:    "fp export [--force] [--dry-run]",
+		Action:   trackingactions.Export,
+		Flags:    ExportFlags,
+		Category: dispatchers.CategoryManageRepos,
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "backfill",
+		Parent:  root,
+		Summary: "Import historical commits from a repository",
+		Description: `Imports existing commits from a git repository into the database.
+
+This allows you to retroactively track commit history that occurred before
+fp was installed. The command scans the git log and inserts each commit
+as a pending event.
+
+The backfill runs in the background while 'fp watch --oneline' shows
+progress in real-time. Press Ctrl+C to stop watching (the import continues).
+
+Use --dry-run to preview what would be imported without modifying the database.
+
+Events are inserted with source "BACKFILL" and status "pending". Run
+'fp export --force' afterward to export the backfilled events.
+
+Duplicate commits (same repo + commit hash + source) are automatically skipped.`,
+		Usage:    "fp backfill [path] [--since=<date>] [--until=<date>] [--limit=<n>]",
+		Args:     OptionalRepoPathArg,
+		Flags:    BackfillFlags,
+		Action:   trackingactions.Backfill,
+		Category: dispatchers.CategoryManageRepos,
 	})
 
 	// -- setup
