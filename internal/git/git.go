@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/Skryensya/footprint/internal/log"
 )
 
 type DiffStats struct {
@@ -144,6 +146,7 @@ func runGit(args ...string) (string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
+		log.Debug("git: command failed: git %s: %v", strings.Join(args, " "), err)
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
@@ -299,6 +302,7 @@ func ListCommits(repoPath string, opts ListCommitsOptions) ([]HistoryCommit, err
 
 	out, err := runGit(args...)
 	if err != nil {
+		log.Error("git: list commits failed: %v", err)
 		return nil, err
 	}
 
@@ -329,6 +333,7 @@ func ListCommits(repoPath string, opts ListCommitsOptions) ([]HistoryCommit, err
 		})
 	}
 
+	log.Debug("git: listed %d commits", len(commits))
 	return commits, nil
 }
 

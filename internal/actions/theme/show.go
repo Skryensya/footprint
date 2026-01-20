@@ -16,7 +16,7 @@ func show(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 
 	themeName, _ := deps.Get("color_theme")
 	if themeName == "" {
-		themeName = "default-dark"
+		themeName = style.ResolveThemeName("default")
 	}
 
 	// Helper to colorize text
@@ -37,13 +37,14 @@ func show(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 	deps.Printf("  %s - commit hashes\n", colorize("header", colors.Header))
 
 	deps.Println("\nGit event sources:")
-	deps.Printf("  %s, %s, %s, %s, %s, %s\n",
+	deps.Printf("  %s, %s, %s, %s, %s, %s, %s\n",
 		colorize("POST-COMMIT", colors.Color1),
 		colorize("POST-REWRITE", colors.Color2),
 		colorize("POST-CHECKOUT", colors.Color3),
 		colorize("POST-MERGE", colors.Color4),
 		colorize("PRE-PUSH", colors.Color5),
-		colorize("MANUAL", colors.Color6))
+		colorize("BACKFILL", colors.Color6),
+		colorize("MANUAL", colors.Color7))
 
 	deps.Println("\nOverride: fp config set color_<name> <value>")
 

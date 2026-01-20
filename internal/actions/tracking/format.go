@@ -37,17 +37,19 @@ func FormatEvent(e store.RepoEvent, oneline bool) string {
 func formatSource(source store.Source) string {
 	switch source {
 	case store.SourcePostCommit:
-		return style.Color1(source.String()) // cyan
-	case store.SourcePostMerge:
-		return style.Color2(source.String()) // magenta
-	case store.SourcePostCheckout:
-		return style.Color3(source.String()) // blue
+		return style.Color1(source.String())
 	case store.SourcePostRewrite:
-		return style.Color4(source.String()) // yellow
+		return style.Color2(source.String())
+	case store.SourcePostCheckout:
+		return style.Color3(source.String())
+	case store.SourcePostMerge:
+		return style.Color4(source.String())
 	case store.SourcePrePush:
-		return style.Color5(source.String()) // green
+		return style.Color5(source.String())
+	case store.SourceBackfill:
+		return style.Color6(source.String())
 	case store.SourceManual:
-		return style.Color6(source.String()) // red
+		return style.Color7(source.String())
 	default:
 		return source.String()
 	}

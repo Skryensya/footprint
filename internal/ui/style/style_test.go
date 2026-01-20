@@ -168,8 +168,8 @@ func TestLoadColorConfig_DarkTheme(t *testing.T) {
 	if colors.Info != "14" {
 		t.Errorf("Info: got %q, want %q", colors.Info, "14")
 	}
-	if colors.Muted != "246" {
-		t.Errorf("Muted: got %q, want %q", colors.Muted, "246")
+	if colors.Muted != "245" {
+		t.Errorf("Muted: got %q, want %q", colors.Muted, "245")
 	}
 	if colors.Header != "bold" {
 		t.Errorf("Header: got %q, want %q", colors.Header, "bold")
@@ -185,17 +185,17 @@ func TestLoadColorConfig_LightTheme(t *testing.T) {
 	if colors.Success != "28" {
 		t.Errorf("Success: got %q, want %q", colors.Success, "28")
 	}
-	if colors.Warning != "136" {
-		t.Errorf("Warning: got %q, want %q", colors.Warning, "136")
+	if colors.Warning != "130" {
+		t.Errorf("Warning: got %q, want %q", colors.Warning, "130")
 	}
 	if colors.Error != "124" {
 		t.Errorf("Error: got %q, want %q", colors.Error, "124")
 	}
-	if colors.Info != "25" {
-		t.Errorf("Info: got %q, want %q", colors.Info, "25")
+	if colors.Info != "27" {
+		t.Errorf("Info: got %q, want %q", colors.Info, "27")
 	}
-	if colors.Muted != "245" {
-		t.Errorf("Muted: got %q, want %q", colors.Muted, "245")
+	if colors.Muted != "243" {
+		t.Errorf("Muted: got %q, want %q", colors.Muted, "243")
 	}
 }
 

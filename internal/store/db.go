@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/Skryensya/footprint/internal/log"
 	"github.com/Skryensya/footprint/internal/store/migrations"
 )
 
@@ -21,16 +22,20 @@ var (
 // Uses singleton pattern - subsequent calls return the same connection.
 func Open(path string) (*sql.DB, error) {
 	once.Do(func() {
+		log.Debug("store: opening database at %s", path)
+
 		var err error
 		db, err = sql.Open("sqlite3", path)
 		if err != nil {
 			openError = fmt.Errorf("open database: %w", err)
+			log.Error("store: failed to open database: %v", err)
 			return
 		}
 
 		// Verify connection
 		if err = db.Ping(); err != nil {
 			openError = fmt.Errorf("ping database: %w", err)
+			log.Error("store: failed to ping database: %v", err)
 			return
 		}
 
@@ -45,8 +50,11 @@ func Open(path string) (*sql.DB, error) {
 		// Run migrations
 		if err = migrations.Run(db); err != nil {
 			openError = fmt.Errorf("run migrations: %w", err)
+			log.Error("store: migrations failed: %v", err)
 			return
 		}
+
+		log.Debug("store: database ready")
 	})
 
 	return db, openError

@@ -15,7 +15,7 @@ func List(args []string, flags *dispatchers.ParsedFlags) error {
 func list(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 	current, _ := deps.Get("color_theme")
 	if current == "" {
-		current = "default-dark"
+		current = style.ResolveThemeName("default")
 	}
 
 	for _, name := range deps.ThemeNames {

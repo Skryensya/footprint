@@ -117,9 +117,16 @@ fp includes several built-in themes optimized for different terminal
 backgrounds. Each theme has a dark and light variant.
 
 Available themes:
-  default-dark, default-light   Classic terminal colors
-  ocean-dark, ocean-light       Blue/teal palette
-  forest-dark, forest-light     Green/earth palette
+  default    Traditional terminal colors
+  neon       Vivid cyberpunk colors
+  aurora     Dreamy purples and teals
+  mono       Minimalist grayscale with accent
+  ocean      Cool blues and teals
+  sunset     Warm oranges to purple gradient
+  candy      Sweet pastel colors
+  contrast   Maximum readability primaries
+
+Each theme has -dark and -light variants.
 
 Use 'fp theme' to see all themes and the current selection.
 Use 'fp theme set <name>' to change the theme.`,
@@ -400,12 +407,11 @@ Duplicate commits (same repo + commit hash + source) are automatically skipped.`
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "setup",
 		Parent:  root,
-		Summary: "Install fp git hooks",
-		Description: `Installs git hooks that automatically record activity.
+		Summary: "Install fp git hooks (global)",
+		Description: `Installs git hooks globally that automatically record activity.
 
-By default, hooks are installed in the current repository's .git/hooks/
-directory. Use --global to install hooks in git's global hooks directory,
-which applies to all repositories.
+Hooks are installed in git's global hooks directory, which applies to
+all repositories. Use --repo to install only in the current repository.
 
 Installed hooks:
   post-commit     Records commits
@@ -414,8 +420,10 @@ Installed hooks:
   post-rewrite    Records rebases and amends
   pre-push        Records push attempts
 
-If existing hooks are found, they are backed up before installation.`,
-		Usage:    "fp setup [--global]",
+If existing hooks are found, they are backed up before installation.
+
+After setup, use 'fp track' in each repo you want to track.`,
+		Usage:    "fp setup [--repo]",
 		Flags:    SetupFlags,
 		Action:   setupactions.Setup,
 		Category: dispatchers.CategoryGetStarted,
@@ -427,12 +435,12 @@ If existing hooks are found, they are backed up before installation.`,
 		Summary: "Remove fp git hooks",
 		Description: `Removes git hooks installed by fp.
 
-By default, removes hooks from the current repository. Use --global to
-remove hooks from git's global hooks directory.
+By default, removes global hooks. Use --repo to remove hooks from
+the current repository only.
 
 If hooks were backed up during installation, the original hooks are
 restored.`,
-		Usage:    "fp teardown [--global]",
+		Usage:    "fp teardown [--repo]",
 		Flags:    TeardownFlags,
 		Action:   setupactions.Teardown,
 		Category: dispatchers.CategoryManageRepos,
@@ -447,9 +455,9 @@ restored.`,
 Displays which hooks are installed, whether they are fp hooks or
 third-party hooks, and if any backups exist.
 
-Use --global to check the global hooks directory instead of the
-current repository.`,
-		Usage:    "fp check [--global]",
+By default checks global hooks. Use --repo to check the current
+repository instead.`,
+		Usage:    "fp check [--repo]",
 		Flags:    CheckFlags,
 		Action:   setupactions.Check,
 		Category: dispatchers.CategoryInspectActivity,

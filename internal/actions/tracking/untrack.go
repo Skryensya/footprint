@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/Skryensya/footprint/internal/log"
 	"github.com/Skryensya/footprint/internal/repo"
 	"github.com/Skryensya/footprint/internal/usage"
 )
@@ -11,9 +12,12 @@ func Untrack(args []string, flags *dispatchers.ParsedFlags) error {
 }
 
 func untrack(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
+	log.Debug("untrack: starting")
+
 	// Check for --id flag first
 	idValue := flags.String("--id", "")
 	if idValue != "" {
+		log.Debug("untrack: using --id flag: %s", idValue)
 		return untrackByID(idValue, deps)
 	}
 
@@ -39,16 +43,21 @@ func untrack(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		return usage.InvalidRepo()
 	}
 
+	log.Debug("untrack: repo=%s, path=%s", id, repoRoot)
+
 	removed, err := deps.Untrack(id)
 	if err != nil {
+		log.Error("untrack: failed to untrack repo: %v", err)
 		return err
 	}
 
 	if !removed {
+		log.Debug("untrack: repo was not tracked")
 		deps.Printf("repository not tracked: %s\n", id)
 		return nil
 	}
 
+	log.Info("untrack: stopped tracking %s", id)
 	deps.Printf("untracked %s\n", id)
 	return nil
 }
@@ -58,14 +67,17 @@ func untrackByID(idStr string, deps Deps) error {
 
 	removed, err := deps.Untrack(id)
 	if err != nil {
+		log.Error("untrack: failed to untrack by ID: %v", err)
 		return err
 	}
 
 	if !removed {
+		log.Debug("untrack: repo was not tracked (id=%s)", id)
 		deps.Printf("repository not tracked: %s\n", id)
 		return nil
 	}
 
+	log.Info("untrack: stopped tracking %s", id)
 	deps.Printf("untracked %s\n", id)
 	return nil
 }

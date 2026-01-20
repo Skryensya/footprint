@@ -8,6 +8,7 @@ import (
 
 	"github.com/Skryensya/footprint/internal/dispatchers"
 	"github.com/Skryensya/footprint/internal/git"
+	"github.com/Skryensya/footprint/internal/log"
 	"github.com/Skryensya/footprint/internal/store"
 	"github.com/Skryensya/footprint/internal/usage"
 )
@@ -68,6 +69,8 @@ func launchBackfillAndWatch(args []string, flags *dispatchers.ParsedFlags, deps 
 
 // doBackfillWork performs the actual backfill (runs in background).
 func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
+	log.Debug("backfill: starting background work")
+
 	if !deps.GitIsAvailable() {
 		return usage.GitNotInstalled()
 	}
@@ -90,6 +93,8 @@ func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 		return usage.InvalidRepo()
 	}
 
+	log.Debug("backfill: repo=%s, path=%s", repoID, repoRoot)
+
 	// Parse filter options
 	opts := git.ListCommitsOptions{
 		Since: flags.String("--since", ""),
@@ -100,16 +105,21 @@ func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 	// Get commits from git log
 	commits, err := git.ListCommits(repoRoot, opts)
 	if err != nil {
+		log.Error("backfill: failed to list commits: %v", err)
 		return fmt.Errorf("could not list commits: %w", err)
 	}
 
 	if len(commits) == 0 {
+		log.Debug("backfill: no commits found")
 		return nil
 	}
+
+	log.Debug("backfill: found %d commits to import", len(commits))
 
 	// Open database
 	db, err := deps.OpenDB(deps.DBPath())
 	if err != nil {
+		log.Error("backfill: failed to open database: %v", err)
 		return fmt.Errorf("could not open database: %w", err)
 	}
 	defer db.Close()
@@ -120,6 +130,7 @@ func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 	branchOverride := flags.String("--branch", "")
 
 	// Insert each commit as an event
+	imported := 0
 	for _, c := range commits {
 		// Determine branch
 		branch := branchOverride
@@ -148,9 +159,12 @@ func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 		}
 
 		// Insert (UPSERT handles duplicates)
-		_ = deps.InsertEvent(db, event)
+		if err := deps.InsertEvent(db, event); err == nil {
+			imported++
+		}
 	}
 
+	log.Info("backfill: imported %d commits for %s", imported, repoID)
 	return nil
 }
 

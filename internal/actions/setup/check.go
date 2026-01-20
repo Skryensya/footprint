@@ -10,12 +10,7 @@ func Check(args []string, flags *dispatchers.ParsedFlags) error {
 }
 
 func check(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
-	global := flags.Has("--global")
 	repo := flags.Has("--repo")
-
-	if global && repo {
-		return usage.InvalidFlag("cannot use both --repo and --global")
-	}
 
 	var (
 		hooksPath string
@@ -23,21 +18,23 @@ func check(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		err       error
 	)
 
-	// Default to repo behavior unless --global is explicitly passed
-	if global {
-		hooksPath, err = deps.GlobalHooksPath()
-		scope = "global"
-	} else {
+	// Default to global behavior unless --repo is explicitly passed
+	if repo {
 		root, err := deps.RepoRoot(".")
 		if err != nil {
-			return nil
+			return usage.NotInGitRepo()
 		}
 		hooksPath, err = deps.RepoHooksPath(root)
+		if err != nil {
+			return err
+		}
 		scope = "repository"
-	}
-
-	if err != nil {
-		return err
+	} else {
+		hooksPath, err = deps.GlobalHooksPath()
+		if err != nil {
+			return err
+		}
+		scope = "global"
 	}
 
 	deps.Printf("hooks scope: %s\n\n", scope)

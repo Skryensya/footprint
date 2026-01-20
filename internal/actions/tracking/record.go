@@ -16,6 +16,8 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	// Show note when running manually (no FP_SOURCE env var)
 	isFromHook := deps.Getenv("FP_SOURCE") != ""
+	log.Debug("record: starting (source=%s, fromHook=%v)", deps.Getenv("FP_SOURCE"), isFromHook)
+
 	if !isFromHook && !manual {
 		deps.Println("Note: fp record is usually executed automatically by git hooks.")
 	}
@@ -70,6 +72,7 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 
 	branch, _ := deps.CurrentBranch()
+	log.Debug("record: repo=%s, commit=%.7s, branch=%s, path=%s", repoID, commit, branch, repoRoot)
 
 	db, err := deps.OpenDB(deps.DBPath())
 	if err != nil {
@@ -106,6 +109,8 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if err != nil {
 		// Critical error: failed to record event
 		log.Error("fp record: failed to insert event: %v (repo=%s, commit=%.7s, source=%s)", err, repoID, commit, source.String())
+	} else {
+		log.Info("record: event saved (repo=%s, commit=%.7s, source=%s)", repoID, commit, source.String())
 	}
 
 	if showErrors {

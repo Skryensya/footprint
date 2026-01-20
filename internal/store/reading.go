@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Skryensya/footprint/internal/log"
 )
 
 type EventFilter struct {
@@ -75,6 +77,7 @@ func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
+		log.Error("store: list events query failed: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -99,6 +102,7 @@ func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 			&statusID,
 			&sourceID,
 		); err != nil {
+			log.Error("store: scan event row failed: %v", err)
 			return nil, err
 		}
 
@@ -220,6 +224,9 @@ func UpdateEventStatuses(db *sql.DB, ids []int64, status Status) error {
 	)
 
 	_, err := db.Exec(query, args...)
+	if err != nil {
+		log.Error("store: update event statuses failed: %v (count=%d)", err, len(ids))
+	}
 	return err
 }
 

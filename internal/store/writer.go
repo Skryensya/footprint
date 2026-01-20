@@ -3,6 +3,8 @@ package store
 import (
 	"database/sql"
 	"time"
+
+	"github.com/Skryensya/footprint/internal/log"
 )
 
 func InsertEvent(db *sql.DB, e RepoEvent) error {
@@ -20,5 +22,8 @@ func InsertEvent(db *sql.DB, e RepoEvent) error {
 		int(e.Status),
 		int(e.Source),
 	)
+	if err != nil {
+		log.Error("store: insert event failed: %v (repo=%s, commit=%.7s)", err, e.RepoID, e.Commit)
+	}
 	return err
 }

@@ -3,11 +3,16 @@ package hooks
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/Skryensya/footprint/internal/log"
 )
 
 func Install(hooksPath string) error {
+	log.Debug("hooks: installing to %s", hooksPath)
+
 	fpPath, err := os.Executable()
 	if err != nil {
+		log.Error("hooks: failed to get executable path: %v", err)
 		return err
 	}
 
@@ -15,7 +20,9 @@ func Install(hooksPath string) error {
 		target := filepath.Join(hooksPath, hook)
 
 		if Exists(target) {
+			log.Debug("hooks: backing up existing %s", hook)
 			if err := BackupHook(hooksPath, hook); err != nil {
+				log.Error("hooks: failed to backup %s: %v", hook, err)
 				return err
 			}
 		}
@@ -23,9 +30,12 @@ func Install(hooksPath string) error {
 		script := Script(fpPath, hook)
 
 		if err := os.WriteFile(target, []byte(script), 0755); err != nil {
+			log.Error("hooks: failed to write %s: %v", hook, err)
 			return err
 		}
+		log.Debug("hooks: installed %s", hook)
 	}
 
+	log.Info("hooks: installed %d hooks to %s", len(ManagedHooks), hooksPath)
 	return nil
 }

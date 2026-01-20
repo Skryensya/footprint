@@ -3,6 +3,8 @@ package hooks
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/Skryensya/footprint/internal/log"
 )
 
 func BackupDir(hooksPath string) string {
@@ -15,9 +17,16 @@ func BackupHook(hooksPath, name string) error {
 
 	// Create backup directory with restrictive permissions
 	if err := os.MkdirAll(dstDir, 0700); err != nil {
+		log.Error("hooks: failed to create backup dir %s: %v", dstDir, err)
 		return err
 	}
 
 	dst := filepath.Join(dstDir, name)
-	return os.Rename(src, dst)
+	if err := os.Rename(src, dst); err != nil {
+		log.Error("hooks: failed to backup %s to %s: %v", src, dst, err)
+		return err
+	}
+
+	log.Debug("hooks: backed up %s to %s", name, dst)
+	return nil
 }

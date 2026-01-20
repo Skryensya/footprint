@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/Skryensya/footprint/internal/log"
 	"github.com/Skryensya/footprint/internal/usage"
 )
 
@@ -10,6 +11,8 @@ func Track(args []string, flags *dispatchers.ParsedFlags) error {
 }
 
 func track(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
+	log.Debug("track: starting")
+
 	if !deps.GitIsAvailable() {
 		return usage.GitNotInstalled()
 	}
@@ -27,6 +30,7 @@ func track(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	// Determine the remote URL to use
 	remoteURL, err := resolveRemoteURL(repoRoot, flags, deps)
 	if err != nil {
+		log.Debug("track: failed to resolve remote URL: %v", err)
 		return err
 	}
 
@@ -35,16 +39,21 @@ func track(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		return usage.InvalidRepo()
 	}
 
+	log.Debug("track: repo=%s, path=%s", id, repoRoot)
+
 	added, err := deps.Track(id)
 	if err != nil {
+		log.Error("track: failed to track repo: %v", err)
 		return err
 	}
 
 	if !added {
+		log.Debug("track: repo already tracked")
 		deps.Printf("already tracking %s\n", id)
 		return nil
 	}
 
+	log.Info("track: now tracking %s", id)
 	deps.Printf("tracking %s\n", id)
 	return nil
 }

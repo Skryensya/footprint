@@ -30,6 +30,7 @@ var (
 	color4Style  lipgloss.Style
 	color5Style  lipgloss.Style
 	color6Style  lipgloss.Style
+	color7Style  lipgloss.Style
 )
 
 // Init initializes the style package with the given enabled state and config.
@@ -75,6 +76,7 @@ func initStyles(colors ColorConfig) {
 	color4Style = makeStyle(colors.Color4)
 	color5Style = makeStyle(colors.Color5)
 	color6Style = makeStyle(colors.Color6)
+	color7Style = makeStyle(colors.Color7)
 }
 
 // makeStyle creates a lipgloss style from a color value.
@@ -139,7 +141,7 @@ func Muted(text string) string {
 	return mutedStyle.Render(text)
 }
 
-// Color1 through Color6 are neutral colors for visual distinction only.
+// Color1 through Color7 are neutral colors for visual distinction only.
 // They have no semantic meaning.
 
 func Color1(text string) string {
@@ -182,4 +184,11 @@ func Color6(text string) string {
 		return text
 	}
 	return color6Style.Render(text)
+}
+
+func Color7(text string) string {
+	if !enabled {
+		return text
+	}
+	return color7Style.Render(text)
 }

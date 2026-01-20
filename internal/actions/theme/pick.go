@@ -24,7 +24,7 @@ func Pick(args []string, flags *dispatchers.ParsedFlags) error {
 func pick(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 	current, _ := deps.Get("color_theme")
 	if current == "" {
-		current = "default-dark"
+		current = style.ResolveThemeName("default")
 	}
 
 	currentIdx := 0
@@ -106,11 +106,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
+			} else {
+				m.cursor = len(m.themes) - 1 // wrap to end
 			}
 
 		case "down", "j":
 			if m.cursor < len(m.themes)-1 {
 				m.cursor++
+			} else {
+				m.cursor = 0 // wrap to start
 			}
 
 		case "enter", " ":
@@ -135,9 +139,9 @@ func (m model) View() string {
 		cfg := m.configs[name]
 
 		// Cursor
-		cursor := "  "
+		cursor := "   "
 		if i == m.cursor {
-			cursor = "> "
+			cursor = " ▸ "
 		}
 
 		// Current marker
@@ -173,7 +177,7 @@ func (m model) View() string {
 	b.WriteString(
 		lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241")).
-			Render("↑/↓ navigate  enter select  q quit"),
+			Render("▲ ▼ move   enter select   q cancel"),
 	)
 
 	return b.String()
@@ -274,11 +278,11 @@ func renderThemeDetails(name string, cfg style.ColorConfig) string {
 	b.WriteString("\n")
 
 	b.WriteString(srcIndent)
-	b.WriteString(source("MANUAL", cfg.Color6))
+	b.WriteString(source("BACKFILL", cfg.Color6))
 	b.WriteString("\n")
 
 	b.WriteString(srcIndent)
-	b.WriteString(source("BACKFILL", cfg.Color6))
+	b.WriteString(source("MANUAL", cfg.Color7))
 
 	return b.String()
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/Skryensya/footprint/internal/log"
 	"github.com/Skryensya/footprint/internal/paths"
 	repodomain "github.com/Skryensya/footprint/internal/repo"
 	"github.com/Skryensya/footprint/internal/store"
@@ -16,6 +17,8 @@ func Adopt(args []string, flags *dispatchers.ParsedFlags) error {
 }
 
 func adopt(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
+	log.Debug("adopt: starting")
+
 	if !deps.GitIsAvailable() {
 		return usage.GitNotInstalled()
 	}
@@ -45,24 +48,30 @@ func adopt(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 		return usage.InvalidRepo()
 	}
 
+	log.Debug("adopt: localID=%s, remoteID=%s", localID, remoteID)
+
 	isLocalTracked, err := deps.IsTracked(localID)
 	if err != nil {
 		return err
 	}
 
 	if !isLocalTracked {
+		log.Debug("adopt: local ID is not tracked")
 		return usage.InvalidRepo()
 	}
 
 	// Update tracking
 	if _, err := deps.Untrack(localID); err != nil {
+		log.Error("adopt: failed to untrack local ID: %v", err)
 		return err
 	}
 
 	if _, err := deps.Track(remoteID); err != nil {
+		log.Error("adopt: failed to track remote ID: %v", err)
 		return err
 	}
 
+	log.Info("adopt: changed identity from %s to %s", localID, remoteID)
 	deps.Printf("adopted identity:\n  %s\n→ %s\n", localID, remoteID)
 
 	// Migrate pending events in database
@@ -73,12 +82,14 @@ func adopt(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 
 		migrated, err := store.MigratePendingRepoID(db, string(localID), string(remoteID))
 		if err == nil && migrated > 0 {
+			log.Debug("adopt: migrated %d pending events", migrated)
 			deps.Printf("migrated %d pending events\n", migrated)
 		}
 	}
 
 	// Rename export directory if it exists
 	if renamed := renameExportDir(localID, remoteID); renamed {
+		log.Debug("adopt: renamed export directory")
 		deps.Println("renamed export directory")
 	}
 

@@ -14,27 +14,28 @@ func Setup(args []string, flags *dispatchers.ParsedFlags) error {
 
 func setup(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	force := flags.Has("--force")
-	global := flags.Has("--global")
 	repo := flags.Has("--repo")
-
-	if global && repo {
-		return usage.InvalidFlag("cannot use both --repo and --global")
-	}
 
 	var (
 		hooksPath string
 		err       error
 	)
 
-	// Default to repo behavior unless --global is explicitly passed
-	if global {
-		hooksPath, err = deps.GlobalHooksPath()
-	} else {
+	// Default to global behavior unless --repo is explicitly passed
+	if repo {
 		root, err := deps.RepoRoot(".")
 		if err != nil {
 			return usage.NotInGitRepo()
 		}
 		hooksPath, err = deps.RepoHooksPath(root)
+		if err != nil {
+			return err
+		}
+	} else {
+		hooksPath, err = deps.GlobalHooksPath()
+		if err != nil {
+			return err
+		}
 	}
 
 	if err != nil {
@@ -67,9 +68,9 @@ func setup(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 
 	// Output summary
-	location := "repository"
-	if global {
-		location = "global"
+	location := "global"
+	if repo {
+		location = "repository"
 	}
 
 	if backedUp > 0 {
@@ -79,10 +80,8 @@ func setup(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 	deps.Printf("  %s\n", strings.Join(hooks.ManagedHooks, ", "))
 
-	if !global {
-		deps.Println("")
-		deps.Println("Run 'fp track' to start recording activity")
-	}
+	deps.Println("")
+	deps.Println("Run 'fp track' in a repo to start recording activity")
 
 	return nil
 }

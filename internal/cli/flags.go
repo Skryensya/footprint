@@ -105,13 +105,8 @@ var (
 	SetupFlags = []dispatchers.FlagDescriptor{
 		{
 			Names:       []string{"--repo"},
-			Description: "Install hooks in the current repository (default)",
+			Description: "Install hooks in current repository only (instead of global)",
 			Scope:       dispatchers.FlagScopeLocal,
-		},
-		{
-			Names:       []string{"--global"},
-			Description: "Install hooks globally",
-			Scope:       dispatchers.FlagScopeGlobal,
 		},
 		{
 			Names:       []string{"--force"},
@@ -123,13 +118,8 @@ var (
 	TeardownFlags = []dispatchers.FlagDescriptor{
 		{
 			Names:       []string{"--repo"},
-			Description: "Remove hooks from the current repository (default)",
+			Description: "Remove hooks from current repository only (instead of global)",
 			Scope:       dispatchers.FlagScopeLocal,
-		},
-		{
-			Names:       []string{"--global"},
-			Description: "Remove global hooks",
-			Scope:       dispatchers.FlagScopeGlobal,
 		},
 		{
 			Names:       []string{"--force"},
@@ -141,13 +131,8 @@ var (
 	CheckFlags = []dispatchers.FlagDescriptor{
 		{
 			Names:       []string{"--repo"},
-			Description: "Check hooks in the current repository (default)",
+			Description: "Check hooks in current repository (instead of global)",
 			Scope:       dispatchers.FlagScopeLocal,
-		},
-		{
-			Names:       []string{"--global"},
-			Description: "Check global hooks installation",
-			Scope:       dispatchers.FlagScopeGlobal,
 		},
 	}
 

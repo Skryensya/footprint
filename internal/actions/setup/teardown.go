@@ -11,29 +11,26 @@ func Teardown(args []string, flags *dispatchers.ParsedFlags) error {
 
 func teardown(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	force := flags.Has("--force")
-	global := flags.Has("--global")
 	repo := flags.Has("--repo")
-
-	if global && repo {
-		return usage.InvalidFlag("cannot use both --repo and --global")
-	}
 
 	var hooksPath string
 	var err error
 
-	// Default to repo behavior unless --global is explicitly passed
-	if global {
-		hooksPath, err = deps.GlobalHooksPath()
-	} else {
+	// Default to global behavior unless --repo is explicitly passed
+	if repo {
 		root, err := deps.RepoRoot(".")
 		if err != nil {
 			return usage.NotInGitRepo()
 		}
 		hooksPath, err = deps.RepoHooksPath(root)
-	}
-
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+	} else {
+		hooksPath, err = deps.GlobalHooksPath()
+		if err != nil {
+			return err
+		}
 	}
 
 	if !force {

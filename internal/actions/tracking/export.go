@@ -17,6 +17,7 @@ import (
 	"github.com/Skryensya/footprint/internal/config"
 	"github.com/Skryensya/footprint/internal/dispatchers"
 	"github.com/Skryensya/footprint/internal/git"
+	"github.com/Skryensya/footprint/internal/log"
 	repodomain "github.com/Skryensya/footprint/internal/repo"
 	"github.com/Skryensya/footprint/internal/store"
 )
@@ -175,18 +176,30 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 // MaybeExport checks if it's time to export and does so if needed.
 func MaybeExport(db *sql.DB, deps Deps) {
 	shouldExp, err := shouldExport(deps)
-	if err != nil || !shouldExp {
+	if err != nil {
+		log.Debug("export: shouldExport error: %v", err)
+		return
+	}
+	if !shouldExp {
+		log.Debug("export: interval not reached, skipping auto-export")
 		return
 	}
 
 	events, err := store.GetPendingEvents(db)
-	if err != nil || len(events) == 0 {
+	if err != nil {
+		log.Error("export: failed to get pending events: %v", err)
+		return
+	}
+	if len(events) == 0 {
+		log.Debug("export: no pending events")
 		return
 	}
 
+	log.Debug("export: auto-exporting %d pending events", len(events))
 	exportRepo := getExportRepo()
 
 	if err := ensureExportRepo(exportRepo); err != nil {
+		log.Error("export: failed to ensure export repo: %v", err)
 		return
 	}
 
@@ -198,6 +211,7 @@ func MaybeExport(db *sql.DB, deps Deps) {
 	for repoID, repoEvents := range eventsByRepo {
 		ids, files, err := exportRepoEvents(exportRepo, repoID, repoEvents, deps)
 		if err != nil {
+			log.Error("export: failed to export events for %s: %v", repoID, err)
 			continue
 		}
 		exportedIDs = append(exportedIDs, ids...)
@@ -205,23 +219,31 @@ func MaybeExport(db *sql.DB, deps Deps) {
 	}
 
 	if len(exportedFiles) == 0 {
+		log.Debug("export: no files were exported")
 		return
 	}
 
 	if err := commitExportChanges(exportRepo, exportedFiles); err != nil {
+		log.Error("export: failed to commit changes: %v", err)
 		return
 	}
 
 	// Auto-push if remote is configured
 	if hasRemote(exportRepo) {
-		_ = pushExportRepo(exportRepo)
+		if err := pushExportRepo(exportRepo); err != nil {
+			log.Warn("export: failed to push to remote: %v", err)
+		} else {
+			log.Debug("export: pushed to remote")
+		}
 	}
 
 	if err := store.UpdateEventStatuses(db, exportedIDs, store.StatusExported); err != nil {
+		log.Error("export: failed to update event statuses: %v", err)
 		return
 	}
 
 	_ = saveExportLast(deps.Now().Unix())
+	log.Info("export: auto-exported %d events to %d files", len(exportedIDs), len(exportedFiles))
 }
 
 // groupEventsByRepo groups events by their repo_id.
