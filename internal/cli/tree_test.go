@@ -1,0 +1,237 @@
+package cli
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestBuildTree_ReturnsRoot(t *testing.T) {
+	root := BuildTree()
+
+	require.NotNil(t, root)
+	require.Equal(t, "fp", root.Name)
+}
+
+func TestBuildTree_HasExpectedTopLevelCommands(t *testing.T) {
+	root := BuildTree()
+
+	expectedCommands := []string{
+		"version",
+		"config",
+		"theme",
+		"track",
+		"untrack",
+		"repos",
+		"list",
+		"status",
+		"sync-remote",
+		"record",
+		"activity",
+		"watch",
+		"export",
+		"backfill",
+		"setup",
+		"teardown",
+		"check",
+		"logs",
+		"help",
+	}
+
+	for _, cmd := range expectedCommands {
+		_, found := root.Children[cmd]
+		require.True(t, found, "expected top-level command '%s' not found", cmd)
+	}
+}
+
+func TestBuildTree_ConfigHasSubcommands(t *testing.T) {
+	root := BuildTree()
+
+	config, found := root.Children["config"]
+	require.True(t, found, "config group not found")
+
+	expectedSubcommands := []string{"get", "set", "unset", "list"}
+	for _, sub := range expectedSubcommands {
+		_, found := config.Children[sub]
+		require.True(t, found, "expected config subcommand '%s' not found", sub)
+	}
+}
+
+func TestBuildTree_ThemeHasSubcommands(t *testing.T) {
+	root := BuildTree()
+
+	theme, found := root.Children["theme"]
+	require.True(t, found, "theme group not found")
+
+	expectedSubcommands := []string{"list", "set", "pick"}
+	for _, sub := range expectedSubcommands {
+		_, found := theme.Children[sub]
+		require.True(t, found, "expected theme subcommand '%s' not found", sub)
+	}
+}
+
+func TestBuildTree_CommandsHaveActions(t *testing.T) {
+	root := BuildTree()
+
+	// Commands that should have actions
+	commandsWithActions := []string{
+		"version",
+		"track",
+		"untrack",
+		"repos",
+		"list",
+		"status",
+		"sync-remote",
+		"record",
+		"activity",
+		"watch",
+		"export",
+		"backfill",
+		"setup",
+		"teardown",
+		"check",
+		"logs",
+	}
+
+	for _, cmdName := range commandsWithActions {
+		cmd, found := root.Children[cmdName]
+		require.True(t, found, "command '%s' not found", cmdName)
+		require.NotNil(t, cmd.Action, "command '%s' should have an action", cmdName)
+	}
+}
+
+func TestBuildTree_RootHasFlags(t *testing.T) {
+	root := BuildTree()
+
+	require.NotEmpty(t, root.Flags, "root should have flags")
+
+	// Check for some expected global flags
+	flagNames := make(map[string]bool)
+	for _, flag := range root.Flags {
+		for _, name := range flag.Names {
+			flagNames[name] = true
+		}
+	}
+
+	require.True(t, flagNames["--help"], "root should have --help flag")
+	require.True(t, flagNames["--version"], "root should have --version flag")
+	require.True(t, flagNames["--no-color"], "root should have --no-color flag")
+}
+
+func TestBuildTree_CommandsHaveUsage(t *testing.T) {
+	root := BuildTree()
+
+	require.NotEmpty(t, root.Usage, "root should have usage")
+
+	// Check that children have usage
+	for name, child := range root.Children {
+		if name != "help" { // help is special
+			require.NotEmpty(t, child.Usage, "command '%s' should have usage", name)
+		}
+	}
+}
+
+func TestBuildTree_CommandsHaveSummary(t *testing.T) {
+	root := BuildTree()
+
+	require.NotEmpty(t, root.Summary, "root should have summary")
+
+	for name, child := range root.Children {
+		require.NotEmpty(t, child.Summary, "command '%s' should have summary", name)
+	}
+}
+
+func TestBuildTree_GroupsHaveNoAction(t *testing.T) {
+	root := BuildTree()
+
+	// Groups should not have actions, only children
+	groups := []string{"config", "theme"}
+
+	for _, groupName := range groups {
+		group, found := root.Children[groupName]
+		require.True(t, found, "group '%s' not found", groupName)
+		require.Nil(t, group.Action, "group '%s' should not have an action", groupName)
+		require.NotEmpty(t, group.Children, "group '%s' should have children", groupName)
+	}
+}
+
+func TestBuildTree_SubcommandsHaveActions(t *testing.T) {
+	root := BuildTree()
+
+	// Check config subcommands
+	config := root.Children["config"]
+	for name, child := range config.Children {
+		require.NotNil(t, child.Action, "config subcommand '%s' should have an action", name)
+	}
+
+	// Check theme subcommands
+	theme := root.Children["theme"]
+	for name, child := range theme.Children {
+		require.NotNil(t, child.Action, "theme subcommand '%s' should have an action", name)
+	}
+}
+
+func TestBuildTree_HelpHasNoAction(t *testing.T) {
+	root := BuildTree()
+
+	help, found := root.Children["help"]
+	require.True(t, found, "help command not found")
+	require.Nil(t, help.Action, "help should not have an action (handled specially)")
+}
+
+func TestBuildTree_TrackHasFlags(t *testing.T) {
+	root := BuildTree()
+
+	track := root.Children["track"]
+	require.NotEmpty(t, track.Flags, "track should have flags")
+
+	// Check for --remote flag
+	hasRemote := false
+	for _, flag := range track.Flags {
+		for _, name := range flag.Names {
+			if name == "--remote" {
+				hasRemote = true
+				break
+			}
+		}
+	}
+	require.True(t, hasRemote, "track should have --remote flag")
+}
+
+func TestBuildTree_SetupHasFlags(t *testing.T) {
+	root := BuildTree()
+
+	setup := root.Children["setup"]
+	require.NotEmpty(t, setup.Flags, "setup should have flags")
+
+	// Check for --repo and --force flags
+	flagNames := make(map[string]bool)
+	for _, flag := range setup.Flags {
+		for _, name := range flag.Names {
+			flagNames[name] = true
+		}
+	}
+
+	require.True(t, flagNames["--repo"], "setup should have --repo flag")
+	require.True(t, flagNames["--force"], "setup should have --force flag")
+}
+
+func TestBuildTree_ActivityHasFlags(t *testing.T) {
+	root := BuildTree()
+
+	activity := root.Children["activity"]
+	require.NotEmpty(t, activity.Flags, "activity should have flags")
+
+	// Check for expected flags
+	flagNames := make(map[string]bool)
+	for _, flag := range activity.Flags {
+		for _, name := range flag.Names {
+			flagNames[name] = true
+		}
+	}
+
+	require.True(t, flagNames["--oneline"], "activity should have --oneline flag")
+	require.True(t, flagNames["--since"], "activity should have --since flag")
+	require.True(t, flagNames["--until"], "activity should have --until flag")
+	require.True(t, flagNames["--limit"], "activity should have --limit flag")
+}

@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/Skryensya/footprint/internal/actions"
 	configactions "github.com/Skryensya/footprint/internal/actions/config"
+	helpactions "github.com/Skryensya/footprint/internal/actions/help"
 	logsactions "github.com/Skryensya/footprint/internal/actions/logs"
 	setupactions "github.com/Skryensya/footprint/internal/actions/setup"
 	themeactions "github.com/Skryensya/footprint/internal/actions/theme"
@@ -142,7 +143,7 @@ Use 'fp theme set <name>' to change the theme.`,
 The current theme is marked with an asterisk (*).`,
 		Usage:    "fp theme list",
 		Action:   themeactions.List,
-		Category: dispatchers.CategoryConfig,
+		Category: dispatchers.CategoryTheme,
 	})
 
 	dispatchers.Command(dispatchers.CommandSpec{
@@ -157,23 +158,7 @@ commands. Choose a -dark theme for dark terminal backgrounds or a
 		Usage:    "fp theme set <name>",
 		Args:     ThemeNameArg,
 		Action:   themeactions.Set,
-		Category: dispatchers.CategoryConfig,
-	})
-
-	dispatchers.Command(dispatchers.CommandSpec{
-		Name:    "show",
-		Parent:  theme,
-		Summary: "Show current theme color values",
-		Description: `Displays the color values for the current theme.
-
-Shows each semantic color (success, warning, error, info, muted, header)
-and source colors (1-6) with their corresponding ANSI color codes.
-
-This is useful to see exactly what colors are being used and to
-customize individual colors with 'fp config set color_<name> <value>'.`,
-		Usage:    "fp theme show",
-		Action:   themeactions.Show,
-		Category: dispatchers.CategoryConfig,
+		Category: dispatchers.CategoryTheme,
 	})
 
 	dispatchers.Command(dispatchers.CommandSpec{
@@ -189,7 +174,7 @@ Press q or esc to cancel without making changes.
 The picker shows a live preview of each theme's colors as you navigate.`,
 		Usage:    "fp theme pick",
 		Action:   themeactions.Pick,
-		Category: dispatchers.CategoryConfig,
+		Category: dispatchers.CategoryTheme,
 	})
 
 	// -- tracking
@@ -482,7 +467,7 @@ Log settings can be configured with:
 		Usage:    "fp logs [-n <lines>] [--tail] [--clear]",
 		Flags:    LogsFlags,
 		Action:   logsAction,
-		Category: dispatchers.CategoryConfig,
+		Category: dispatchers.CategoryInspectActivity,
 	})
 
 	// -- help
@@ -497,6 +482,24 @@ Log settings can be configured with:
 		nil,
 		nil,
 	)
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "help-browser",
+		Parent:  root,
+		Summary: "Browse all commands and topics interactively",
+		Description: `Opens an interactive TUI to browse all available commands and help topics.
+
+Use arrow keys or j/k to navigate through the sidebar. The content panel
+shows detailed help for the selected command or topic.
+
+Use PgUp/PgDn or u/d to scroll long content. Press g to jump to the top
+or G to jump to the bottom of the list.
+
+Press q or Esc to exit the browser.`,
+		Usage:    "fp help-browser",
+		Action:   helpactions.Browser,
+		Category: dispatchers.CategoryInspectActivity,
+	})
 
 	return root
 }
