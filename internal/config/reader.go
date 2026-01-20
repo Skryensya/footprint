@@ -14,11 +14,14 @@ func ReadLines() ([]string, error) {
 		return nil, err
 	}
 
-	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_RDONLY, 0644)
+	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_RDONLY, 0600)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
+
+	// Ensure correct permissions if file already existed
+	_ = os.Chmod(configPath, 0600)
 
 	var lines []string
 	scanner := bufio.NewScanner(file)

@@ -3,7 +3,9 @@ package cli
 import (
 	"github.com/Skryensya/footprint/internal/actions"
 	configactions "github.com/Skryensya/footprint/internal/actions/config"
+	logsactions "github.com/Skryensya/footprint/internal/actions/logs"
 	setupactions "github.com/Skryensya/footprint/internal/actions/setup"
+	themeactions "github.com/Skryensya/footprint/internal/actions/theme"
 	trackingactions "github.com/Skryensya/footprint/internal/actions/tracking"
 	"github.com/Skryensya/footprint/internal/dispatchers"
 )
@@ -100,6 +102,86 @@ This shows the current state of ~/.fprc. If no configuration has been
 set, the output will be empty.`,
 		Usage:    "fp config list",
 		Action:   configactions.List,
+		Category: dispatchers.CategoryConfig,
+	})
+
+	// -- theme
+
+	theme := dispatchers.Group(dispatchers.GroupSpec{
+		Name:    "theme",
+		Parent:  root,
+		Summary: "Manage color themes",
+		Description: `View and change color themes.
+
+fp includes several built-in themes optimized for different terminal
+backgrounds. Each theme has a dark and light variant.
+
+Available themes:
+  default-dark, default-light   Classic terminal colors
+  ocean-dark, ocean-light       Blue/teal palette
+  forest-dark, forest-light     Green/earth palette
+
+Use 'fp theme' to see all themes and the current selection.
+Use 'fp theme set <name>' to change the theme.`,
+		Usage: "fp theme [command]",
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "list",
+		Parent:  theme,
+		Summary: "List available themes",
+		Description: `Shows all available color themes.
+
+The current theme is marked with an asterisk (*).`,
+		Usage:    "fp theme list",
+		Action:   themeactions.List,
+		Category: dispatchers.CategoryConfig,
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "set",
+		Parent:  theme,
+		Summary: "Set the color theme",
+		Description: `Changes the current color theme.
+
+The theme is saved to ~/.fprc and takes effect immediately for new
+commands. Choose a -dark theme for dark terminal backgrounds or a
+-light theme for light terminal backgrounds.`,
+		Usage:    "fp theme set <name>",
+		Args:     ThemeNameArg,
+		Action:   themeactions.Set,
+		Category: dispatchers.CategoryConfig,
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "show",
+		Parent:  theme,
+		Summary: "Show current theme color values",
+		Description: `Displays the color values for the current theme.
+
+Shows each semantic color (success, warning, error, info, muted, header)
+and source colors (1-6) with their corresponding ANSI color codes.
+
+This is useful to see exactly what colors are being used and to
+customize individual colors with 'fp config set color_<name> <value>'.`,
+		Usage:    "fp theme show",
+		Action:   themeactions.Show,
+		Category: dispatchers.CategoryConfig,
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "pick",
+		Parent:  theme,
+		Summary: "Interactively select a theme",
+		Description: `Opens an interactive picker to browse and select themes.
+
+Use arrow keys or j/k to navigate through available themes.
+Press enter or space to select and apply the highlighted theme.
+Press q or esc to cancel without making changes.
+
+The picker shows a live preview of each theme's colors as you navigate.`,
+		Usage:    "fp theme pick",
+		Action:   themeactions.Pick,
 		Category: dispatchers.CategoryConfig,
 	})
 
@@ -373,6 +455,28 @@ current repository.`,
 		Category: dispatchers.CategoryInspectActivity,
 	})
 
+	// -- logs
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "logs",
+		Parent:  root,
+		Summary: "View application logs",
+		Description: `Shows the fp application log file.
+
+By default, shows the last 50 lines. Use -n to change the number of lines.
+
+Use --tail or -f to follow logs in real time (like tail -f).
+Use --clear to empty the log file.
+
+Log settings can be configured with:
+  fp config set log_enabled false    Disable logging
+  fp config set log_level debug      Set log level (debug, info, warn, error)`,
+		Usage:    "fp logs [-n <lines>] [--tail] [--clear]",
+		Flags:    LogsFlags,
+		Action:   logsAction,
+		Category: dispatchers.CategoryConfig,
+	})
+
 	// -- help
 
 	dispatchers.NewNode(
@@ -387,4 +491,15 @@ current repository.`,
 	)
 
 	return root
+}
+
+// logsAction handles the logs command with its various flags
+func logsAction(args []string, flags *dispatchers.ParsedFlags) error {
+	if flags.Has("--clear") {
+		return logsactions.Clear(args, flags)
+	}
+	if flags.Has("--tail") || flags.Has("-f") {
+		return logsactions.Tail(args, flags)
+	}
+	return logsactions.View(args, flags)
 }

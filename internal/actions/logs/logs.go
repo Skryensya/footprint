@@ -1,0 +1,144 @@
+package logs
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/Skryensya/footprint/internal/ui/style"
+)
+
+// View shows the last N lines of the log file
+func View(args []string, flags *dispatchers.ParsedFlags) error {
+	return view(args, flags, DefaultDeps())
+}
+
+func view(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
+	logPath := deps.LogFilePath()
+
+	// Check if log file exists
+	info, err := deps.Stat(logPath)
+	if os.IsNotExist(err) {
+		deps.Println(style.Muted("No log file found at " + logPath))
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("stat log file: %w", err)
+	}
+
+	if info.Size() == 0 {
+		deps.Println(style.Muted("Log file is empty"))
+		return nil
+	}
+
+	// Read the entire file
+	content, err := deps.ReadFile(logPath)
+	if err != nil {
+		return fmt.Errorf("read log file: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+
+	// Remove empty trailing line if present
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	// Get limit from flags (default 50)
+	limit := flags.Int("--limit", 50)
+	if limit <= 0 {
+		limit = 50
+	}
+
+	// Take last N lines
+	start := 0
+	if len(lines) > limit {
+		start = len(lines) - limit
+	}
+
+	for _, line := range lines[start:] {
+		deps.Println(colorizeLogLine(line))
+	}
+
+	return nil
+}
+
+// Tail follows the log file in real time
+func Tail(args []string, flags *dispatchers.ParsedFlags) error {
+	return tail(args, flags, DefaultDeps())
+}
+
+func tail(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
+	logPath := deps.LogFilePath()
+
+	file, err := deps.OpenFile(logPath, os.O_RDONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return fmt.Errorf("open log file: %w", err)
+	}
+	defer file.Close()
+
+	// Seek to end of file
+	_, err = file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("seek log file: %w", err)
+	}
+
+	deps.Println(style.Muted("Following logs at " + logPath + " (Ctrl+C to stop)"))
+	deps.Println("")
+
+	reader := bufio.NewReader(file)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				return fmt.Errorf("read log file: %w", err)
+			}
+			// EOF - wait and try again
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+
+		// Print the line (without extra newline since ReadString includes it)
+		fmt.Print(colorizeLogLine(strings.TrimSuffix(line, "\n")) + "\n")
+	}
+}
+
+// Clear empties the log file
+func Clear(args []string, flags *dispatchers.ParsedFlags) error {
+	return clear(args, flags, DefaultDeps())
+}
+
+func clear(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
+	logPath := deps.LogFilePath()
+
+	// Truncate the file (or create empty if it doesn't exist)
+	err := deps.WriteFile(logPath, []byte{}, 0600)
+	if err != nil {
+		return fmt.Errorf("clear log file: %w", err)
+	}
+
+	deps.Println(style.Success("Log file cleared"))
+	return nil
+}
+
+// colorizeLogLine adds color to log lines based on level
+func colorizeLogLine(line string) string {
+	if strings.Contains(line, "] ERROR:") {
+		return style.Error(line)
+	}
+	if strings.Contains(line, "] WARN:") {
+		return style.Warning(line)
+	}
+	if strings.Contains(line, "] INFO:") {
+		return style.Info(line)
+	}
+	if strings.Contains(line, "] DEBUG:") {
+		return style.Muted(line)
+	}
+	return line
+}

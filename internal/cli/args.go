@@ -31,4 +31,12 @@ var (
 			Required:    false,
 		},
 	}
+
+	ThemeNameArg = []dispatchers.ArgSpec{
+		{
+			Name:        "name",
+			Description: "Theme name (e.g., default-dark, ocean-light)",
+			Required:    true,
+		},
+	}
 )

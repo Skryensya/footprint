@@ -32,13 +32,16 @@ var (
 	color6Style  lipgloss.Style
 )
 
-// Init initializes the style package with the given enabled state.
+// Init initializes the style package with the given enabled state and config.
 // It also respects NO_COLOR and FP_NO_COLOR environment variables;
 // if either is set (to any non-empty value), styling is disabled
 // regardless of the enabled parameter.
 //
+// The cfg parameter is used to load color theme and individual color overrides.
+// If cfg is nil, default colors are used.
+//
 // This function should be called once from main before any output.
-func Init(enable bool) {
+func Init(enable bool, cfg map[string]string) {
 	// Respect standard NO_COLOR convention and FP-specific override
 	if os.Getenv("NO_COLOR") != "" || os.Getenv("FP_NO_COLOR") != "" {
 		enabled = false
@@ -48,43 +51,39 @@ func Init(enable bool) {
 	enabled = enable
 
 	if enabled {
-		initStyles()
+		colors := LoadColorConfig(cfg)
+		initStyles(colors)
 	}
 }
 
-// initStyles creates the lipgloss styles.
-// Colors are intentionally subtle and readable.
-// Uses ANSI 16-color palette for broad terminal compatibility.
-func initStyles() {
-	// Force lipgloss to use ANSI colors regardless of TTY detection.
-	// This is safe because the caller (main) has already decided colors are appropriate.
-	lipgloss.SetColorProfile(termenv.ANSI)
+// initStyles creates the lipgloss styles from the given color configuration.
+// Uses ANSI 256-color palette to support both basic and extended colors.
+func initStyles(colors ColorConfig) {
+	// Force lipgloss to use ANSI256 colors regardless of TTY detection.
+	// This supports both basic ANSI colors (0-15) and extended 256 colors.
+	lipgloss.SetColorProfile(termenv.ANSI256)
 
-	// Green for success - not too bright
-	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	successStyle = makeStyle(colors.Success)
+	warningStyle = makeStyle(colors.Warning)
+	errorStyle = makeStyle(colors.Error)
+	infoStyle = makeStyle(colors.Info)
+	mutedStyle = makeStyle(colors.Muted)
+	headerStyle = makeStyle(colors.Header)
+	color1Style = makeStyle(colors.Color1)
+	color2Style = makeStyle(colors.Color2)
+	color3Style = makeStyle(colors.Color3)
+	color4Style = makeStyle(colors.Color4)
+	color5Style = makeStyle(colors.Color5)
+	color6Style = makeStyle(colors.Color6)
+}
 
-	// Yellow for warnings
-	warningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-
-	// Red for errors
-	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-
-	// Cyan for informational messages
-	infoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-
-	// Bold for headers - emphasis without color
-	headerStyle = lipgloss.NewStyle().Bold(true)
-
-	// Dim/gray for muted text
-	mutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-
-	// Color styles for visual distinction
-	color1Style = lipgloss.NewStyle().Foreground(lipgloss.Color("6")) // cyan
-	color2Style = lipgloss.NewStyle().Foreground(lipgloss.Color("5")) // magenta
-	color3Style = lipgloss.NewStyle().Foreground(lipgloss.Color("4")) // blue
-	color4Style = lipgloss.NewStyle().Foreground(lipgloss.Color("3")) // yellow
-	color5Style = lipgloss.NewStyle().Foreground(lipgloss.Color("2")) // green
-	color6Style = lipgloss.NewStyle().Foreground(lipgloss.Color("1")) // red
+// makeStyle creates a lipgloss style from a color value.
+// The value can be "bold" for bold styling, or an ANSI color number (0-255).
+func makeStyle(value string) lipgloss.Style {
+	if value == "bold" {
+		return lipgloss.NewStyle().Bold(true)
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(value))
 }
 
 // Enabled returns whether styling is currently enabled.

@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -33,6 +34,14 @@ func Open(path string) (*sql.DB, error) {
 			return
 		}
 
+		// Set restrictive permissions on database file (ignore errors for :memory: DBs)
+		if path != ":memory:" {
+			_ = os.Chmod(path, 0600)
+			// Also secure the WAL and SHM files if they exist
+			_ = os.Chmod(path+"-wal", 0600)
+			_ = os.Chmod(path+"-shm", 0600)
+		}
+
 		// Run migrations
 		if err = migrations.Run(db); err != nil {
 			openError = fmt.Errorf("run migrations: %w", err)
@@ -53,6 +62,13 @@ func OpenFresh(path string) (*sql.DB, error) {
 
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping database: %w", err)
+	}
+
+	// Set restrictive permissions on database file (ignore errors for :memory: DBs)
+	if path != ":memory:" {
+		_ = os.Chmod(path, 0600)
+		_ = os.Chmod(path+"-wal", 0600)
+		_ = os.Chmod(path+"-shm", 0600)
 	}
 
 	if err = migrations.Run(db); err != nil {

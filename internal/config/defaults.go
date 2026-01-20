@@ -9,6 +9,9 @@ var Defaults = map[string]func() string{
 	"export_interval": func() string { return "3600" },
 	"export_repo":     func() string { return paths.ExportRepoDir() },
 	"export_last":     func() string { return "0" },
+	"color_theme":     func() string { return "default-dark" },
+	"log_enabled":     func() string { return "true" },
+	"log_level":       func() string { return "debug" }, // debug, info, warn, error
 }
 
 // Get returns the value for a config key.

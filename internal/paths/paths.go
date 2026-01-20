@@ -23,7 +23,8 @@ func AppDataDir() string {
 
 	path := filepath.Join(dir, app.Name)
 
-	_ = os.MkdirAll(path, 0755)
+	// Use restrictive permissions for application data
+	_ = os.MkdirAll(path, 0700)
 
 	return path
 }
@@ -87,4 +88,13 @@ func ConfigFilePath() (string, error) {
 	}
 
 	return filepath.Join(home, ".fprc"), nil
+}
+
+// LogFilePath returns the path to the application log file.
+// Logs are stored in the application data directory:
+//   - macOS: ~/Library/Application Support/footprint/fp.log
+//   - Linux: $XDG_CONFIG_HOME/footprint/fp.log or ~/.config/footprint/fp.log
+//   - Windows: %AppData%\footprint\fp.log
+func LogFilePath() string {
+	return filepath.Join(AppDataDir(), "fp.log")
 }

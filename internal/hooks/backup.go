@@ -13,7 +13,8 @@ func BackupHook(hooksPath, name string) error {
 	src := filepath.Join(hooksPath, name)
 	dstDir := BackupDir(hooksPath)
 
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	// Create backup directory with restrictive permissions
+	if err := os.MkdirAll(dstDir, 0700); err != nil {
 		return err
 	}
 

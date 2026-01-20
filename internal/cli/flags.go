@@ -82,7 +82,7 @@ var (
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 		{
-			Names:       []string{"--limit"},
+			Names:       []string{"--limit", "-n"},
 			ValueHint:   "<n>",
 			Description: "Limit number of results",
 			Scope:       dispatchers.FlagScopeLocal,
@@ -220,7 +220,7 @@ var (
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 		{
-			Names:       []string{"--limit"},
+			Names:       []string{"--limit", "-n"},
 			ValueHint:   "<n>",
 			Description: "Limit number of commits to import",
 			Scope:       dispatchers.FlagScopeLocal,
@@ -239,6 +239,25 @@ var (
 		{
 			Names:       []string{"--background"},
 			Description: "Run in background mode (internal)",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+	}
+
+	LogsFlags = []dispatchers.FlagDescriptor{
+		{
+			Names:       []string{"--tail", "-f"},
+			Description: "Follow logs in real time",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
+			Names:       []string{"--clear"},
+			Description: "Clear the log file",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
+			Names:       []string{"--limit", "-n"},
+			ValueHint:   "<n>",
+			Description: "Number of lines to show (default: 50)",
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 	}

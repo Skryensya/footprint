@@ -3,6 +3,7 @@ package tracking
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 
 	"github.com/Skryensya/footprint/internal/dispatchers"
 	"github.com/Skryensya/footprint/internal/git"
@@ -49,7 +50,15 @@ func activity(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		filter.RepoID = &repoID
 	}
 
-	if limit := flags.Int("--limit", 0); limit > 0 {
+	// Validate and parse limit flag
+	if limitStr := flags.String("--limit", ""); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return fmt.Errorf("invalid limit value '%s': must be a positive integer", limitStr)
+		}
+		if limit <= 0 {
+			return fmt.Errorf("invalid limit value %d: must be greater than 0", limit)
+		}
 		filter.Limit = limit
 	}
 

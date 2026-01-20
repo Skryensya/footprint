@@ -240,7 +240,8 @@ func exportRepoEvents(exportRepo, repoID string, events []store.RepoEvent, _ Dep
 	safeRepoID := repodomain.RepoID(repoID).ToFilesystemSafe()
 	repoDir := filepath.Join(exportRepo, "repos", safeRepoID)
 
-	if err := os.MkdirAll(repoDir, 0755); err != nil {
+	// Create repo directory with restrictive permissions
+	if err := os.MkdirAll(repoDir, 0700); err != nil {
 		return nil, nil, fmt.Errorf("could not create repo directory: %w", err)
 	}
 
@@ -402,7 +403,8 @@ func findNextCSVSuffix(repoDir string) int {
 
 // writeCSVHeader writes a new CSV file with just the header row.
 func writeCSVHeader(path string) error {
-	file, err := os.Create(path)
+	// Create CSV file with restrictive permissions
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -418,7 +420,7 @@ func writeCSVHeader(path string) error {
 
 // appendRecord appends a single enriched record to a CSV file.
 func appendRecord(path string, e store.RepoEvent, meta git.CommitMetadata) error {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
@@ -483,7 +485,8 @@ func getExportRepo() string {
 }
 
 func ensureExportRepo(path string) error {
-	if err := os.MkdirAll(path, 0755); err != nil {
+	// Create export directory with restrictive permissions
+	if err := os.MkdirAll(path, 0700); err != nil {
 		return err
 	}
 

@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/Skryensya/footprint/internal/log"
 	"github.com/Skryensya/footprint/internal/store"
 )
 
@@ -49,6 +50,11 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	tracked, err := deps.IsTracked(repoID)
 	if err != nil || !tracked {
+		// Warning: hooks are running in an untracked repository
+		// This might indicate hooks weren't cleaned up properly
+		if isFromHook {
+			log.Warn("fp record: repository not tracked but hooks are active (repo=%s, path=%s)", repoID, repoRoot)
+		}
 		if showErrors {
 			deps.Println("repository not tracked")
 		}
@@ -67,6 +73,8 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	db, err := deps.OpenDB(deps.DBPath())
 	if err != nil {
+		// Critical error: log it always
+		log.Error("fp record: failed to open database: %v (repo=%s, commit=%.7s)", err, repoID, commit)
 		if showErrors {
 			deps.Println("could not open store db")
 		}
@@ -74,7 +82,14 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 	defer db.Close()
 
-	_ = deps.InitDB(db)
+	if err := deps.InitDB(db); err != nil {
+		// Critical error: DB initialization failed
+		log.Error("fp record: failed to initialize database: %v (repo=%s, commit=%.7s)", err, repoID, commit)
+		if showErrors {
+			deps.Printf("failed to initialize database: %v\n", err)
+		}
+		return nil
+	}
 
 	source := resolveSource(deps)
 
@@ -87,6 +102,11 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		Status:    store.StatusPending,
 		Source:    source,
 	})
+
+	if err != nil {
+		// Critical error: failed to record event
+		log.Error("fp record: failed to insert event: %v (repo=%s, commit=%.7s, source=%s)", err, repoID, commit, source.String())
+	}
 
 	if showErrors {
 		if err != nil {

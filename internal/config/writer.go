@@ -16,7 +16,7 @@ func WriteLines(lines []string) error {
 	file, err := os.OpenFile(
 		configPath,
 		os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
-		0644,
+		0600,
 	)
 	if err != nil {
 		return err
