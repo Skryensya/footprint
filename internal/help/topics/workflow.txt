@@ -6,11 +6,11 @@ records your git activity automatically.
 GETTING STARTED
 
     1. Install hooks globally (recommended):
-       $ fp setup --global
-
-    2. Or install hooks in a specific repo:
-       $ cd /path/to/repo
        $ fp setup
+
+    2. Or install hooks in a specific repo only:
+       $ cd /path/to/repo
+       $ fp setup --repo
 
     3. Start tracking a repository:
        $ fp track

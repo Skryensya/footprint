@@ -1,0 +1,67 @@
+TROUBLESHOOTING
+
+Common issues and how to resolve them.
+
+HOOKS NOT RUNNING
+
+If fp doesn't record events after commits:
+
+    1. Check hooks are installed:
+       $ fp check
+
+    2. Verify the repo is tracked:
+       $ fp status
+
+    3. Re-install hooks if needed:
+       $ fp setup
+
+REPOSITORY NOT TRACKING
+
+If 'fp status' shows the repo is not tracked:
+
+    1. Track the repository:
+       $ fp track
+
+    2. If it was tracked before but changed remotes:
+       $ fp sync-remote
+
+MISSING EVENTS
+
+If some events are missing:
+
+    1. Check if the repo was tracked at the time
+    2. Use backfill to import historical commits:
+       $ fp backfill
+
+    Note: backfill only imports commits, not other event types.
+
+VIEWING LOGS
+
+Enable logging to debug issues:
+
+    $ fp config set log_enabled true
+    $ fp config set log_level debug
+    $ fp logs --tail
+
+Logs are stored at:
+    $XDG_CONFIG_HOME/Footprint/fp.log
+
+RESETTING DATA
+
+To completely reset fp data:
+
+    1. Remove the database:
+       $ rm ~/.config/Footprint/store.db    # Linux
+       $ rm ~/Library/Application\ Support/Footprint/store.db  # macOS
+
+    2. Or clear logs only:
+       $ fp logs --clear
+
+HOOKS CONFLICT WITH EXISTING HOOKS
+
+If you have existing git hooks:
+
+    1. fp backs them up automatically during setup
+    2. Check backup status:
+       $ fp check
+    3. Restore manually from .git/hooks/*.backup if needed

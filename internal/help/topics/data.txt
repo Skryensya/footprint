@@ -33,8 +33,8 @@ Repositories are identified by a hash of their primary remote URL
 
 VIEWING DATA
 
-    $ fp activity              # Human-readable event list
-    $ fp activity --limit=100  # Show more entries
+    $ fp activity         # Human-readable event list
+    $ fp activity -n 100  # Show more entries
 
 DATA RETENTION
 

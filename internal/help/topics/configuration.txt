@@ -1,0 +1,44 @@
+CONFIGURATION
+
+fp stores configuration in ~/.fprc as simple key=value pairs.
+Use 'fp config' commands to manage settings.
+
+AVAILABLE OPTIONS
+
+    color_theme     Color theme name (default, neon, aurora, mono, ocean,
+                    sunset, candy, contrast). Add -dark or -light suffix.
+                    Example: fp config set color_theme neon-dark
+
+    log_enabled     Enable application logging (true/false).
+                    Example: fp config set log_enabled true
+
+    log_level       Log verbosity: debug, info, warn, error.
+                    Example: fp config set log_level debug
+
+ENVIRONMENT VARIABLES
+
+Environment variables override config file values:
+
+    FP_COLOR_THEME      Override color_theme
+    FP_LOG_ENABLED      Override log_enabled
+    FP_LOG_LEVEL        Override log_level
+    FP_NO_COLOR         Disable all colors (set to any value)
+
+Individual colors can also be overridden:
+
+    FP_COLOR_SUCCESS    Override success color
+    FP_COLOR_ERROR      Override error color
+    FP_COLOR_INFO       Override info color
+    FP_COLOR_MUTED      Override muted color
+    FP_COLOR_1          Override POST-COMMIT color
+    FP_COLOR_2          Override POST-REWRITE color
+    ... (and so on for colors 3-7)
+
+VIEWING CONFIG
+
+    $ fp config list    # Show all settings
+    $ fp config get X   # Get specific value
+
+CONFIG FILE LOCATION
+
+    ~/.fprc

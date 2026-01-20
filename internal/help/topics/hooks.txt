@@ -14,13 +14,13 @@ SUPPORTED HOOKS
 INSTALLATION MODES
 
 Global (recommended):
-    $ fp setup --global
+    $ fp setup
 
     Installs hooks in git's global hooks directory. All repositories
     will automatically use fp hooks.
 
 Per-repository:
-    $ fp setup
+    $ fp setup --repo
 
     Installs hooks only in the current repository's .git/hooks/.
     Use this if you prefer fine-grained control.
