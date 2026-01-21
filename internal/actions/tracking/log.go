@@ -16,6 +16,10 @@ import (
 const pollInterval = 300 * time.Millisecond
 
 func Log(args []string, flags *dispatchers.ParsedFlags) error {
+	// Route to interactive mode if --interactive or -i flag is present
+	if flags.Has("--interactive") || flags.Has("-i") {
+		return WatchInteractive(args, flags)
+	}
 	return logCmd(args, flags, DefaultDeps())
 }
 
