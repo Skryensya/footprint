@@ -65,7 +65,17 @@ with a non-zero status.`,
 		Description: `Sets a configuration key to the specified value.
 
 If the key already exists, its value is overwritten.
-The configuration file is created if it does not exist.`,
+The configuration file is created if it does not exist.
+
+Common configuration keys:
+  export_remote    Remote URL for syncing exports (configures git remote)
+  export_interval  Seconds between auto-exports (default: 3600)
+  theme            Color theme name
+  log_enabled      Enable/disable logging (true/false)
+  log_level        Log verbosity (debug, info, warn, error)
+
+Example:
+  fp config set export_remote git@github.com:user/my-exports.git`,
 		Usage:    "fp config set <key> <value>",
 		Args:     ConfigKeyValueArgs,
 		Action:   configactions.Set,
@@ -339,25 +349,31 @@ Press Ctrl+C to stop.`,
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "export",
 		Parent:  root,
-		Summary: "Export pending events to CSV",
-		Description: `Exports all pending events to a CSV file in the export repository.
+		Summary: "Export pending events to CSV (invoked automatically)",
+		Description: `Exports all pending events to CSV files in the export repository.
 
-By default, exports only run if the configured interval has passed since
-the last export. Use --force to export immediately regardless of interval.
+This command is normally invoked automatically after recording events.
+You typically don't need to run it manually.
+
+Events are exported to a flat CSV structure with year-based rotation:
+  commits.csv       Current year's events
+  commits-2024.csv  Events from 2024
+  commits-2023.csv  Events from 2023
 
 The export repository is a git repository where CSV files are committed.
 Default location: ~/.config/Footprint/exports
 
-Configuration:
-  export_interval  Seconds between exports (default: 3600 = 1 hour)
+Configuration (via 'fp config set'):
+  export_remote    Remote URL for syncing exports
+  export_interval  Seconds between auto-exports (default: 3600)
   export_repo      Path to export repository
-  export_last      Unix timestamp of last export (managed internally)
 
-Use 'fp config set export_interval 1800' to change the interval.`,
-		Usage:    "fp export [--force] [--dry-run]",
+Use --force to export immediately regardless of interval.
+Use --open to open the export directory in file manager.`,
+		Usage:    "fp export [--force] [--dry-run] [--open]",
 		Action:   trackingactions.Export,
 		Flags:    ExportFlags,
-		Category: dispatchers.CategoryManageRepos,
+		Category: dispatchers.CategoryPlumbing,
 	})
 
 	dispatchers.Command(dispatchers.CommandSpec{

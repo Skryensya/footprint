@@ -170,12 +170,6 @@ var (
 			Description: "Open the export directory in file manager",
 			Scope:       dispatchers.FlagScopeLocal,
 		},
-		{
-			Names:       []string{"--set-remote"},
-			ValueHint:   "<url>",
-			Description: "Set the remote URL for the export repository",
-			Scope:       dispatchers.FlagScopeLocal,
-		},
 	}
 
 	TrackFlags = []dispatchers.FlagDescriptor{
