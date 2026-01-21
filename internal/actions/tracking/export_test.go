@@ -12,141 +12,67 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTruncateCommit_ShortCommit(t *testing.T) {
-	result := truncateCommit("abc123", 10)
-	require.Equal(t, "abc123", result)
-}
-
-func TestTruncateCommit_LongCommit(t *testing.T) {
-	commit := "abc123def456789"
-	result := truncateCommit(commit, 10)
-	require.Equal(t, "abc123def4", result)
-}
-
-func TestTruncateCommit_ExactLength(t *testing.T) {
-	commit := "1234567890"
-	result := truncateCommit(commit, 10)
-	require.Equal(t, "1234567890", result)
-}
-
-func TestGroupEventsByRepo_SingleRepo(t *testing.T) {
-	events := []store.RepoEvent{
-		{RepoID: "repo1", Commit: "abc"},
-		{RepoID: "repo1", Commit: "def"},
-	}
-
-	result := groupEventsByRepo(events)
-
-	require.Len(t, result, 1)
-	require.Len(t, result["repo1"], 2)
-}
-
-func TestGroupEventsByRepo_MultipleRepos(t *testing.T) {
-	events := []store.RepoEvent{
-		{RepoID: "repo1", Commit: "abc"},
-		{RepoID: "repo2", Commit: "def"},
-		{RepoID: "repo1", Commit: "ghi"},
-	}
-
-	result := groupEventsByRepo(events)
-
-	require.Len(t, result, 2)
-	require.Len(t, result["repo1"], 2)
-	require.Len(t, result["repo2"], 1)
-}
-
-func TestGroupEventsByRepo_Empty(t *testing.T) {
-	result := groupEventsByRepo(nil)
-
-	require.Empty(t, result)
-}
-
-func TestFindNextCSVSuffix_EmptyDir(t *testing.T) {
+func TestGetCSVForEvent_CurrentYear(t *testing.T) {
 	dir := t.TempDir()
+	currentYear := 2025
+	eventTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
-	result := findNextCSVSuffix(dir)
-
-	require.Equal(t, 1, result)
-}
-
-func TestFindNextCSVSuffix_WithExistingFiles(t *testing.T) {
-	dir := t.TempDir()
-
-	// Create some numbered CSV files
-	os.WriteFile(filepath.Join(dir, "commits-0001.csv"), []byte(""), 0600)
-	os.WriteFile(filepath.Join(dir, "commits-0003.csv"), []byte(""), 0600)
-
-	result := findNextCSVSuffix(dir)
-
-	require.Equal(t, 4, result, "Should return max+1")
-}
-
-func TestFindNextCSVSuffix_IgnoresActiveCSV(t *testing.T) {
-	dir := t.TempDir()
-
-	// Create commits.csv (active file)
-	os.WriteFile(filepath.Join(dir, "commits.csv"), []byte(""), 0600)
-
-	result := findNextCSVSuffix(dir)
-
-	require.Equal(t, 1, result, "Should ignore commits.csv")
-}
-
-func TestFindNextCSVSuffix_IgnoresOtherFiles(t *testing.T) {
-	dir := t.TempDir()
-
-	// Create non-matching files
-	os.WriteFile(filepath.Join(dir, "other.txt"), []byte(""), 0600)
-	os.WriteFile(filepath.Join(dir, "commits.txt"), []byte(""), 0600)
-
-	result := findNextCSVSuffix(dir)
-
-	require.Equal(t, 1, result)
-}
-
-func TestCountCSVRows_Empty(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "test.csv")
-
-	// Write empty file
-	os.WriteFile(path, []byte(""), 0600)
-
-	count, err := countCSVRows(path)
+	path, err := getCSVForEvent(dir, eventTime, currentYear)
 
 	require.NoError(t, err)
-	require.Equal(t, 0, count)
+	require.Equal(t, filepath.Join(dir, "commits.csv"), path)
+
+	// Verify file was created with header
+	_, err = os.Stat(path)
+	require.NoError(t, err)
 }
 
-func TestCountCSVRows_HeaderOnly(t *testing.T) {
+func TestGetCSVForEvent_PastYear(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "test.csv")
+	currentYear := 2025
+	eventTime := time.Date(2024, 6, 15, 10, 30, 0, 0, time.UTC)
 
-	// Write header only
-	os.WriteFile(path, []byte("col1,col2,col3\n"), 0600)
-
-	count, err := countCSVRows(path)
+	path, err := getCSVForEvent(dir, eventTime, currentYear)
 
 	require.NoError(t, err)
-	require.Equal(t, 0, count, "Header should not count as data row")
+	require.Equal(t, filepath.Join(dir, "commits-2024.csv"), path)
+
+	// Verify file was created with header
+	_, err = os.Stat(path)
+	require.NoError(t, err)
 }
 
-func TestCountCSVRows_WithData(t *testing.T) {
+func TestGetCSVForEvent_OlderYear(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "test.csv")
+	currentYear := 2025
+	eventTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	content := "col1,col2\ndata1,data2\ndata3,data4\n"
-	os.WriteFile(path, []byte(content), 0600)
-
-	count, err := countCSVRows(path)
+	path, err := getCSVForEvent(dir, eventTime, currentYear)
 
 	require.NoError(t, err)
-	require.Equal(t, 2, count, "Should count only data rows")
+	require.Equal(t, filepath.Join(dir, "commits-2023.csv"), path)
 }
 
-func TestCountCSVRows_FileNotExists(t *testing.T) {
-	_, err := countCSVRows("/nonexistent/path/file.csv")
+func TestGetCSVForEvent_ReusesExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	currentYear := 2025
+	eventTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
-	require.Error(t, err)
+	// Create file first time
+	path1, err := getCSVForEvent(dir, eventTime, currentYear)
+	require.NoError(t, err)
+
+	// Get info before second call
+	info1, _ := os.Stat(path1)
+
+	// Call again - should return same file without recreating
+	path2, err := getCSVForEvent(dir, eventTime, currentYear)
+	require.NoError(t, err)
+	require.Equal(t, path1, path2)
+
+	// File should not have been truncated/recreated
+	info2, _ := os.Stat(path2)
+	require.Equal(t, info1.ModTime(), info2.ModTime())
 }
 
 func TestWriteCSVHeader_CreatesFile(t *testing.T) {
@@ -179,8 +105,8 @@ func TestWriteCSVHeader_ContainsHeader(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check that header contains expected columns
-	require.Contains(t, record, "timestamp")
-	require.Contains(t, record, "repo_id")
+	require.Contains(t, record, "authored_at")
+	require.Contains(t, record, "repo")
 	require.Contains(t, record, "commit")
 	require.Contains(t, record, "branch")
 }
@@ -220,9 +146,8 @@ func TestAppendRecord_AppendsData(t *testing.T) {
 	}
 
 	meta := git.CommitMetadata{
-		CommitShort:    "abc123def4",
+		AuthoredAt:     "2024-01-15T10:30:00Z",
 		ParentCommits:  "parent1",
-		IsMerge:        false,
 		AuthorName:     "John Doe",
 		AuthorEmail:    "john@example.com",
 		CommitterName:  "John Doe",
@@ -249,10 +174,12 @@ func TestAppendRecord_AppendsData(t *testing.T) {
 	require.Len(t, records, 2, "Should have header + 1 data row")
 
 	dataRow := records[1]
-	require.Contains(t, dataRow[0], "2024-01-15", "Should have timestamp")
-	require.Equal(t, "github.com/user/repo", dataRow[1])
-	require.Equal(t, "abc123def456", dataRow[2])
-	require.Equal(t, "main", dataRow[4])
+	// New column order: authored_at, repo, branch, commit, subject, ...
+	require.Contains(t, dataRow[0], "2024-01-15", "Should have authored_at")
+	require.Equal(t, "github.com/user/repo", dataRow[1], "Should have repo")
+	require.Equal(t, "main", dataRow[2], "Should have branch")
+	require.Equal(t, "abc123def456", dataRow[3], "Should have commit")
+	require.Equal(t, "Fix bug", dataRow[4], "Should have subject")
 }
 
 func TestAppendRecord_SanitizesNewlines(t *testing.T) {
@@ -300,53 +227,6 @@ func TestShouldExport_ReturnsNoError(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestRotateCSV_RenamesFile(t *testing.T) {
-	dir := t.TempDir()
-	activePath := filepath.Join(dir, "commits.csv")
-
-	// Create active CSV
-	os.WriteFile(activePath, []byte("test content"), 0600)
-
-	err := rotateCSV(dir)
-
-	require.NoError(t, err)
-
-	// Check that original file is gone
-	_, err = os.Stat(activePath)
-	require.True(t, os.IsNotExist(err))
-
-	// Check that rotated file exists
-	rotatedPath := filepath.Join(dir, "commits-0001.csv")
-	_, err = os.Stat(rotatedPath)
-	require.NoError(t, err)
-}
-
-func TestGetActiveCSV_CreatesNewFile(t *testing.T) {
-	dir := t.TempDir()
-
-	path, err := getActiveCSV(dir)
-
-	require.NoError(t, err)
-	require.Equal(t, filepath.Join(dir, "commits.csv"), path)
-
-	// Verify file exists
-	_, err = os.Stat(path)
-	require.NoError(t, err)
-}
-
-func TestGetActiveCSV_ReturnsExisting(t *testing.T) {
-	dir := t.TempDir()
-
-	// Create existing CSV with header
-	activePath := filepath.Join(dir, "commits.csv")
-	writeCSVHeader(activePath)
-
-	path, err := getActiveCSV(dir)
-
-	require.NoError(t, err)
-	require.Equal(t, activePath, path)
-}
-
 func TestEnsureExportRepo_CreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
 	exportDir := filepath.Join(dir, "export")
@@ -373,4 +253,343 @@ func TestCommitExportChanges_EmptyFiles(t *testing.T) {
 	err := commitExportChanges(dir, nil)
 
 	require.NoError(t, err)
+}
+
+func TestExportAllEvents_SortsAndGroupsByYear(t *testing.T) {
+	dir := t.TempDir()
+	exportDir := filepath.Join(dir, "export")
+	err := ensureExportRepo(exportDir)
+	require.NoError(t, err)
+
+	// Create events from different years (out of order)
+	events := []store.RepoEvent{
+		{
+			ID:        1,
+			RepoID:    "github.com/user/repo1",
+			RepoPath:  "",
+			Commit:    "abc123",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+		{
+			ID:        2,
+			RepoID:    "github.com/user/repo2",
+			RepoPath:  "",
+			Commit:    "def456",
+			Branch:    "main",
+			Timestamp: time.Date(2024, 3, 10, 10, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+		{
+			ID:        3,
+			RepoID:    "github.com/user/repo1",
+			RepoPath:  "",
+			Commit:    "ghi789",
+			Branch:    "develop",
+			Timestamp: time.Date(2025, 1, 5, 10, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+	}
+
+	deps := Deps{
+		Now: func() time.Time {
+			return time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
+		},
+	}
+
+	ids, files, err := exportAllEvents(exportDir, events, deps)
+
+	require.NoError(t, err)
+	require.Len(t, ids, 3)
+	require.Len(t, files, 2, "Should have 2 files: commits.csv (2025) and commits-2024.csv")
+
+	// Check that both files exist
+	_, err = os.Stat(filepath.Join(exportDir, "commits.csv"))
+	require.NoError(t, err, "commits.csv should exist for 2025 events")
+
+	_, err = os.Stat(filepath.Join(exportDir, "commits-2024.csv"))
+	require.NoError(t, err, "commits-2024.csv should exist for 2024 events")
+}
+
+func TestExportAllEvents_MultipleReposInSameFile(t *testing.T) {
+	dir := t.TempDir()
+	exportDir := filepath.Join(dir, "export")
+	err := ensureExportRepo(exportDir)
+	require.NoError(t, err)
+
+	// Create events from different repos but same year
+	events := []store.RepoEvent{
+		{
+			ID:        1,
+			RepoID:    "github.com/user/repo1",
+			Commit:    "abc123",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+		{
+			ID:        2,
+			RepoID:    "github.com/user/repo2",
+			Commit:    "def456",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+	}
+
+	deps := Deps{
+		Now: func() time.Time {
+			return time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
+		},
+	}
+
+	ids, files, err := exportAllEvents(exportDir, events, deps)
+
+	require.NoError(t, err)
+	require.Len(t, ids, 2)
+	require.Len(t, files, 1, "Should have 1 file: all events in same year")
+
+	// Read and verify both repos are in the same file
+	file, err := os.Open(filepath.Join(exportDir, "commits.csv"))
+	require.NoError(t, err)
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	require.NoError(t, err)
+
+	require.Len(t, records, 3, "Should have header + 2 data rows")
+
+	// Check both repos are present
+	repos := make(map[string]bool)
+	for _, row := range records[1:] {
+		repos[row[1]] = true // repo is column 1
+	}
+	require.True(t, repos["github.com/user/repo1"])
+	require.True(t, repos["github.com/user/repo2"])
+}
+
+func TestExportAllEvents_EventsAreSortedByTimestamp(t *testing.T) {
+	dir := t.TempDir()
+	exportDir := filepath.Join(dir, "export")
+	err := ensureExportRepo(exportDir)
+	require.NoError(t, err)
+
+	// Create events out of order
+	events := []store.RepoEvent{
+		{
+			ID:        3,
+			RepoID:    "github.com/user/repo",
+			Commit:    "third",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 20, 10, 0, 0, 0, time.UTC), // Latest
+			Source:    store.SourcePostCommit,
+		},
+		{
+			ID:        1,
+			RepoID:    "github.com/user/repo",
+			Commit:    "first",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 10, 10, 0, 0, 0, time.UTC), // Earliest
+			Source:    store.SourcePostCommit,
+		},
+		{
+			ID:        2,
+			RepoID:    "github.com/user/repo",
+			Commit:    "second",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC), // Middle
+			Source:    store.SourcePostCommit,
+		},
+	}
+
+	deps := Deps{
+		Now: func() time.Time {
+			return time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
+		},
+	}
+
+	_, _, err = exportAllEvents(exportDir, events, deps)
+	require.NoError(t, err)
+
+	// Read CSV and verify order
+	file, err := os.Open(filepath.Join(exportDir, "commits.csv"))
+	require.NoError(t, err)
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	require.NoError(t, err)
+
+	require.Len(t, records, 4, "Should have header + 3 data rows")
+
+	// Verify commits are in chronological order (oldest first)
+	require.Equal(t, "first", records[1][3])  // commit is column 3
+	require.Equal(t, "second", records[2][3])
+	require.Equal(t, "third", records[3][3])
+}
+
+func TestExportAllEvents_EmptyEvents(t *testing.T) {
+	dir := t.TempDir()
+	exportDir := filepath.Join(dir, "export")
+	err := ensureExportRepo(exportDir)
+	require.NoError(t, err)
+
+	deps := Deps{
+		Now: func() time.Time {
+			return time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
+		},
+	}
+
+	ids, files, err := exportAllEvents(exportDir, []store.RepoEvent{}, deps)
+
+	require.NoError(t, err)
+	require.Empty(t, ids)
+	require.Empty(t, files)
+}
+
+func TestExportAllEvents_YearBoundary(t *testing.T) {
+	dir := t.TempDir()
+	exportDir := filepath.Join(dir, "export")
+	err := ensureExportRepo(exportDir)
+	require.NoError(t, err)
+
+	// Events at year boundary
+	events := []store.RepoEvent{
+		{
+			ID:        1,
+			RepoID:    "github.com/user/repo",
+			Commit:    "last_of_2024",
+			Branch:    "main",
+			Timestamp: time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+		{
+			ID:        2,
+			RepoID:    "github.com/user/repo",
+			Commit:    "first_of_2025",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+	}
+
+	deps := Deps{
+		Now: func() time.Time {
+			return time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
+		},
+	}
+
+	ids, files, err := exportAllEvents(exportDir, events, deps)
+
+	require.NoError(t, err)
+	require.Len(t, ids, 2)
+	require.Len(t, files, 2, "Should have 2 files: one for each year")
+
+	// Verify 2024 event is in commits-2024.csv
+	file2024, err := os.Open(filepath.Join(exportDir, "commits-2024.csv"))
+	require.NoError(t, err)
+	defer file2024.Close()
+
+	reader2024 := csv.NewReader(file2024)
+	records2024, err := reader2024.ReadAll()
+	require.NoError(t, err)
+	require.Len(t, records2024, 2)
+	require.Equal(t, "last_of_2024", records2024[1][3]) // commit is column 3
+
+	// Verify 2025 event is in commits.csv
+	file2025, err := os.Open(filepath.Join(exportDir, "commits.csv"))
+	require.NoError(t, err)
+	defer file2025.Close()
+
+	reader2025 := csv.NewReader(file2025)
+	records2025, err := reader2025.ReadAll()
+	require.NoError(t, err)
+	require.Len(t, records2025, 2)
+	require.Equal(t, "first_of_2025", records2025[1][3]) // commit is column 3
+}
+
+func TestExportAllEvents_AppendsToExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	exportDir := filepath.Join(dir, "export")
+	err := ensureExportRepo(exportDir)
+	require.NoError(t, err)
+
+	deps := Deps{
+		Now: func() time.Time {
+			return time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
+		},
+	}
+
+	// First batch of events
+	events1 := []store.RepoEvent{
+		{
+			ID:        1,
+			RepoID:    "github.com/user/repo",
+			Commit:    "commit1",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 10, 10, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+	}
+
+	_, _, err = exportAllEvents(exportDir, events1, deps)
+	require.NoError(t, err)
+
+	// Second batch of events
+	events2 := []store.RepoEvent{
+		{
+			ID:        2,
+			RepoID:    "github.com/user/repo",
+			Commit:    "commit2",
+			Branch:    "main",
+			Timestamp: time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC),
+			Source:    store.SourcePostCommit,
+		},
+	}
+
+	_, _, err = exportAllEvents(exportDir, events2, deps)
+	require.NoError(t, err)
+
+	// Verify both commits are in the file
+	file, err := os.Open(filepath.Join(exportDir, "commits.csv"))
+	require.NoError(t, err)
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	require.NoError(t, err)
+
+	require.Len(t, records, 3, "Should have header + 2 data rows from both batches")
+
+	commits := make(map[string]bool)
+	for _, row := range records[1:] {
+		commits[row[3]] = true // commit is column 3
+	}
+	require.True(t, commits["commit1"], "First batch commit should be present")
+	require.True(t, commits["commit2"], "Second batch commit should be present")
+}
+
+func TestGetCSVForEvent_CreatesFileWithHeader(t *testing.T) {
+	dir := t.TempDir()
+	currentYear := 2025
+	eventTime := time.Date(2024, 6, 15, 10, 30, 0, 0, time.UTC)
+
+	path, err := getCSVForEvent(dir, eventTime, currentYear)
+	require.NoError(t, err)
+
+	// Verify header was written
+	file, err := os.Open(path)
+	require.NoError(t, err)
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	header, err := reader.Read()
+	require.NoError(t, err)
+
+	require.Equal(t, "authored_at", header[0])
+	require.Equal(t, "repo", header[1])
+	require.Equal(t, "branch", header[2])
+	require.Equal(t, "commit", header[3])
 }

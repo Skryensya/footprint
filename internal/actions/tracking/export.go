@@ -1,7 +1,6 @@
 package tracking
 
 import (
-	"bufio"
 	"database/sql"
 	"encoding/csv"
 	"fmt"
@@ -18,37 +17,32 @@ import (
 	"github.com/Skryensya/footprint/internal/dispatchers"
 	"github.com/Skryensya/footprint/internal/git"
 	"github.com/Skryensya/footprint/internal/log"
-	repodomain "github.com/Skryensya/footprint/internal/repo"
 	"github.com/Skryensya/footprint/internal/store"
 )
 
 const (
-	// CSV rotation thresholds
-	maxCSVSizeBytes = 50 * 1024 * 1024 // 50 MB
-	maxCSVRowCount  = 200000           // 200k rows
-
 	// CSV filename constants
 	activeCSVName = "commits.csv"
 )
 
-// CSV header for enriched export
+// CSV header for enriched export (ordered by importance)
 var csvHeader = []string{
-	"timestamp",
-	"repo_id",
-	"commit",
-	"commit_short",
+	"authored_at",
+	"repo",
 	"branch",
-	"parent_commits",
-	"is_merge",
-	"author_name",
+	"commit",
+	"subject",
+	"author",
 	"author_email",
-	"committer_name",
-	"committer_email",
-	"files_changed",
-	"insertions",
+	"files",
+	"additions",
 	"deletions",
-	"message",
+	"parents",
+	"committer",
+	"committer_email",
+	"committed_at",
 	"source",
+	"machine",
 }
 
 // Export handles the manual `fp export` command.
@@ -60,25 +54,12 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	force := flags.Has("--force")
 	dryRun := flags.Has("--dry-run")
 	openDir := flags.Has("--open")
-	setRemote := flags.String("--set-remote", "")
 
 	exportRepo := getExportRepo()
 
 	// Handle --open flag
 	if openDir {
 		return openInFileManager(exportRepo)
-	}
-
-	// Handle --set-remote flag
-	if setRemote != "" {
-		if err := ensureExportRepo(exportRepo); err != nil {
-			return fmt.Errorf("could not initialize export repo: %w", err)
-		}
-		if err := setExportRemote(exportRepo, setRemote); err != nil {
-			return fmt.Errorf("could not set remote: %w", err)
-		}
-		deps.Printf("Remote set to: %s\n", setRemote)
-		return nil
 	}
 
 	db, err := deps.OpenDB(deps.DBPath())
@@ -145,19 +126,9 @@ func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, e
 		return 0, false, fmt.Errorf("could not initialize export repo: %w", err)
 	}
 
-	eventsByRepo := groupEventsByRepo(events)
-
-	var exportedIDs []int64
-	var exportedFiles []string
-
-	for repoID, repoEvents := range eventsByRepo {
-		ids, files, err := exportRepoEvents(exportRepo, repoID, repoEvents, deps)
-		if err != nil {
-			log.Warn("export: failed to export events for %s: %v", repoID, err)
-			continue
-		}
-		exportedIDs = append(exportedIDs, ids...)
-		exportedFiles = append(exportedFiles, files...)
+	exportedIDs, exportedFiles, err := exportAllEvents(exportRepo, events, deps)
+	if err != nil {
+		return 0, false, fmt.Errorf("could not export events: %w", err)
 	}
 
 	if len(exportedFiles) == 0 {
@@ -224,58 +195,39 @@ func MaybeExport(db *sql.DB, deps Deps) {
 	log.Info("export: auto-exported %d events", count)
 }
 
-// groupEventsByRepo groups events by their repo_id.
-func groupEventsByRepo(events []store.RepoEvent) map[string][]store.RepoEvent {
-	result := make(map[string][]store.RepoEvent)
-	for _, e := range events {
-		result[e.RepoID] = append(result[e.RepoID], e)
-	}
-	return result
-}
-
-// exportRepoEvents exports events for a single repository.
+// exportAllEvents exports all events to a flat CSV structure with year-based rotation.
 // Returns the IDs of exported events and the files that were modified.
-func exportRepoEvents(exportRepo, repoID string, events []store.RepoEvent, _ Deps) ([]int64, []string, error) {
-	// Create per-repo directory
-	safeRepoID := repodomain.RepoID(repoID).ToFilesystemSafe()
-	repoDir := filepath.Join(exportRepo, "repos", safeRepoID)
-
-	// Create repo directory with restrictive permissions
-	if err := os.MkdirAll(repoDir, 0700); err != nil {
-		return nil, nil, fmt.Errorf("could not create repo directory: %w", err)
-	}
-
+func exportAllEvents(exportRepo string, events []store.RepoEvent, deps Deps) ([]int64, []string, error) {
 	// Sort events by timestamp (oldest first for append-only)
 	sort.Slice(events, func(i, j int) bool {
 		return events[i].Timestamp.Before(events[j].Timestamp)
 	})
 
-	// Get the repo path from the first event (they all should have the same repo)
-	repoPath := ""
-	if len(events) > 0 && events[0].RepoPath != "" {
-		repoPath = events[0].RepoPath
+	// Build a map of repo paths for metadata enrichment
+	repoPaths := make(map[string]string)
+	for _, e := range events {
+		if e.RepoPath != "" {
+			repoPaths[e.RepoID] = e.RepoPath
+		}
 	}
 
 	var exportedIDs []int64
 	var modifiedFiles []string
 	modifiedFilesSet := make(map[string]bool)
 
+	currentYear := deps.Now().Year()
+
 	for _, e := range events {
 		// Enrich event with Git metadata
 		var meta git.CommitMetadata
-		if repoPath != "" {
+		if repoPath, ok := repoPaths[e.RepoID]; ok {
 			meta = git.GetCommitMetadata(repoPath, e.Commit)
-		} else {
-			// Fallback: just truncate commit
-			meta = git.CommitMetadata{
-				CommitShort: truncateCommit(e.Commit, 10),
-			}
 		}
 
-		// Get or rotate the active CSV file
-		csvPath, err := getActiveCSV(repoDir)
+		// Determine target CSV file based on event year
+		csvPath, err := getCSVForEvent(exportRepo, e.Timestamp, currentYear)
 		if err != nil {
-			return nil, nil, fmt.Errorf("could not get active CSV: %w", err)
+			return nil, nil, fmt.Errorf("could not get CSV for event: %w", err)
 		}
 
 		// Append the enriched record
@@ -296,109 +248,28 @@ func exportRepoEvents(exportRepo, repoID string, events []store.RepoEvent, _ Dep
 	return exportedIDs, modifiedFiles, nil
 }
 
-// getActiveCSV returns the path to the active CSV file, performing rotation if needed.
-func getActiveCSV(repoDir string) (string, error) {
-	activePath := filepath.Join(repoDir, activeCSVName)
+// getCSVForEvent returns the path to the CSV file for an event based on its year.
+// Events from the current year go to commits.csv, older events go to commits-{year}.csv
+func getCSVForEvent(exportRepo string, eventTime time.Time, currentYear int) (string, error) {
+	eventYear := eventTime.Year()
 
-	// Check if the active CSV exists
-	info, err := os.Stat(activePath)
-	if os.IsNotExist(err) {
-		// Create new CSV with header
-		if err := writeCSVHeader(activePath); err != nil {
-			return "", err
-		}
-		return activePath, nil
-	}
-	if err != nil {
-		return "", err
+	var csvName string
+	if eventYear == currentYear {
+		csvName = activeCSVName // commits.csv
+	} else {
+		csvName = fmt.Sprintf("commits-%d.csv", eventYear)
 	}
 
-	// Check if rotation is needed
-	needsRotation := false
+	csvPath := filepath.Join(exportRepo, csvName)
 
-	// Check size
-	if info.Size() >= maxCSVSizeBytes {
-		needsRotation = true
-	}
-
-	// Check row count
-	if !needsRotation {
-		rowCount, err := countCSVRows(activePath)
-		if err == nil && rowCount >= maxCSVRowCount {
-			needsRotation = true
-		}
-	}
-
-	if needsRotation {
-		if err := rotateCSV(repoDir); err != nil {
-			return "", err
-		}
-		// Create new active CSV
-		if err := writeCSVHeader(activePath); err != nil {
+	// Check if file exists, create with header if not
+	if _, err := os.Stat(csvPath); os.IsNotExist(err) {
+		if err := writeCSVHeader(csvPath); err != nil {
 			return "", err
 		}
 	}
 
-	return activePath, nil
-}
-
-// countCSVRows counts the number of data rows in a CSV file (excluding header).
-func countCSVRows(path string) (int, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	count := 0
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		count++
-	}
-	if err := scanner.Err(); err != nil {
-		return 0, err
-	}
-
-	// Subtract 1 for header row
-	if count > 0 {
-		count--
-	}
-	return count, nil
-}
-
-// rotateCSV renames the active CSV to the next numbered suffix.
-func rotateCSV(repoDir string) error {
-	activePath := filepath.Join(repoDir, activeCSVName)
-
-	// Find the next available suffix
-	nextSuffix := findNextCSVSuffix(repoDir)
-	rotatedName := fmt.Sprintf("commits-%04d.csv", nextSuffix)
-	rotatedPath := filepath.Join(repoDir, rotatedName)
-
-	return os.Rename(activePath, rotatedPath)
-}
-
-// findNextCSVSuffix finds the next available numeric suffix for rotated CSVs.
-func findNextCSVSuffix(repoDir string) int {
-	entries, err := os.ReadDir(repoDir)
-	if err != nil {
-		return 1
-	}
-
-	maxSuffix := 0
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasPrefix(name, "commits-") && strings.HasSuffix(name, ".csv") {
-			// Extract the number from commits-NNNN.csv
-			numStr := strings.TrimPrefix(name, "commits-")
-			numStr = strings.TrimSuffix(numStr, ".csv")
-			if num, err := strconv.Atoi(numStr); err == nil && num > maxSuffix {
-				maxSuffix = num
-			}
-		}
-	}
-
-	return maxSuffix + 1
+	return csvPath, nil
 }
 
 // writeCSVHeader writes a new CSV file with just the header row.
@@ -429,28 +300,28 @@ func appendRecord(path string, e store.RepoEvent, meta git.CommitMetadata) error
 	w := csv.NewWriter(file)
 
 	// Sanitize commit message: single line, no newlines
-	msg := strings.ReplaceAll(meta.Subject, "\n", " ")
-	msg = strings.ReplaceAll(msg, "\r", "")
-	msg = strings.TrimSpace(msg)
+	subject := strings.ReplaceAll(meta.Subject, "\n", " ")
+	subject = strings.ReplaceAll(subject, "\r", "")
+	subject = strings.TrimSpace(subject)
 
-	// Build the record
+	// Build the record (ordered by importance)
 	record := []string{
-		e.Timestamp.UTC().Format(time.RFC3339), // timestamp
-		e.RepoID,                               // repo_id
-		e.Commit,                               // commit (full hash)
-		meta.CommitShort,                       // commit_short (10 chars)
+		meta.AuthoredAt,                        // authored_at
+		e.RepoID,                               // repo
 		e.Branch,                               // branch
-		meta.ParentCommits,                     // parent_commits
-		strconv.FormatBool(meta.IsMerge),       // is_merge
-		meta.AuthorName,                        // author_name
+		e.Commit,                               // commit (full hash)
+		subject,                                // subject
+		meta.AuthorName,                        // author
 		meta.AuthorEmail,                       // author_email
-		meta.CommitterName,                     // committer_name
-		meta.CommitterEmail,                    // committer_email
-		strconv.Itoa(meta.FilesChanged),        // files_changed
-		strconv.Itoa(meta.Insertions),          // insertions
+		strconv.Itoa(meta.FilesChanged),        // files
+		strconv.Itoa(meta.Insertions),          // additions
 		strconv.Itoa(meta.Deletions),           // deletions
-		msg,                                    // message
+		meta.ParentCommits,                     // parents (space-separated)
+		meta.CommitterName,                     // committer
+		meta.CommitterEmail,                    // committer_email
+		e.Timestamp.UTC().Format(time.RFC3339), // committed_at
 		e.Source.String(),                      // source
+		getHostname(),                          // machine
 	}
 
 	if err := w.Write(record); err != nil {
@@ -460,12 +331,13 @@ func appendRecord(path string, e store.RepoEvent, meta git.CommitMetadata) error
 	return w.Error()
 }
 
-// truncateCommit returns the first n characters of a commit hash.
-func truncateCommit(commit string, n int) string {
-	if len(commit) <= n {
-		return commit
+// getHostname returns the machine hostname or empty string if unavailable.
+func getHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return ""
 	}
-	return commit[:n]
+	return hostname
 }
 
 func shouldExport(deps Deps) (bool, error) {
@@ -562,8 +434,15 @@ func openInFileManager(path string) error {
 	return cmd.Run()
 }
 
-// setExportRemote sets the remote URL for the export repository.
-func setExportRemote(exportRepo, remoteURL string) error {
+// SetupExportRemote configures the remote URL for the export repository.
+// It ensures the export repo exists and sets up the git remote.
+// This is called by 'fp config set export_remote <url>'.
+func SetupExportRemote(remoteURL string) error {
+	exportRepo := getExportRepo()
+	if err := ensureExportRepo(exportRepo); err != nil {
+		return fmt.Errorf("could not initialize export repo: %w", err)
+	}
+
 	// Check if origin already exists
 	cmd := exec.Command("git", "remote", "get-url", "origin")
 	cmd.Dir = exportRepo
