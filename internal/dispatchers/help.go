@@ -26,7 +26,6 @@ var commandDisplayOrder = map[string]int{
 	"check":        6,
 	"version":      7,
 	"logs":         8,
-	"help-browser": 9,
 	// manage tracked repositories
 	"untrack":     1,
 	"sync-remote": 2,

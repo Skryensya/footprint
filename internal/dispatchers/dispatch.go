@@ -7,6 +7,9 @@ import (
 	"github.com/Skryensya/footprint/internal/usage"
 )
 
+// InteractiveBrowserFunc is injected from main to avoid import cycles
+var InteractiveBrowserFunc CommandFunc
+
 func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resolution, error) {
 	current := root
 	lastValid := root
@@ -14,6 +17,16 @@ func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resoluti
 
 	for i, tok := range tokens {
 		if tok == "help" {
+			// Check for interactive flag first
+			if hasInteractiveFlag(flags) && InteractiveBrowserFunc != nil {
+				return Resolution{
+					Node:    root,
+					Args:    nil,
+					Flags:   flags,
+					Execute: InteractiveBrowserFunc,
+				}, nil
+			}
+
 			targetPath := tokens[:i]
 			if len(tokens[i+1:]) > 0 {
 				targetPath = tokens[i+1:]
@@ -53,14 +66,28 @@ func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resoluti
 				}
 			}
 
-			// Neither command nor topic found
-			return Resolution{}, usage.UnknownCommand(strings.Join(targetPath, " "))
+			// Neither command nor topic found - try to suggest similar commands
+			suggestions := FindSimilarCommands(targetPath[0], root, 3)
+			return Resolution{}, usage.UnknownCommand(strings.Join(targetPath, " "), suggestions...)
 		}
 	}
 
-	for _, tok := range tokens {
+	for i, tok := range tokens {
 		child, ok := current.Children[tok]
 		if !ok {
+			// If this is the first token (top-level command) and it doesn't exist,
+			// it's likely a typo - suggest similar commands
+			if i == 0 && len(current.Children) > 0 {
+				suggestions := FindSimilarCommands(tok, current, 3)
+				return Resolution{}, usage.UnknownCommand(tok, suggestions...)
+			}
+			// For subcommands: if the current node has children but no action,
+			// it's a command group and unknown tokens are errors, not args
+			if current.Action == nil && len(current.Children) > 0 {
+				suggestions := FindSimilarCommands(tok, current, 3)
+				cmdPath := strings.Join(append(current.Path, tok), " ")
+				return Resolution{}, usage.UnknownCommand(cmdPath, suggestions...)
+			}
 			break
 		}
 		current = child
@@ -113,6 +140,10 @@ func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resoluti
 
 func hasHelpFlag(flags *ParsedFlags) bool {
 	return flags.Has("--help") || flags.Has("-h")
+}
+
+func hasInteractiveFlag(flags *ParsedFlags) bool {
+	return flags.Has("--interactive") || flags.Has("-i")
 }
 
 func validFlagsForNode(node *DispatchNode, root *DispatchNode) map[string]bool {

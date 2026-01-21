@@ -3,7 +3,6 @@ package cli
 import (
 	"github.com/Skryensya/footprint/internal/actions"
 	configactions "github.com/Skryensya/footprint/internal/actions/config"
-	helpactions "github.com/Skryensya/footprint/internal/actions/help"
 	logsactions "github.com/Skryensya/footprint/internal/actions/logs"
 	setupactions "github.com/Skryensya/footprint/internal/actions/setup"
 	themeactions "github.com/Skryensya/footprint/internal/actions/theme"
@@ -476,30 +475,24 @@ Log settings can be configured with:
 		"help",
 		root,
 		"Show help for a command",
-		"", // description not needed for help itself
-		"fp help [command]",
-		nil,
+		`Shows help for fp commands and topics.
+
+Use -i or --interactive to open an interactive TUI browser where you can
+navigate through all commands and topics with keyboard shortcuts.
+
+In interactive mode:
+  - Use arrow keys or j/k to navigate the sidebar
+  - Press / to search and filter commands
+  - Press Tab to switch focus between sidebar and content
+  - Use PgUp/PgDn or u/d to scroll content
+  - Press q or Esc to exit`,
+		"fp help [-i] [command]",
+		[]dispatchers.FlagDescriptor{
+			{Names: []string{"-i", "--interactive"}, Description: "Open interactive help browser"},
+		},
 		nil,
 		nil,
 	)
-
-	dispatchers.Command(dispatchers.CommandSpec{
-		Name:    "help-browser",
-		Parent:  root,
-		Summary: "Browse all commands and topics interactively",
-		Description: `Opens an interactive TUI to browse all available commands and help topics.
-
-Use arrow keys or j/k to navigate through the sidebar. The content panel
-shows detailed help for the selected command or topic.
-
-Use PgUp/PgDn or u/d to scroll long content. Press g to jump to the top
-or G to jump to the bottom of the list.
-
-Press q or Esc to exit the browser.`,
-		Usage:    "fp help-browser",
-		Action:   helpactions.Browser,
-		Category: dispatchers.CategoryInspectActivity,
-	})
 
 	return root
 }
