@@ -2,11 +2,7 @@ package store
 
 import (
 	"database/sql"
-	"fmt"
-	"os"
 	"sync"
-
-	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/Skryensya/footprint/internal/log"
 	"github.com/Skryensya/footprint/internal/store/migrations"
@@ -20,6 +16,8 @@ var (
 
 // Open opens the database and runs any pending migrations.
 // Uses singleton pattern - subsequent calls return the same connection.
+//
+// Deprecated: Use store.New() instead for proper dependency injection.
 func Open(path string) (*sql.DB, error) {
 	once.Do(func() {
 		log.Debug("store: opening database at %s", path)
@@ -27,29 +25,21 @@ func Open(path string) (*sql.DB, error) {
 		var err error
 		db, err = sql.Open("sqlite3", path)
 		if err != nil {
-			openError = fmt.Errorf("open database: %w", err)
+			openError = err
 			log.Error("store: failed to open database: %v", err)
 			return
 		}
 
-		// Verify connection
 		if err = db.Ping(); err != nil {
-			openError = fmt.Errorf("ping database: %w", err)
+			openError = err
 			log.Error("store: failed to ping database: %v", err)
 			return
 		}
 
-		// Set restrictive permissions on database file (ignore errors for :memory: DBs)
-		if path != ":memory:" {
-			_ = os.Chmod(path, 0600)
-			// Also secure the WAL and SHM files if they exist
-			_ = os.Chmod(path+"-wal", 0600)
-			_ = os.Chmod(path+"-shm", 0600)
-		}
+		setDBPermissions(path)
 
-		// Run migrations
 		if err = migrations.Run(db); err != nil {
-			openError = fmt.Errorf("run migrations: %w", err)
+			openError = err
 			log.Error("store: migrations failed: %v", err)
 			return
 		}
@@ -62,31 +52,19 @@ func Open(path string) (*sql.DB, error) {
 
 // OpenFresh opens a new database connection without singleton.
 // Used for testing with in-memory databases.
+//
+// Deprecated: Use store.New() instead.
 func OpenFresh(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", path)
+	s, err := New(path)
 	if err != nil {
-		return nil, fmt.Errorf("open database: %w", err)
+		return nil, err
 	}
-
-	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("ping database: %w", err)
-	}
-
-	// Set restrictive permissions on database file (ignore errors for :memory: DBs)
-	if path != ":memory:" {
-		_ = os.Chmod(path, 0600)
-		_ = os.Chmod(path+"-wal", 0600)
-		_ = os.Chmod(path+"-shm", 0600)
-	}
-
-	if err = migrations.Run(db); err != nil {
-		return nil, fmt.Errorf("run migrations: %w", err)
-	}
-
-	return db, nil
+	return s.DB(), nil
 }
 
 // ResetSingleton resets the singleton state. Only for testing.
+//
+// Deprecated: Use store.New() instead which doesn't use singletons.
 func ResetSingleton() {
 	once = sync.Once{}
 	db = nil

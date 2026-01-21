@@ -18,6 +18,40 @@ type EventFilter struct {
 	Limit  int
 }
 
+// scanRepoEvent scans a single row into a RepoEvent.
+func scanRepoEvent(rows *sql.Rows) (RepoEvent, error) {
+	var (
+		e        RepoEvent
+		ts       string
+		statusID int
+		sourceID int
+	)
+
+	if err := rows.Scan(
+		&e.ID,
+		&e.RepoID,
+		&e.RepoPath,
+		&e.Commit,
+		&e.Branch,
+		&ts,
+		&statusID,
+		&sourceID,
+	); err != nil {
+		return RepoEvent{}, err
+	}
+
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return RepoEvent{}, err
+	}
+
+	e.Timestamp = t
+	e.Status = Status(statusID)
+	e.Source = Source(sourceID)
+
+	return e, nil
+}
+
 func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 
 	base := `
@@ -85,36 +119,11 @@ func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 	var out []RepoEvent
 
 	for rows.Next() {
-		var (
-			e        RepoEvent
-			ts       string
-			statusID int
-			sourceID int
-		)
-
-		if err := rows.Scan(
-			&e.ID,
-			&e.RepoID,
-			&e.RepoPath,
-			&e.Commit,
-			&e.Branch,
-			&ts,
-			&statusID,
-			&sourceID,
-		); err != nil {
+		e, err := scanRepoEvent(rows)
+		if err != nil {
 			log.Error("store: scan event row failed: %v", err)
 			return nil, err
 		}
-
-		t, err := time.Parse(time.RFC3339, ts)
-		if err != nil {
-			continue
-		}
-
-		e.Timestamp = t
-		e.Status = Status(statusID)
-		e.Source = Source(sourceID)
-
 		out = append(out, e)
 	}
 
@@ -162,35 +171,10 @@ func ListEventsSince(db *sql.DB, afterID int64) ([]RepoEvent, error) {
 	var out []RepoEvent
 
 	for rows.Next() {
-		var (
-			e        RepoEvent
-			ts       string
-			statusID int
-			sourceID int
-		)
-
-		if err := rows.Scan(
-			&e.ID,
-			&e.RepoID,
-			&e.RepoPath,
-			&e.Commit,
-			&e.Branch,
-			&ts,
-			&statusID,
-			&sourceID,
-		); err != nil {
+		e, err := scanRepoEvent(rows)
+		if err != nil {
 			return nil, err
 		}
-
-		t, err := time.Parse(time.RFC3339, ts)
-		if err != nil {
-			continue
-		}
-
-		e.Timestamp = t
-		e.Status = Status(statusID)
-		e.Source = Source(sourceID)
-
 		out = append(out, e)
 	}
 
