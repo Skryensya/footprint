@@ -6,5 +6,5 @@ func Script(fpPath string, source string) string {
 	// Errors are now logged internally by fp record via the logger
 	return "#!/bin/sh\n" +
 		"FP_SOURCE=" + source + " " +
-		fpPath + " record >/dev/null\n"
+		fpPath + " record >/dev/null 2>&1 || true\n"
 }
