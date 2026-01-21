@@ -10,20 +10,22 @@ import (
 // ColorConfig holds all configurable colors for the UI.
 // Values can be ANSI color numbers (0-255) or "bold" for bold styling.
 type ColorConfig struct {
-	Success string
-	Warning string
-	Error   string
-	Info    string
-	Muted   string
-	Header  string
-	Border  string // Interactive delimiters (scrollbars, card borders, etc.)
-	Color1  string // POST-COMMIT
-	Color2  string // POST-REWRITE
-	Color3  string // POST-CHECKOUT
-	Color4  string // POST-MERGE
-	Color5  string // PRE-PUSH
-	Color6  string // BACKFILL
-	Color7  string // MANUAL
+	Success  string
+	Warning  string
+	Error    string
+	Info     string
+	Muted    string
+	Header   string
+	Border   string // Interactive delimiters (scrollbars, card borders, etc.)
+	UIActive string // Interactive UI elements when focused/active (scrollbar thumb, focused borders)
+	UIDim    string // Interactive UI elements when unfocused/inactive (dimmed state)
+	Color1   string // POST-COMMIT
+	Color2   string // POST-REWRITE
+	Color3   string // POST-CHECKOUT
+	Color4   string // POST-MERGE
+	Color5   string // PRE-PUSH
+	Color6   string // BACKFILL
+	Color7   string // MANUAL
 }
 
 // BaseThemeNames lists available theme bases (auto-detects dark/light).
@@ -57,324 +59,358 @@ var Themes = map[string]ColorConfig{
 	// Classic dark - traditional bright terminal colors for dark backgrounds.
 	// Uses the standard 16-color palette for maximum compatibility.
 	"default-dark": {
-		Success: "10",  // bright green
-		Warning: "11",  // bright yellow
-		Error:   "9",   // bright red
-		Info:    "14",  // bright cyan
-		Muted:   "245", // medium gray
-		Header:  "bold",
-		Border:  "244", // medium gray for borders
-		Color1:  "10",  // POST-COMMIT (bright green)
-		Color2:  "13",  // POST-REWRITE (bright magenta)
-		Color3:  "12",  // POST-CHECKOUT (bright blue)
-		Color4:  "14",  // POST-MERGE (bright cyan)
-		Color5:  "11",  // PRE-PUSH (bright yellow)
-		Color6:  "8",   // BACKFILL (dark gray)
-		Color7:  "15",  // MANUAL (white)
+		Success:  "10",  // bright green
+		Warning:  "11",  // bright yellow
+		Error:    "9",   // bright red
+		Info:     "14",  // bright cyan
+		Muted:    "245", // medium gray
+		Header:   "bold",
+		Border:   "244", // medium gray for borders
+		UIActive: "14",  // bright cyan for active UI elements
+		UIDim:    "240", // dark gray for inactive UI elements
+		Color1:   "10",  // POST-COMMIT (bright green)
+		Color2:   "13",  // POST-REWRITE (bright magenta)
+		Color3:   "12",  // POST-CHECKOUT (bright blue)
+		Color4:   "14",  // POST-MERGE (bright cyan)
+		Color5:   "11",  // PRE-PUSH (bright yellow)
+		Color6:   "8",   // BACKFILL (dark gray)
+		Color7:   "15",  // MANUAL (white)
 	},
 
 	// Classic light - dark saturated colors for light/white backgrounds.
 	// Each color is dark enough to contrast with white text background.
 	"default-light": {
-		Success: "28",  // dark green
-		Warning: "130", // dark orange
-		Error:   "124", // dark red
-		Info:    "27",  // dark blue
-		Muted:   "243", // medium-dark gray
-		Header:  "bold",
-		Border:  "250", // light gray for borders
-		Color1:  "28",  // POST-COMMIT (dark green)
-		Color2:  "90",  // POST-REWRITE (dark magenta)
-		Color3:  "27",  // POST-CHECKOUT (dark blue)
-		Color4:  "30",  // POST-MERGE (dark cyan)
-		Color5:  "130", // PRE-PUSH (dark orange)
-		Color6:  "240", // BACKFILL (dark gray)
-		Color7:  "235", // MANUAL (near black)
+		Success:  "28",  // dark green
+		Warning:  "130", // dark orange
+		Error:    "124", // dark red
+		Info:     "27",  // dark blue
+		Muted:    "243", // medium-dark gray
+		Header:   "bold",
+		Border:   "250", // light gray for borders
+		UIActive: "27",  // dark blue for active UI elements
+		UIDim:    "252", // very light gray for inactive UI elements
+		Color1:   "28",  // POST-COMMIT (dark green)
+		Color2:   "90",  // POST-REWRITE (dark magenta)
+		Color3:   "27",  // POST-CHECKOUT (dark blue)
+		Color4:   "30",  // POST-MERGE (dark cyan)
+		Color5:   "130", // PRE-PUSH (dark orange)
+		Color6:   "240", // BACKFILL (dark gray)
+		Color7:   "235", // MANUAL (near black)
 	},
 
 	// Neon dark - vivid saturated colors, cyberpunk aesthetic.
 	// High-contrast bright colors that pop on dark backgrounds.
 	"neon-dark": {
-		Success: "48",  // bright teal
-		Warning: "220", // gold
-		Error:   "197", // hot pink
-		Info:    "51",  // electric cyan
-		Muted:   "244", // gray
-		Header:  "bold",
-		Border:  "93",  // purple for neon borders
-		Color1:  "46",  // POST-COMMIT (neon green)
-		Color2:  "201", // POST-REWRITE (hot magenta)
-		Color3:  "39",  // POST-CHECKOUT (deep sky blue)
-		Color4:  "51",  // POST-MERGE (cyan)
-		Color5:  "226", // PRE-PUSH (yellow)
-		Color6:  "242", // BACKFILL (gray)
-		Color7:  "231", // MANUAL (white)
+		Success:  "48",  // bright teal
+		Warning:  "220", // gold
+		Error:    "197", // hot pink
+		Info:     "51",  // electric cyan
+		Muted:    "244", // gray
+		Header:   "bold",
+		Border:   "93",  // purple for neon borders
+		UIActive: "201", // hot magenta for active UI elements
+		UIDim:    "93",  // purple for inactive UI elements
+		Color1:   "46",  // POST-COMMIT (neon green)
+		Color2:   "201", // POST-REWRITE (hot magenta)
+		Color3:   "39",  // POST-CHECKOUT (deep sky blue)
+		Color4:   "51",  // POST-MERGE (cyan)
+		Color5:   "226", // PRE-PUSH (yellow)
+		Color6:   "242", // BACKFILL (gray)
+		Color7:   "231", // MANUAL (white)
 	},
 
 	// Neon light - deep saturated colors for light backgrounds.
 	// Rich jewel tones that remain vibrant but readable.
 	"neon-light": {
-		Success: "29",  // deep teal
-		Warning: "166", // dark orange
-		Error:   "161", // dark pink
-		Info:    "32",  // deep blue
-		Muted:   "245", // gray
-		Header:  "bold",
-		Border:  "99",  // medium purple for borders
-		Color1:  "28",  // POST-COMMIT (forest green)
-		Color2:  "127", // POST-REWRITE (dark magenta)
-		Color3:  "26",  // POST-CHECKOUT (navy)
-		Color4:  "37",  // POST-MERGE (teal)
-		Color5:  "166", // PRE-PUSH (dark orange)
-		Color6:  "241", // BACKFILL (gray)
-		Color7:  "236", // MANUAL (dark gray)
+		Success:  "29",  // deep teal
+		Warning:  "166", // dark orange
+		Error:    "161", // dark pink
+		Info:     "32",  // deep blue
+		Muted:    "245", // gray
+		Header:   "bold",
+		Border:   "99",  // medium purple for borders
+		UIActive: "127", // dark magenta for active UI elements
+		UIDim:    "99",  // medium purple for inactive UI elements
+		Color1:   "28",  // POST-COMMIT (forest green)
+		Color2:   "127", // POST-REWRITE (dark magenta)
+		Color3:   "26",  // POST-CHECKOUT (navy)
+		Color4:   "37",  // POST-MERGE (teal)
+		Color5:   "166", // PRE-PUSH (dark orange)
+		Color6:   "241", // BACKFILL (gray)
+		Color7:   "236", // MANUAL (dark gray)
 	},
 
 	// Aurora dark - northern lights inspired palette for dark backgrounds.
 	// Dreamy purples, teals, and soft pinks.
 	"aurora-dark": {
-		Success: "121", // mint green
-		Warning: "222", // soft gold
-		Error:   "204", // salmon pink
-		Info:    "147", // lavender
-		Muted:   "246", // light gray
-		Header:  "bold",
-		Border:  "141", // light purple for aurora borders
-		Color1:  "121", // POST-COMMIT (mint)
-		Color2:  "183", // POST-REWRITE (orchid)
-		Color3:  "111", // POST-CHECKOUT (sky blue)
-		Color4:  "123", // POST-MERGE (turquoise)
-		Color5:  "222", // PRE-PUSH (gold)
-		Color6:  "245", // BACKFILL (gray)
-		Color7:  "189", // MANUAL (light lavender)
+		Success:  "121", // mint green
+		Warning:  "222", // soft gold
+		Error:    "204", // salmon pink
+		Info:     "147", // lavender
+		Muted:    "246", // light gray
+		Header:   "bold",
+		Border:   "141", // light purple for aurora borders
+		UIActive: "147", // lavender for active UI elements
+		UIDim:    "141", // light purple for inactive UI elements
+		Color1:   "121", // POST-COMMIT (mint)
+		Color2:   "183", // POST-REWRITE (orchid)
+		Color3:   "111", // POST-CHECKOUT (sky blue)
+		Color4:   "123", // POST-MERGE (turquoise)
+		Color5:   "222", // PRE-PUSH (gold)
+		Color6:   "245", // BACKFILL (gray)
+		Color7:   "189", // MANUAL (light lavender)
 	},
 
 	// Aurora light - deep jewel tones for light backgrounds.
 	// Rich purples, teals, and magentas with good contrast.
 	"aurora-light": {
-		Success: "30",  // dark teal
-		Warning: "136", // amber
-		Error:   "125", // dark magenta
-		Info:    "62",  // purple
-		Muted:   "244", // gray
-		Border:  "103", // medium purple for borders
-		Header:  "bold",
-		Color1:  "30",  // POST-COMMIT (dark teal)
-		Color2:  "133", // POST-REWRITE (medium orchid)
-		Color3:  "61",  // POST-CHECKOUT (slate blue)
-		Color4:  "37",  // POST-MERGE (teal)
-		Color5:  "136", // PRE-PUSH (amber)
-		Color6:  "241", // BACKFILL (dark gray)
-		Color7:  "96",  // MANUAL (plum)
+		Success:  "30",  // dark teal
+		Warning:  "136", // amber
+		Error:    "125", // dark magenta
+		Info:     "62",  // purple
+		Muted:    "244", // gray
+		Border:   "103", // medium purple for borders
+		Header:   "bold",
+		UIActive: "62",  // purple for active UI elements
+		UIDim:    "103", // medium purple for inactive UI elements
+		Color1:   "30",  // POST-COMMIT (dark teal)
+		Color2:   "133", // POST-REWRITE (medium orchid)
+		Color3:   "61",  // POST-CHECKOUT (slate blue)
+		Color4:   "37",  // POST-MERGE (teal)
+		Color5:   "136", // PRE-PUSH (amber)
+		Color6:   "241", // BACKFILL (dark gray)
+		Color7:   "96",  // MANUAL (plum)
 	},
 
 	// Mono dark - minimalist grayscale with cyan accent.
 	// Clean, distraction-free aesthetic.
 	"mono-dark": {
-		Success: "50",  // cyan (the one accent)
-		Warning: "229", // pale yellow
-		Error:   "210", // light red
-		Info:    "50",  // cyan
-		Muted:   "245", // gray
-		Header:  "bold",
-		Border:  "247", // light gray for mono borders
-		Color1:  "50",  // POST-COMMIT (cyan)
-		Color2:  "251", // POST-REWRITE (light gray)
-		Color3:  "248", // POST-CHECKOUT (gray)
-		Color4:  "50",  // POST-MERGE (cyan)
-		Color5:  "229", // PRE-PUSH (pale yellow)
-		Color6:  "243", // BACKFILL (dim gray)
-		Color7:  "255", // MANUAL (white)
+		Success:  "50",  // cyan (the one accent)
+		Warning:  "229", // pale yellow
+		Error:    "210", // light red
+		Info:     "50",  // cyan
+		Muted:    "245", // gray
+		Header:   "bold",
+		Border:   "247", // light gray for mono borders
+		UIActive: "50",  // cyan for active UI elements
+		UIDim:    "247", // light gray for inactive UI elements
+		Color1:   "50",  // POST-COMMIT (cyan)
+		Color2:   "251", // POST-REWRITE (light gray)
+		Color3:   "248", // POST-CHECKOUT (gray)
+		Color4:   "50",  // POST-MERGE (cyan)
+		Color5:   "229", // PRE-PUSH (pale yellow)
+		Color6:   "243", // BACKFILL (dim gray)
+		Color7:   "255", // MANUAL (white)
 	},
 
 	// Mono light - minimalist grayscale with teal accent.
 	// Clean, professional look for light backgrounds.
 	"mono-light": {
-		Success: "30",  // dark teal (the one accent)
-		Warning: "136", // amber
-		Error:   "124", // dark red
-		Info:    "30",  // dark teal
-		Muted:   "244", // gray
-		Header:  "bold",
-		Border:  "249", // light gray for mono borders
-		Color1:  "30",  // POST-COMMIT (teal)
-		Color2:  "241", // POST-REWRITE (dark gray)
-		Color3:  "244", // POST-CHECKOUT (gray)
-		Color4:  "30",  // POST-MERGE (teal)
-		Color5:  "136", // PRE-PUSH (amber)
-		Color6:  "247", // BACKFILL (light gray)
-		Color7:  "235", // MANUAL (near black)
+		Success:  "30",  // dark teal (the one accent)
+		Warning:  "136", // amber
+		Error:    "124", // dark red
+		Info:     "30",  // dark teal
+		Muted:    "244", // gray
+		Header:   "bold",
+		Border:   "249", // light gray for mono borders
+		UIActive: "30",  // dark teal for active UI elements
+		UIDim:    "249", // light gray for inactive UI elements
+		Color1:   "30",  // POST-COMMIT (teal)
+		Color2:   "241", // POST-REWRITE (dark gray)
+		Color3:   "244", // POST-CHECKOUT (gray)
+		Color4:   "30",  // POST-MERGE (teal)
+		Color5:   "136", // PRE-PUSH (amber)
+		Color6:   "247", // BACKFILL (light gray)
+		Color7:   "235", // MANUAL (near black)
 	},
 
 	// Ocean dark - cool blues and teals, like deep water.
 	// Unified aquatic palette.
 	"ocean-dark": {
-		Success: "43",  // turquoise
-		Warning: "221", // light gold
-		Error:   "174", // light coral
-		Info:    "75",  // sky blue
-		Muted:   "245", // gray
-		Header:  "bold",
-		Border:  "68",  // steel blue for ocean borders
-		Color1:  "43",  // POST-COMMIT (turquoise)
-		Color2:  "105", // POST-REWRITE (slate blue)
-		Color3:  "75",  // POST-CHECKOUT (sky blue)
-		Color4:  "80",  // POST-MERGE (medium turquoise)
-		Color5:  "221", // PRE-PUSH (gold)
-		Color6:  "67",  // BACKFILL (steel blue)
-		Color7:  "159", // MANUAL (light cyan)
+		Success:  "43",  // turquoise
+		Warning:  "221", // light gold
+		Error:    "174", // light coral
+		Info:     "75",  // sky blue
+		Muted:    "245", // gray
+		Header:   "bold",
+		Border:   "68",  // steel blue for ocean borders
+		UIActive: "75",  // sky blue for active UI elements
+		UIDim:    "68",  // steel blue for inactive UI elements
+		Color1:   "43",  // POST-COMMIT (turquoise)
+		Color2:   "105", // POST-REWRITE (slate blue)
+		Color3:   "75",  // POST-CHECKOUT (sky blue)
+		Color4:   "80",  // POST-MERGE (medium turquoise)
+		Color5:   "221", // PRE-PUSH (gold)
+		Color6:   "67",  // BACKFILL (steel blue)
+		Color7:   "159", // MANUAL (light cyan)
 	},
 
 	// Ocean light - deep sea colors for light backgrounds.
 	// Navy, teal, and deep blues.
 	"ocean-light": {
-		Success: "30",  // dark cyan
-		Warning: "130", // dark orange
-		Error:   "124", // dark red
-		Info:    "25",  // dark blue
-		Muted:   "244", // gray
-		Header:  "bold",
-		Border:  "74",  // medium cyan for ocean borders
-		Color1:  "30",  // POST-COMMIT (dark cyan)
-		Color2:  "61",  // POST-REWRITE (slate blue)
-		Color3:  "25",  // POST-CHECKOUT (dark blue)
-		Color4:  "37",  // POST-MERGE (teal)
-		Color5:  "130", // PRE-PUSH (dark orange)
-		Color6:  "66",  // BACKFILL (grayish cyan)
-		Color7:  "17",  // MANUAL (navy)
+		Success:  "30",  // dark cyan
+		Warning:  "130", // dark orange
+		Error:    "124", // dark red
+		Info:     "25",  // dark blue
+		Muted:    "244", // gray
+		Header:   "bold",
+		Border:   "74",  // medium cyan for ocean borders
+		UIActive: "25",  // dark blue for active UI elements
+		UIDim:    "74",  // medium cyan for inactive UI elements
+		Color1:   "30",  // POST-COMMIT (dark cyan)
+		Color2:   "61",  // POST-REWRITE (slate blue)
+		Color3:   "25",  // POST-CHECKOUT (dark blue)
+		Color4:   "37",  // POST-MERGE (teal)
+		Color5:   "130", // PRE-PUSH (dark orange)
+		Color6:   "66",  // BACKFILL (grayish cyan)
+		Color7:   "17",  // MANUAL (navy)
 	},
 
 	// Sunset dark - warm gradient from orange to magenta to purple.
 	// Dusk vibes.
 	"sunset-dark": {
-		Success: "216", // light salmon
-		Warning: "221", // light goldenrod
-		Error:   "204", // hot pink
-		Info:    "183", // plum
-		Muted:   "245", // gray
-		Header:  "bold",
-		Border:  "175", // light pink for sunset borders
-		Color1:  "216", // POST-COMMIT (salmon)
-		Color2:  "213", // POST-REWRITE (orchid)
-		Color3:  "183", // POST-CHECKOUT (plum)
-		Color4:  "209", // POST-MERGE (coral)
-		Color5:  "221", // PRE-PUSH (gold)
-		Color6:  "139", // BACKFILL (dusty rose)
-		Color7:  "224", // MANUAL (misty rose)
+		Success:  "216", // light salmon
+		Warning:  "221", // light goldenrod
+		Error:    "204", // hot pink
+		Info:     "183", // plum
+		Muted:    "245", // gray
+		Header:   "bold",
+		Border:   "175", // light pink for sunset borders
+		UIActive: "213", // orchid for active UI elements
+		UIDim:    "175", // light pink for inactive UI elements
+		Color1:   "216", // POST-COMMIT (salmon)
+		Color2:   "213", // POST-REWRITE (orchid)
+		Color3:   "183", // POST-CHECKOUT (plum)
+		Color4:   "209", // POST-MERGE (coral)
+		Color5:   "221", // PRE-PUSH (gold)
+		Color6:   "139", // BACKFILL (dusty rose)
+		Color7:   "224", // MANUAL (misty rose)
 	},
 
 	// Sunset light - deep warm tones for light backgrounds.
 	// Rich oranges, magentas, and purples.
 	"sunset-light": {
-		Success: "166", // dark orange
-		Warning: "136", // dark goldenrod
-		Error:   "125", // dark pink
-		Info:    "90",  // dark magenta
-		Muted:   "244", // gray
-		Header:  "bold",
-		Border:  "132", // medium orchid for sunset borders
-		Color1:  "166", // POST-COMMIT (dark orange)
-		Color2:  "127", // POST-REWRITE (medium violet)
-		Color3:  "90",  // POST-CHECKOUT (dark magenta)
-		Color4:  "130", // POST-MERGE (dark coral)
-		Color5:  "136", // PRE-PUSH (dark gold)
-		Color6:  "95",  // BACKFILL (dusty purple)
-		Color7:  "52",  // MANUAL (dark red)
+		Success:  "166", // dark orange
+		Warning:  "136", // dark goldenrod
+		Error:    "125", // dark pink
+		Info:     "90",  // dark magenta
+		Muted:    "244", // gray
+		Header:   "bold",
+		Border:   "132", // medium orchid for sunset borders
+		UIActive: "127", // medium violet for active UI elements
+		UIDim:    "132", // medium orchid for inactive UI elements
+		Color1:   "166", // POST-COMMIT (dark orange)
+		Color2:   "127", // POST-REWRITE (medium violet)
+		Color3:   "90",  // POST-CHECKOUT (dark magenta)
+		Color4:   "130", // POST-MERGE (dark coral)
+		Color5:   "136", // PRE-PUSH (dark gold)
+		Color6:   "95",  // BACKFILL (dusty purple)
+		Color7:   "52",  // MANUAL (dark red)
 	},
 
 	// Candy dark - sweet pastel colors on dark background.
 	// Playful and soft.
 	"candy-dark": {
-		Success: "158", // mint
-		Warning: "222", // light peach
-		Error:   "211", // light pink
-		Info:    "153", // baby blue
-		Muted:   "250", // light gray
-		Header:  "bold",
-		Border:  "183", // light orchid for candy borders
-		Color1:  "158", // POST-COMMIT (mint)
-		Color2:  "218", // POST-REWRITE (pink)
-		Color3:  "153", // POST-CHECKOUT (baby blue)
-		Color4:  "158", // POST-MERGE (aquamarine)
-		Color5:  "222", // PRE-PUSH (peach)
-		Color6:  "188", // BACKFILL (light lavender)
-		Color7:  "231", // MANUAL (white)
+		Success:  "158", // mint
+		Warning:  "222", // light peach
+		Error:    "211", // light pink
+		Info:     "153", // baby blue
+		Muted:    "250", // light gray
+		Header:   "bold",
+		Border:   "183", // light orchid for candy borders
+		UIActive: "153", // baby blue for active UI elements
+		UIDim:    "183", // light orchid for inactive UI elements
+		Color1:   "158", // POST-COMMIT (mint)
+		Color2:   "218", // POST-REWRITE (pink)
+		Color3:   "153", // POST-CHECKOUT (baby blue)
+		Color4:   "158", // POST-MERGE (aquamarine)
+		Color5:   "222", // PRE-PUSH (peach)
+		Color6:   "188", // BACKFILL (light lavender)
+		Color7:   "231", // MANUAL (white)
 	},
 
 	// Candy light - deeper candy colors for light backgrounds.
 	// Still playful but readable.
 	"candy-light": {
-		Success: "36",  // dark mint
-		Warning: "172", // dark peach
-		Error:   "168", // dark pink
-		Info:    "68",  // medium blue
-		Muted:   "244", // gray
-		Header:  "bold",
-		Border:  "139", // medium pink for candy borders
-		Color1:  "36",  // POST-COMMIT (dark mint)
-		Color2:  "132", // POST-REWRITE (medium orchid)
-		Color3:  "68",  // POST-CHECKOUT (medium blue)
-		Color4:  "73",  // POST-MERGE (cadet blue)
-		Color5:  "172", // PRE-PUSH (dark peach)
-		Color6:  "103", // BACKFILL (medium purple)
-		Color7:  "240", // MANUAL (dark gray)
+		Success:  "36",  // dark mint
+		Warning:  "172", // dark peach
+		Error:    "168", // dark pink
+		Info:     "68",  // medium blue
+		Muted:    "244", // gray
+		Header:   "bold",
+		Border:   "139", // medium pink for candy borders
+		UIActive: "68",  // medium blue for active UI elements
+		UIDim:    "139", // medium pink for inactive UI elements
+		Color1:   "36",  // POST-COMMIT (dark mint)
+		Color2:   "132", // POST-REWRITE (medium orchid)
+		Color3:   "68",  // POST-CHECKOUT (medium blue)
+		Color4:   "73",  // POST-MERGE (cadet blue)
+		Color5:   "172", // PRE-PUSH (dark peach)
+		Color6:   "103", // BACKFILL (medium purple)
+		Color7:   "240", // MANUAL (dark gray)
 	},
 
 	// Contrast dark - maximum readability with pure primaries.
 	// High contrast, accessibility-focused.
 	"contrast-dark": {
-		Success: "46",  // pure bright green
-		Warning: "226", // pure bright yellow
-		Error:   "196", // pure bright red
-		Info:    "51",  // pure bright cyan
-		Muted:   "250", // bright gray
-		Header:  "bold",
-		Border:  "255", // white for high contrast borders
-		Color1:  "46",  // POST-COMMIT (green)
-		Color2:  "201", // POST-REWRITE (magenta)
-		Color3:  "21",  // POST-CHECKOUT (blue)
-		Color4:  "51",  // POST-MERGE (cyan)
-		Color5:  "226", // PRE-PUSH (yellow)
-		Color6:  "245", // BACKFILL (gray)
-		Color7:  "231", // MANUAL (white)
+		Success:  "46",  // pure bright green
+		Warning:  "226", // pure bright yellow
+		Error:    "196", // pure bright red
+		Info:     "51",  // pure bright cyan
+		Muted:    "250", // bright gray
+		Header:   "bold",
+		Border:   "255", // white for high contrast borders
+		UIActive: "51",  // pure bright cyan for active UI elements
+		UIDim:    "255", // white for inactive UI elements
+		Color1:   "46",  // POST-COMMIT (green)
+		Color2:   "201", // POST-REWRITE (magenta)
+		Color3:   "21",  // POST-CHECKOUT (blue)
+		Color4:   "51",  // POST-MERGE (cyan)
+		Color5:   "226", // PRE-PUSH (yellow)
+		Color6:   "245", // BACKFILL (gray)
+		Color7:   "231", // MANUAL (white)
 	},
 
 	// Contrast light - maximum readability for light backgrounds.
 	// Pure dark primaries, very accessible.
 	"contrast-light": {
-		Success: "22",  // dark green
-		Warning: "130", // dark orange (yellow hard to read on white)
-		Error:   "124", // dark red
-		Info:    "21",  // dark blue
-		Muted:   "240", // dark gray
-		Header:  "bold",
-		Border:  "238", // dark gray for high contrast borders
-		Color1:  "22",  // POST-COMMIT (dark green)
-		Color2:  "90",  // POST-REWRITE (dark magenta)
-		Color3:  "19",  // POST-CHECKOUT (dark blue)
-		Color4:  "30",  // POST-MERGE (dark cyan)
-		Color5:  "130", // PRE-PUSH (dark orange)
-		Color6:  "243", // BACKFILL (gray)
-		Color7:  "232", // MANUAL (near black)
+		Success:  "22",  // dark green
+		Warning:  "130", // dark orange (yellow hard to read on white)
+		Error:    "124", // dark red
+		Info:     "21",  // dark blue
+		Muted:    "240", // dark gray
+		Header:   "bold",
+		Border:   "238", // dark gray for high contrast borders
+		UIActive: "21",  // dark blue for active UI elements
+		UIDim:    "238", // dark gray for inactive UI elements
+		Color1:   "22",  // POST-COMMIT (dark green)
+		Color2:   "90",  // POST-REWRITE (dark magenta)
+		Color3:   "19",  // POST-CHECKOUT (dark blue)
+		Color4:   "30",  // POST-MERGE (dark cyan)
+		Color5:   "130", // PRE-PUSH (dark orange)
+		Color6:   "243", // BACKFILL (gray)
+		Color7:   "232", // MANUAL (near black)
 	},
 }
 
 // colorConfigKeys maps config/env key names to ColorConfig field names.
 var colorConfigKeys = map[string]string{
-	"color_success": "Success",
-	"color_warning": "Warning",
-	"color_error":   "Error",
-	"color_info":    "Info",
-	"color_muted":   "Muted",
-	"color_header":  "Header",
-	"color_border":  "Border",
-	"color_1":       "Color1",
-	"color_2":       "Color2",
-	"color_3":       "Color3",
-	"color_4":       "Color4",
-	"color_5":       "Color5",
-	"color_6":       "Color6",
-	"color_7":       "Color7",
+	"color_success":   "Success",
+	"color_warning":   "Warning",
+	"color_error":     "Error",
+	"color_info":      "Info",
+	"color_muted":     "Muted",
+	"color_header":    "Header",
+	"color_border":    "Border",
+	"color_ui_active": "UIActive",
+	"color_ui_dim":    "UIDim",
+	"color_1":         "Color1",
+	"color_2":         "Color2",
+	"color_3":         "Color3",
+	"color_4":         "Color4",
+	"color_5":         "Color5",
+	"color_6":         "Color6",
+	"color_7":         "Color7",
 }
 
 // IsDarkBackground returns true if the terminal has a dark background.
@@ -459,6 +495,10 @@ func setColorField(c *ColorConfig, field, value string) {
 		c.Header = value
 	case "Border":
 		c.Border = value
+	case "UIActive":
+		c.UIActive = value
+	case "UIDim":
+		c.UIDim = value
 	case "Color1":
 		c.Color1 = value
 	case "Color2":
