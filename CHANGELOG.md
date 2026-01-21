@@ -7,13 +7,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Interactive help browser with `fp help -i` flag (replaces `help-browser` command)
+- Command suggestions for typos using Levenshtein distance
+- Border color in theme system for interactive UI elements
+- Watch interactive TUI mode
+- Domain interfaces for dependency injection
+- App factory for wiring application dependencies
+- Tests for tracking actions (adopt, backfill, export)
+
+### Changed
+- Replaced `help-browser` command with `-i` flag on `help`
+- Refactored store package for cleaner database operations
+- Simplified action dependencies
+
+---
+
+## [0.0.8] - 2026-01-21
+
+### Added
 - Theme system with `theme list`, `theme set`, and `theme pick` commands
 - 8 built-in themes with dark/light variants: default, neon, aurora, mono, ocean, sunset, candy, contrast
 - Application logging system with `logs` command
 - `log_level` and `log_enabled` configuration options
+- Interactive help browser for navigating commands and topics
 
 ### Changed
-- Improved test coverage for logging and themes
+- Improved test coverage for logging, themes, and all packages
 
 ---
 
@@ -108,7 +127,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `config` subcommands: `get`, `set`, `unset --all`, `list`
 - `version` command with build-time injection
 
-[Unreleased]: https://github.com/Skryensya/footprint/compare/v0.0.7...HEAD
+[Unreleased]: https://github.com/Skryensya/footprint/compare/v0.0.8...HEAD
+[0.0.8]: https://github.com/Skryensya/footprint/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/Skryensya/footprint/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/Skryensya/footprint/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/Skryensya/footprint/compare/v0.0.4...v0.0.5
