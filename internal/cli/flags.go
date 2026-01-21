@@ -147,6 +147,11 @@ var (
 			Description: "Show commit message and author from git",
 			Scope:       dispatchers.FlagScopeLocal,
 		},
+		{
+			Names:       []string{"--interactive", "-i"},
+			Description: "Run in interactive TUI mode with stats and detail view",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
 	}
 
 	ExportFlags = []dispatchers.FlagDescriptor{

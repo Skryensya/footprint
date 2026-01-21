@@ -118,22 +118,42 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		}
 	}
 
-	if err := ensureExportRepo(exportRepo); err != nil {
-		return fmt.Errorf("could not initialize export repo: %w", err)
+	count, pushed, err := doExportWork(db, events, deps)
+	if err != nil {
+		return err
 	}
 
-	// Group events by repo_id
+	if count == 0 {
+		deps.Println("No events were exported")
+		return nil
+	}
+
+	deps.Printf("Exported %d events\n", count)
+	if pushed {
+		deps.Println("Pushed to remote")
+	}
+
+	return nil
+}
+
+// doExportWork performs the core export workflow: export events to CSV, commit, update DB.
+// Returns the count of exported events, whether push succeeded, and any error.
+func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, error) {
+	exportRepo := getExportRepo()
+
+	if err := ensureExportRepo(exportRepo); err != nil {
+		return 0, false, fmt.Errorf("could not initialize export repo: %w", err)
+	}
+
 	eventsByRepo := groupEventsByRepo(events)
 
-	// Export each repo's events
 	var exportedIDs []int64
 	var exportedFiles []string
 
 	for repoID, repoEvents := range eventsByRepo {
 		ids, files, err := exportRepoEvents(exportRepo, repoID, repoEvents, deps)
 		if err != nil {
-			// Log error but continue with other repos
-			deps.Printf("Warning: failed to export events for %s: %v\n", repoID, err)
+			log.Warn("export: failed to export events for %s: %v", repoID, err)
 			continue
 		}
 		exportedIDs = append(exportedIDs, ids...)
@@ -141,36 +161,29 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 
 	if len(exportedFiles) == 0 {
-		deps.Println("No events were exported")
-		return nil
+		return 0, false, nil
 	}
 
-	// Commit all changes to the export repo
 	if err := commitExportChanges(exportRepo, exportedFiles); err != nil {
-		return fmt.Errorf("could not commit export: %w", err)
+		return 0, false, fmt.Errorf("could not commit export: %w", err)
 	}
 
-	// Update event statuses
 	if err := store.UpdateEventStatuses(db, exportedIDs, store.StatusExported); err != nil {
-		return fmt.Errorf("could not update event statuses: %w", err)
+		return 0, false, fmt.Errorf("could not update event statuses: %w", err)
 	}
 
-	if err := saveExportLast(deps.Now().Unix()); err != nil {
-		return fmt.Errorf("could not save export timestamp: %w", err)
-	}
+	_ = saveExportLast(deps.Now().Unix())
 
-	deps.Printf("Exported %d events to %d files\n", len(exportedIDs), len(exportedFiles))
-
-	// Auto-push if remote is configured
+	pushed := false
 	if hasRemote(exportRepo) {
 		if err := pushExportRepo(exportRepo); err != nil {
-			deps.Printf("Warning: could not push to remote: %v\n", err)
+			log.Warn("export: failed to push to remote: %v", err)
 		} else {
-			deps.Println("Pushed to remote")
+			pushed = true
 		}
 	}
 
-	return nil
+	return len(exportedIDs), pushed, nil
 }
 
 // MaybeExport checks if it's time to export and does so if needed.
@@ -196,54 +209,19 @@ func MaybeExport(db *sql.DB, deps Deps) {
 	}
 
 	log.Debug("export: auto-exporting %d pending events", len(events))
-	exportRepo := getExportRepo()
 
-	if err := ensureExportRepo(exportRepo); err != nil {
-		log.Error("export: failed to ensure export repo: %v", err)
+	count, _, err := doExportWork(db, events, deps)
+	if err != nil {
+		log.Error("export: %v", err)
 		return
 	}
 
-	eventsByRepo := groupEventsByRepo(events)
-
-	var exportedIDs []int64
-	var exportedFiles []string
-
-	for repoID, repoEvents := range eventsByRepo {
-		ids, files, err := exportRepoEvents(exportRepo, repoID, repoEvents, deps)
-		if err != nil {
-			log.Error("export: failed to export events for %s: %v", repoID, err)
-			continue
-		}
-		exportedIDs = append(exportedIDs, ids...)
-		exportedFiles = append(exportedFiles, files...)
-	}
-
-	if len(exportedFiles) == 0 {
+	if count == 0 {
 		log.Debug("export: no files were exported")
 		return
 	}
 
-	if err := commitExportChanges(exportRepo, exportedFiles); err != nil {
-		log.Error("export: failed to commit changes: %v", err)
-		return
-	}
-
-	// Auto-push if remote is configured
-	if hasRemote(exportRepo) {
-		if err := pushExportRepo(exportRepo); err != nil {
-			log.Warn("export: failed to push to remote: %v", err)
-		} else {
-			log.Debug("export: pushed to remote")
-		}
-	}
-
-	if err := store.UpdateEventStatuses(db, exportedIDs, store.StatusExported); err != nil {
-		log.Error("export: failed to update event statuses: %v", err)
-		return
-	}
-
-	_ = saveExportLast(deps.Now().Unix())
-	log.Info("export: auto-exported %d events to %d files", len(exportedIDs), len(exportedFiles))
+	log.Info("export: auto-exported %d events", count)
 }
 
 // groupEventsByRepo groups events by their repo_id.

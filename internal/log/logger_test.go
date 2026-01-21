@@ -457,3 +457,18 @@ func TestInit_Basic(t *testing.T) {
 	// but we can at least verify it doesn't panic with valid inputs.
 	// The actual Init behavior is tested indirectly through other tests.
 }
+
+func TestNopLogger(t *testing.T) {
+	nop := NopLogger{}
+
+	// Should not panic
+	nop.Debug("test %s", "debug")
+	nop.Info("test %s", "info")
+	nop.Warn("test %s", "warn")
+	nop.Error("test %s", "error")
+
+	err := nop.Close()
+	if err != nil {
+		t.Errorf("NopLogger.Close() should return nil, got %v", err)
+	}
+}

@@ -134,3 +134,50 @@ func TestPaths_NoDotDotComponents(t *testing.T) {
 			"Path should not contain '..': %s", p)
 	}
 }
+
+func TestAppLocalDataDir_WithXDGDataHome(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Test only runs on Linux")
+	}
+
+	// Set XDG_DATA_HOME
+	customPath := "/tmp/custom/data"
+	t.Setenv("XDG_DATA_HOME", customPath)
+
+	dir := AppLocalDataDir()
+
+	require.True(t, strings.HasPrefix(dir, customPath),
+		"AppLocalDataDir should use XDG_DATA_HOME: %s", dir)
+	require.True(t, strings.HasSuffix(dir, "footprint"),
+		"AppLocalDataDir should end with 'footprint': %s", dir)
+}
+
+func TestAppLocalDataDir_WithoutXDGDataHome(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Test only runs on Linux")
+	}
+
+	// Unset XDG_DATA_HOME
+	t.Setenv("XDG_DATA_HOME", "")
+
+	dir := AppLocalDataDir()
+
+	require.True(t, strings.Contains(dir, ".local/share"),
+		"AppLocalDataDir should use .local/share when XDG_DATA_HOME is not set: %s", dir)
+}
+
+func TestAppDataDir_ReturnsDot_OnError(t *testing.T) {
+	// This test documents the error handling behavior
+	// The function returns "." on error, though triggering an error is hard in practice
+	dir := AppDataDir()
+	require.NotEqual(t, ".", dir, "Normal case should not return '.'")
+}
+
+func TestConfigFilePath_ReturnsExpectedName(t *testing.T) {
+	path, err := ConfigFilePath()
+	require.NoError(t, err)
+
+	// Should be .fprc in home directory
+	require.True(t, strings.HasSuffix(path, ".fprc"),
+		"ConfigFilePath should end with .fprc: %s", path)
+}

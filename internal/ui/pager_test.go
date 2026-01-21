@@ -96,3 +96,18 @@ func TestPager_OverrideNotCat(t *testing.T) {
 	// This should attempt to run the pager
 	Pager("test content")
 }
+
+func TestRunPager_Success(t *testing.T) {
+	// Test runPager with a command that will succeed
+	runPager("true", nil, "test content")
+}
+
+func TestRunPager_WithArgs(t *testing.T) {
+	// Test runPager with arguments
+	runPager("echo", []string{"-n"}, "test")
+}
+
+func TestRunPager_InvalidCommand(t *testing.T) {
+	// Test runPager with an invalid command - should fall back to printing
+	runPager("/nonexistent/command", nil, "test content")
+}

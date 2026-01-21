@@ -67,30 +67,38 @@ func launchBackfillAndWatch(args []string, flags *dispatchers.ParsedFlags, deps 
 	return Log([]string{}, dispatchers.NewParsedFlags([]string{"--oneline"}))
 }
 
+// setupBackfill validates the environment and resolves the repository.
+func setupBackfill(args []string, deps Deps) (repoID string, repoRoot string, err error) {
+	if !deps.GitIsAvailable() {
+		return "", "", usage.GitNotInstalled()
+	}
+
+	path, err := resolvePath(args)
+	if err != nil {
+		return "", "", usage.InvalidPath()
+	}
+
+	repoRoot, err = deps.RepoRoot(path)
+	if err != nil {
+		return "", "", usage.NotInGitRepo()
+	}
+
+	remoteURL, _ := deps.OriginURL(repoRoot)
+	id, err := deps.DeriveID(remoteURL, repoRoot)
+	if err != nil {
+		return "", "", usage.InvalidRepo()
+	}
+
+	return string(id), repoRoot, nil
+}
+
 // doBackfillWork performs the actual backfill (runs in background).
 func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	log.Debug("backfill: starting background work")
 
-	if !deps.GitIsAvailable() {
-		return usage.GitNotInstalled()
-	}
-
-	// Resolve path
-	path, err := resolvePath(args)
+	repoID, repoRoot, err := setupBackfill(args, deps)
 	if err != nil {
-		return usage.InvalidPath()
-	}
-
-	repoRoot, err := deps.RepoRoot(path)
-	if err != nil {
-		return usage.NotInGitRepo()
-	}
-
-	// Get remote URL and derive repo ID
-	remoteURL, _ := deps.OriginURL(repoRoot)
-	repoID, err := deps.DeriveID(remoteURL, repoRoot)
-	if err != nil {
-		return usage.InvalidRepo()
+		return err
 	}
 
 	log.Debug("backfill: repo=%s, path=%s", repoID, repoRoot)
@@ -149,7 +157,7 @@ func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 
 		// Create event
 		event := store.RepoEvent{
-			RepoID:    string(repoID),
+			RepoID:    repoID,
 			RepoPath:  repoRoot,
 			Commit:    c.Hash,
 			Branch:    branch,
@@ -170,24 +178,9 @@ func doBackfillWork(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 
 // doBackfillDryRun shows what would be imported without doing it.
 func doBackfillDryRun(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
-	if !deps.GitIsAvailable() {
-		return usage.GitNotInstalled()
-	}
-
-	path, err := resolvePath(args)
+	repoID, repoRoot, err := setupBackfill(args, deps)
 	if err != nil {
-		return usage.InvalidPath()
-	}
-
-	repoRoot, err := deps.RepoRoot(path)
-	if err != nil {
-		return usage.NotInGitRepo()
-	}
-
-	remoteURL, _ := deps.OriginURL(repoRoot)
-	repoID, err := deps.DeriveID(remoteURL, repoRoot)
-	if err != nil {
-		return usage.InvalidRepo()
+		return err
 	}
 
 	opts := git.ListCommitsOptions{

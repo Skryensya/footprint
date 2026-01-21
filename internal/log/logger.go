@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Skryensya/footprint/internal/domain"
 )
 
 // Level representa el nivel de severidad del log
@@ -215,3 +217,17 @@ func Close() error {
 func GetLogger() *Logger {
 	return defaultLogger
 }
+
+// NopLogger is a logger that discards all messages.
+// Useful for testing or when logging is disabled.
+type NopLogger struct{}
+
+func (NopLogger) Debug(_ string, _ ...any) {}
+func (NopLogger) Info(_ string, _ ...any)  {}
+func (NopLogger) Warn(_ string, _ ...any)  {}
+func (NopLogger) Error(_ string, _ ...any) {}
+func (NopLogger) Close() error             { return nil }
+
+// Verify Logger implements domain.Logger
+var _ domain.Logger = (*Logger)(nil)
+var _ domain.Logger = NopLogger{}

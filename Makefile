@@ -19,7 +19,7 @@ else
 	FP_DATA_DIR := $(or $(XDG_DATA_HOME),$(HOME)/.local/share)/footprint
 endif
 
-.PHONY: build test test-actions test-hooks test-export test-backfill wipe
+.PHONY: build test test-nocache test-actions test-hooks test-export test-backfill wipe
 
 build: test
 	go build \
@@ -28,10 +28,13 @@ build: test
 		./cmd/fp
 
 test:
+	go test ./...
+
+test-nocache:
 	go test -count=1 ./...
 
 test-actions:
-	go test -count=1 ./internal/actions
+	go test ./internal/actions
 
 test-hooks: build
 	./scripts/test-hooks.sh

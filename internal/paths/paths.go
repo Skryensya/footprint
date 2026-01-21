@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-
-	"github.com/Skryensya/footprint/internal/app"
 )
 
 const appDirName = "footprint"
@@ -21,7 +19,7 @@ func AppDataDir() string {
 		return "."
 	}
 
-	path := filepath.Join(dir, app.Name)
+	path := filepath.Join(dir, appDirName)
 
 	// Use restrictive permissions for application data
 	_ = os.MkdirAll(path, 0700)
