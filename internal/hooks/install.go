@@ -10,6 +10,12 @@ import (
 func Install(hooksPath string) error {
 	log.Debug("hooks: installing to %s", hooksPath)
 
+	// Ensure hooks directory exists
+	if err := os.MkdirAll(hooksPath, 0755); err != nil {
+		log.Error("hooks: failed to create directory %s: %v", hooksPath, err)
+		return err
+	}
+
 	fpPath, err := os.Executable()
 	if err != nil {
 		log.Error("hooks: failed to get executable path: %v", err)

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/Skryensya/footprint/internal/actions/tracking"
 	"github.com/Skryensya/footprint/internal/dispatchers"
 	"github.com/Skryensya/footprint/internal/usage"
 )
@@ -26,6 +27,13 @@ func set(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 
 	if err := deps.WriteLines(lines); err != nil {
 		return err
+	}
+
+	// Special handling for export_remote: configure git remote
+	if key == "export_remote" {
+		if err := tracking.SetupExportRemote(value); err != nil {
+			return err
+		}
 	}
 
 	action := "added"
