@@ -1,0 +1,239 @@
+package domain
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestUsageError_Error(t *testing.T) {
+	err := NewUsageError(ErrInvalidFlag, "test message")
+
+	require.Equal(t, "test message", err.Error())
+}
+
+func TestUsageError_ExitCode(t *testing.T) {
+	tests := []struct {
+		kind     ErrorKind
+		expected int
+	}{
+		{ErrUnknown, 1},
+		{ErrInvalidFlag, 2},
+		{ErrMissingArgument, 2},
+		{ErrUnknownCommand, 1},
+		{ErrNotInGitRepo, 1},
+	}
+
+	for _, tt := range tests {
+		err := NewUsageError(tt.kind, "test")
+		require.Equal(t, tt.expected, err.ExitCode(), "kind: %v", tt.kind)
+	}
+}
+
+func TestUsageError_Unwrap(t *testing.T) {
+	cause := errors.New("underlying error")
+	err := WrapUsageError(ErrInvalidPath, "wrapped", cause)
+
+	require.Equal(t, cause, err.Unwrap())
+	require.True(t, errors.Is(err, cause))
+}
+
+func TestUsageError_IsKind(t *testing.T) {
+	err := NewUsageError(ErrInvalidFlag, "test")
+
+	require.True(t, err.IsKind(ErrInvalidFlag))
+	require.False(t, err.IsKind(ErrMissingArgument))
+}
+
+func TestNewUsageErrorf(t *testing.T) {
+	err := NewUsageErrorf(ErrUnknownCommand, "unknown: %s", "foo")
+
+	require.Equal(t, "unknown: foo", err.Error())
+	require.Equal(t, ErrUnknownCommand, err.Kind)
+}
+
+func TestRepoID_String(t *testing.T) {
+	id := RepoID("github.com/user/repo")
+
+	require.Equal(t, "github.com/user/repo", id.String())
+}
+
+func TestRepoID_IsEmpty(t *testing.T) {
+	require.True(t, RepoID("").IsEmpty())
+	require.False(t, RepoID("test").IsEmpty())
+}
+
+func TestRepoID_ToFilesystemSafe(t *testing.T) {
+	tests := []struct {
+		input    RepoID
+		expected string
+	}{
+		{"github.com/user/repo", "github.com_user_repo"},
+		{"git@github.com:user/repo", "git_github.com_user_repo"},
+		{"simple", "simple"},
+	}
+
+	for _, tt := range tests {
+		result := tt.input.ToFilesystemSafe()
+		require.Equal(t, tt.expected, result, "input: %s", tt.input)
+	}
+}
+
+func TestDeriveRepoID_FromRemote(t *testing.T) {
+	tests := []struct {
+		remoteURL string
+		expected  string
+	}{
+		{"https://github.com/user/repo.git", "github.com/user/repo"},
+		{"git@github.com:user/repo.git", "github.com/user/repo"},
+		{"https://github.com/user/repo", "github.com/user/repo"},
+		{"git://github.com/user/repo.git", "github.com/user/repo"},
+	}
+
+	for _, tt := range tests {
+		id, err := DeriveRepoID(tt.remoteURL, "")
+		require.NoError(t, err, "remoteURL: %s", tt.remoteURL)
+		require.Equal(t, RepoID(tt.expected), id)
+	}
+}
+
+func TestDeriveRepoID_FromPath(t *testing.T) {
+	id, err := DeriveRepoID("", "/home/user/project")
+
+	require.NoError(t, err)
+	require.Contains(t, id.String(), "local/")
+}
+
+func TestDeriveRepoID_EmptyInputs(t *testing.T) {
+	_, err := DeriveRepoID("", "")
+
+	require.Error(t, err)
+}
+
+func TestEventStatus_String(t *testing.T) {
+	tests := []struct {
+		status   EventStatus
+		expected string
+	}{
+		{StatusPending, "PENDING"},
+		{StatusExported, "EXPORTED"},
+		{StatusSkipped, "SKIPPED"},
+		{StatusFailed, "FAILED"},
+		{EventStatus(99), "UNKNOWN"},
+	}
+
+	for _, tt := range tests {
+		require.Equal(t, tt.expected, tt.status.String())
+	}
+}
+
+func TestParseEventStatus(t *testing.T) {
+	status, ok := ParseEventStatus("pending")
+	require.True(t, ok)
+	require.Equal(t, StatusPending, status)
+
+	status, ok = ParseEventStatus("EXPORTED")
+	require.True(t, ok)
+	require.Equal(t, StatusExported, status)
+
+	_, ok = ParseEventStatus("invalid")
+	require.False(t, ok)
+}
+
+func TestEventSource_String(t *testing.T) {
+	tests := []struct {
+		source   EventSource
+		expected string
+	}{
+		{SourcePostCommit, "POST-COMMIT"},
+		{SourceBackfill, "BACKFILL"},
+		{SourceManual, "MANUAL"},
+		{EventSource(99), "UNKNOWN"},
+	}
+
+	for _, tt := range tests {
+		require.Equal(t, tt.expected, tt.source.String())
+	}
+}
+
+func TestParseEventSource(t *testing.T) {
+	source, ok := ParseEventSource("post-commit")
+	require.True(t, ok)
+	require.Equal(t, SourcePostCommit, source)
+
+	source, ok = ParseEventSource("BACKFILL")
+	require.True(t, ok)
+	require.Equal(t, SourceBackfill, source)
+
+	_, ok = ParseEventSource("invalid")
+	require.False(t, ok)
+}
+
+func TestConfigKey_GetConfigKey(t *testing.T) {
+	key, ok := GetConfigKey("export_interval")
+	require.True(t, ok)
+	require.Equal(t, "export_interval", key.Name)
+	require.Equal(t, "3600", key.Default)
+}
+
+func TestConfigKey_IsValidConfigKey(t *testing.T) {
+	require.True(t, IsValidConfigKey("export_interval"))
+	require.False(t, IsValidConfigKey("invalid_key"))
+}
+
+func TestConfigKey_GetDefaultValue(t *testing.T) {
+	val, ok := GetDefaultValue("export_interval")
+	require.True(t, ok)
+	require.Equal(t, "3600", val)
+
+	_, ok = GetDefaultValue("invalid")
+	require.False(t, ok)
+}
+
+func TestVisibleConfigKeys(t *testing.T) {
+	visible := VisibleConfigKeys()
+
+	// Should not contain hidden keys
+	for _, key := range visible {
+		require.False(t, key.Hidden, "key %s should not be hidden", key.Name)
+	}
+
+	// Should contain at least some visible keys
+	require.Greater(t, len(visible), 0)
+}
+
+func TestErrorConstructors(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func() *UsageError
+		kind ErrorKind
+	}{
+		{"InvalidFlag", func() *UsageError { return ErrInvalidFlagError("--test") }, ErrInvalidFlag},
+		{"MissingArgument", func() *UsageError { return ErrMissingArgumentError("arg") }, ErrMissingArgument},
+		{"UnknownCommand", func() *UsageError { return ErrUnknownCommandError("cmd") }, ErrUnknownCommand},
+		{"NotInGitRepo", ErrNotInGitRepoError, ErrNotInGitRepo},
+		{"InvalidRepo", ErrInvalidRepoError, ErrInvalidRepo},
+		{"InvalidPath", ErrInvalidPathError, ErrInvalidPath},
+		{"MissingRemote", ErrMissingRemoteError, ErrMissingRemote},
+		{"GitNotInstalled", ErrGitNotInstalledError, ErrGitNotInstalled},
+		{"InvalidConfigKey", func() *UsageError { return ErrInvalidConfigKeyError("key") }, ErrInvalidConfigKey},
+		{"FailedConfigPath", ErrFailedConfigPathError, ErrFailedConfigPath},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.fn()
+			require.Equal(t, tt.kind, err.Kind)
+			require.NotEmpty(t, err.Message)
+		})
+	}
+}
+
+func TestErrAmbiguousRemoteError(t *testing.T) {
+	err := ErrAmbiguousRemoteError([]string{"origin", "upstream"})
+
+	require.Equal(t, ErrAmbiguousRemote, err.Kind)
+	require.Contains(t, err.Message, "origin")
+	require.Contains(t, err.Message, "upstream")
+}
