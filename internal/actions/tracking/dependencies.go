@@ -46,6 +46,12 @@ type Deps struct {
 	// misc
 	Now    func() time.Time
 	Getenv func(string) string
+
+	// export sync
+	GetExportRepo  func() string
+	HasRemote      func(string) bool
+	PullExportRepo func(string) error
+	PushExportRepo func(string) error
 }
 
 func DefaultDeps() Deps {
@@ -78,5 +84,10 @@ func DefaultDeps() Deps {
 
 		Now:    time.Now,
 		Getenv: os.Getenv,
+
+		GetExportRepo:  getExportRepo,
+		HasRemote:      hasRemote,
+		PullExportRepo: pullExportRepo,
+		PushExportRepo: pushExportRepo,
 	}
 }

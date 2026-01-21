@@ -120,10 +120,17 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 // doExportWork performs the core export workflow: export events to CSV, commit, update DB.
 // Returns the count of exported events, whether push succeeded, and any error.
 func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, error) {
-	exportRepo := getExportRepo()
+	exportRepo := deps.GetExportRepo()
 
 	if err := ensureExportRepo(exportRepo); err != nil {
 		return 0, false, fmt.Errorf("could not initialize export repo: %w", err)
+	}
+
+	// Sync with remote before writing (offline mode: continue if pull fails)
+	if deps.HasRemote(exportRepo) {
+		if err := deps.PullExportRepo(exportRepo); err != nil {
+			log.Warn("export: could not sync with remote, continuing offline: %v", err)
+		}
 	}
 
 	exportedIDs, exportedFiles, err := exportAllEvents(exportRepo, events, deps)
@@ -146,8 +153,8 @@ func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, e
 	_ = saveExportLast(deps.Now().Unix())
 
 	pushed := false
-	if hasRemote(exportRepo) {
-		if err := pushExportRepo(exportRepo); err != nil {
+	if deps.HasRemote(exportRepo) {
+		if err := deps.PushExportRepo(exportRepo); err != nil {
 			log.Warn("export: failed to push to remote: %v", err)
 		} else {
 			pushed = true
@@ -196,13 +203,9 @@ func MaybeExport(db *sql.DB, deps Deps) {
 }
 
 // exportAllEvents exports all events to a flat CSV structure with year-based rotation.
+// Uses map-based deduplication: new records replace existing ones with same repo:commit.
 // Returns the IDs of exported events and the files that were modified.
 func exportAllEvents(exportRepo string, events []store.RepoEvent, deps Deps) ([]int64, []string, error) {
-	// Sort events by timestamp (oldest first for append-only)
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].Timestamp.Before(events[j].Timestamp)
-	})
-
 	// Build a map of repo paths for metadata enrichment
 	repoPaths := make(map[string]string)
 	for _, e := range events {
@@ -211,71 +214,134 @@ func exportAllEvents(exportRepo string, events []store.RepoEvent, deps Deps) ([]
 		}
 	}
 
-	var exportedIDs []int64
-	var modifiedFiles []string
-	modifiedFilesSet := make(map[string]bool)
-
 	currentYear := deps.Now().Year()
 
+	// Group events by target CSV file
+	eventsByFile := make(map[string][]store.RepoEvent)
 	for _, e := range events {
-		// Enrich event with Git metadata
-		var meta git.CommitMetadata
-		if repoPath, ok := repoPaths[e.RepoID]; ok {
-			meta = git.GetCommitMetadata(repoPath, e.Commit)
+		csvPath := getCSVPath(exportRepo, e.Timestamp, currentYear)
+		eventsByFile[csvPath] = append(eventsByFile[csvPath], e)
+	}
+
+	var exportedIDs []int64
+	var modifiedFiles []string
+
+	// Process each CSV file
+	for csvPath, fileEvents := range eventsByFile {
+		// Load existing records into map (repo:commit -> record)
+		records := loadCSVRecords(csvPath)
+
+		// Add/replace with new events
+		for _, e := range fileEvents {
+			var meta git.CommitMetadata
+			if repoPath, ok := repoPaths[e.RepoID]; ok {
+				meta = git.GetCommitMetadata(repoPath, e.Commit)
+			}
+
+			record := buildRecord(e, meta)
+			key := e.RepoID + ":" + e.Commit
+			records[key] = record
+
+			exportedIDs = append(exportedIDs, e.ID)
 		}
 
-		// Determine target CSV file based on event year
-		csvPath, err := getCSVForEvent(exportRepo, e.Timestamp, currentYear)
-		if err != nil {
-			return nil, nil, fmt.Errorf("could not get CSV for event: %w", err)
+		// Write all records sorted by authored_at
+		if err := writeCSVSorted(csvPath, records); err != nil {
+			return nil, nil, fmt.Errorf("could not write %s: %w", csvPath, err)
 		}
 
-		// Append the enriched record
-		if err := appendRecord(csvPath, e, meta); err != nil {
-			return nil, nil, fmt.Errorf("could not append record: %w", err)
-		}
-
-		exportedIDs = append(exportedIDs, e.ID)
-
-		// Track modified files (relative to export repo)
 		relPath, _ := filepath.Rel(exportRepo, csvPath)
-		if !modifiedFilesSet[relPath] {
-			modifiedFilesSet[relPath] = true
-			modifiedFiles = append(modifiedFiles, relPath)
-		}
+		modifiedFiles = append(modifiedFiles, relPath)
 	}
 
 	return exportedIDs, modifiedFiles, nil
 }
 
-// getCSVForEvent returns the path to the CSV file for an event based on its year.
-// Events from the current year go to commits.csv, older events go to commits-{year}.csv
-func getCSVForEvent(exportRepo string, eventTime time.Time, currentYear int) (string, error) {
+// getCSVPath returns the path to the CSV file for an event based on its year.
+func getCSVPath(exportRepo string, eventTime time.Time, currentYear int) string {
 	eventYear := eventTime.Year()
-
 	var csvName string
 	if eventYear == currentYear {
-		csvName = activeCSVName // commits.csv
+		csvName = activeCSVName
 	} else {
 		csvName = fmt.Sprintf("commits-%d.csv", eventYear)
 	}
-
-	csvPath := filepath.Join(exportRepo, csvName)
-
-	// Check if file exists, create with header if not
-	if _, err := os.Stat(csvPath); os.IsNotExist(err) {
-		if err := writeCSVHeader(csvPath); err != nil {
-			return "", err
-		}
-	}
-
-	return csvPath, nil
+	return filepath.Join(exportRepo, csvName)
 }
 
-// writeCSVHeader writes a new CSV file with just the header row.
-func writeCSVHeader(path string) error {
-	// Create CSV file with restrictive permissions
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+// loadCSVRecords loads existing CSV into a map keyed by repo:commit.
+func loadCSVRecords(csvPath string) map[string][]string {
+	records := make(map[string][]string)
+
+	file, err := os.Open(csvPath)
+	if err != nil {
+		return records // File doesn't exist yet, return empty map
+	}
+	defer file.Close()
+
+	r := csv.NewReader(file)
+	lines, err := r.ReadAll()
+	if err != nil {
+		return records
+	}
+
+	// Skip header, parse records
+	for i, line := range lines {
+		if i == 0 || len(line) < 4 {
+			continue
+		}
+		key := line[1] + ":" + line[3] // repo:commit
+		records[key] = line
+	}
+
+	return records
+}
+
+// buildRecord creates a CSV record from an event and its metadata.
+func buildRecord(e store.RepoEvent, meta git.CommitMetadata) []string {
+	subject := strings.ReplaceAll(meta.Subject, "\n", " ")
+	subject = strings.ReplaceAll(subject, "\r", "")
+	subject = strings.TrimSpace(subject)
+
+	// Use event timestamp as fallback if git metadata not available
+	authoredAt := meta.AuthoredAt
+	if authoredAt == "" {
+		authoredAt = e.Timestamp.UTC().Format(time.RFC3339)
+	}
+
+	return []string{
+		authoredAt,
+		e.RepoID,
+		e.Branch,
+		e.Commit,
+		subject,
+		meta.AuthorName,
+		meta.AuthorEmail,
+		strconv.Itoa(meta.FilesChanged),
+		strconv.Itoa(meta.Insertions),
+		strconv.Itoa(meta.Deletions),
+		meta.ParentCommits,
+		meta.CommitterName,
+		meta.CommitterEmail,
+		e.Timestamp.UTC().Format(time.RFC3339),
+		e.Source.String(),
+		getHostname(),
+	}
+}
+
+// writeCSVSorted writes all records to CSV, sorted by authored_at (column 0).
+func writeCSVSorted(csvPath string, records map[string][]string) error {
+	// Collect and sort records by authored_at
+	var lines [][]string
+	for _, record := range records {
+		lines = append(lines, record)
+	}
+	sort.Slice(lines, func(i, j int) bool {
+		return lines[i][0] < lines[j][0] // authored_at is RFC3339, sorts correctly
+	})
+
+	// Write file
+	file, err := os.OpenFile(csvPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -285,47 +351,10 @@ func writeCSVHeader(path string) error {
 	if err := w.Write(csvHeader); err != nil {
 		return err
 	}
-	w.Flush()
-	return w.Error()
-}
-
-// appendRecord appends a single enriched record to a CSV file.
-func appendRecord(path string, e store.RepoEvent, meta git.CommitMetadata) error {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	w := csv.NewWriter(file)
-
-	// Sanitize commit message: single line, no newlines
-	subject := strings.ReplaceAll(meta.Subject, "\n", " ")
-	subject = strings.ReplaceAll(subject, "\r", "")
-	subject = strings.TrimSpace(subject)
-
-	// Build the record (ordered by importance)
-	record := []string{
-		meta.AuthoredAt,                        // authored_at
-		e.RepoID,                               // repo
-		e.Branch,                               // branch
-		e.Commit,                               // commit (full hash)
-		subject,                                // subject
-		meta.AuthorName,                        // author
-		meta.AuthorEmail,                       // author_email
-		strconv.Itoa(meta.FilesChanged),        // files
-		strconv.Itoa(meta.Insertions),          // additions
-		strconv.Itoa(meta.Deletions),           // deletions
-		meta.ParentCommits,                     // parents (space-separated)
-		meta.CommitterName,                     // committer
-		meta.CommitterEmail,                    // committer_email
-		e.Timestamp.UTC().Format(time.RFC3339), // committed_at
-		e.Source.String(),                      // source
-		getHostname(),                          // machine
-	}
-
-	if err := w.Write(record); err != nil {
-		return err
+	for _, line := range lines {
+		if err := w.Write(line); err != nil {
+			return err
+		}
 	}
 	w.Flush()
 	return w.Error()
@@ -459,6 +488,168 @@ func hasRemote(exportRepo string) bool {
 	cmd := exec.Command("git", "remote", "get-url", "origin")
 	cmd.Dir = exportRepo
 	return cmd.Run() == nil
+}
+
+// pullExportRepo pulls changes from remote before writing.
+// Handles three scenarios:
+// 1. Remote is empty (first push) - skip pull
+// 2. Normal divergence - rebase local commits on top of remote
+// 3. Unrelated histories - merge with automatic CSV conflict resolution
+func pullExportRepo(exportRepo string) error {
+	// First, fetch to see what's on the remote
+	fetchCmd := exec.Command("git", "fetch", "origin")
+	fetchCmd.Dir = exportRepo
+	if err := fetchCmd.Run(); err != nil {
+		return fmt.Errorf("git fetch failed: %w", err)
+	}
+
+	// Check if remote has any branches (empty remote = first push)
+	checkCmd := exec.Command("git", "branch", "-r")
+	checkCmd.Dir = exportRepo
+	output, _ := checkCmd.Output()
+	if len(strings.TrimSpace(string(output))) == 0 {
+		log.Debug("export: remote is empty, skipping pull")
+		return nil
+	}
+
+	// Try normal pull with rebase first
+	pullCmd := exec.Command("git", "pull", "--rebase", "origin", "HEAD")
+	pullCmd.Dir = exportRepo
+	pullOutput, err := pullCmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+
+	pullOutputStr := string(pullOutput)
+
+	// Check if it's an unrelated histories error
+	if strings.Contains(pullOutputStr, "unrelated histories") {
+		log.Info("export: detected unrelated histories, attempting merge")
+		return mergeUnrelatedHistories(exportRepo)
+	}
+
+	return fmt.Errorf("git pull --rebase failed: %s", strings.TrimSpace(pullOutputStr))
+}
+
+// mergeUnrelatedHistories handles the case where local and remote repos
+// started independently. Merges them and auto-resolves CSV conflicts.
+func mergeUnrelatedHistories(exportRepo string) error {
+	// Get the remote branch name
+	remoteBranch := "origin/HEAD"
+
+	// Try to merge with allow-unrelated-histories
+	mergeCmd := exec.Command("git", "merge", remoteBranch, "--allow-unrelated-histories", "--no-edit")
+	mergeCmd.Dir = exportRepo
+	mergeOutput, err := mergeCmd.CombinedOutput()
+
+	if err == nil {
+		log.Info("export: successfully merged unrelated histories")
+		return nil
+	}
+
+	// Check if there are conflicts
+	if !strings.Contains(string(mergeOutput), "CONFLICT") {
+		return fmt.Errorf("merge failed: %s", strings.TrimSpace(string(mergeOutput)))
+	}
+
+	// There are conflicts - try to auto-resolve CSV files
+	log.Info("export: resolving CSV conflicts automatically")
+	if err := resolveCSVConflicts(exportRepo); err != nil {
+		// Abort the merge if we can't resolve
+		abortCmd := exec.Command("git", "merge", "--abort")
+		abortCmd.Dir = exportRepo
+		_ = abortCmd.Run()
+		return fmt.Errorf("could not resolve conflicts: %w", err)
+	}
+
+	// Commit the resolved merge
+	commitCmd := exec.Command("git", "commit", "--no-edit")
+	commitCmd.Dir = exportRepo
+	if err := commitCmd.Run(); err != nil {
+		return fmt.Errorf("could not commit merge: %w", err)
+	}
+
+	log.Info("export: successfully consolidated local and remote histories")
+	return nil
+}
+
+// resolveCSVConflicts auto-resolves conflicts in CSV files by combining
+// both versions and sorting by date. Only works for append-only CSVs.
+func resolveCSVConflicts(exportRepo string) error {
+	// Get list of conflicted files
+	statusCmd := exec.Command("git", "diff", "--name-only", "--diff-filter=U")
+	statusCmd.Dir = exportRepo
+	output, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("could not get conflicted files: %w", err)
+	}
+
+	conflictedFiles := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, file := range conflictedFiles {
+		if file == "" {
+			continue
+		}
+		if !strings.HasSuffix(file, ".csv") {
+			return fmt.Errorf("non-CSV conflict in %s, manual resolution required", file)
+		}
+
+		filePath := filepath.Join(exportRepo, file)
+		if err := resolveCSVFile(exportRepo, filePath); err != nil {
+			return fmt.Errorf("could not resolve %s: %w", file, err)
+		}
+
+		// Stage the resolved file
+		addCmd := exec.Command("git", "add", file)
+		addCmd.Dir = exportRepo
+		if err := addCmd.Run(); err != nil {
+			return fmt.Errorf("could not stage %s: %w", file, err)
+		}
+	}
+
+	return nil
+}
+
+// resolveCSVFile resolves a conflicted CSV by combining both versions.
+// "theirs" (incoming remote) replaces "ours" (local) for duplicates.
+// Result is sorted by authored_at.
+func resolveCSVFile(exportRepo, filePath string) error {
+	// Get "ours" version (local) and "theirs" version (remote)
+	oursCmd := exec.Command("git", "show", ":2:"+filepath.Base(filePath))
+	oursCmd.Dir = exportRepo
+	oursOutput, _ := oursCmd.Output()
+
+	theirsCmd := exec.Command("git", "show", ":3:"+filepath.Base(filePath))
+	theirsCmd.Dir = exportRepo
+	theirsOutput, _ := theirsCmd.Output()
+
+	// Parse both CSVs into maps
+	records := make(map[string][]string) // repo:commit -> record
+
+	// Load ours first
+	parseCSVIntoMap(string(oursOutput), records)
+	// Load theirs second - will replace duplicates (incoming wins)
+	parseCSVIntoMap(string(theirsOutput), records)
+
+	// Write using shared function
+	return writeCSVSorted(filePath, records)
+}
+
+// parseCSVIntoMap parses CSV content and adds records to the map.
+// Later calls overwrite earlier entries (last write wins).
+func parseCSVIntoMap(content string, records map[string][]string) {
+	r := csv.NewReader(strings.NewReader(content))
+	lines, err := r.ReadAll()
+	if err != nil {
+		return
+	}
+
+	for i, line := range lines {
+		if i == 0 || len(line) < 4 {
+			continue // skip header
+		}
+		key := line[1] + ":" + line[3] // repo:commit
+		records[key] = line
+	}
 }
 
 // pushExportRepo pushes the export repository to its remote.
