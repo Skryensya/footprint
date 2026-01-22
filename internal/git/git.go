@@ -3,11 +3,33 @@ package git
 import (
 	"bytes"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/Skryensya/footprint/internal/log"
 )
+
+// dateArgPattern validates git date arguments to prevent injection
+// Accepts: ISO dates, relative dates (e.g., "2 weeks ago"), and common formats
+var dateArgPattern = regexp.MustCompile(`^[a-zA-Z0-9\s\-:+/.]+$`)
+
+// commitHashPattern validates git commit hashes (SHA-1 or SHA-256)
+// SHA-1: 40 hex characters, SHA-256: 64 hex characters
+// Also accepts short hashes (7+ characters) and HEAD/branch references
+var commitHashPattern = regexp.MustCompile(`^[a-fA-F0-9]{7,64}$|^HEAD$|^[a-zA-Z0-9_\-./]+$`)
+
+// isValidCommitRef checks if a string looks like a valid git commit reference
+func isValidCommitRef(ref string) bool {
+	if ref == "" {
+		return false
+	}
+	// Reject obvious injection attempts
+	if strings.ContainsAny(ref, ";&|`$(){}[]<>\\\"'") {
+		return false
+	}
+	return commitHashPattern.MatchString(ref)
+}
 
 type DiffStats struct {
 	FilesChanged int
@@ -23,8 +45,13 @@ type FileStat struct {
 }
 
 func IsAvailable() bool {
-	_, err := exec.LookPath("git")
-	return err == nil
+	path, err := exec.LookPath("git")
+	if err != nil {
+		return false
+	}
+	// Verify git is functional by running a simple command
+	cmd := exec.Command(path, "--version")
+	return cmd.Run() == nil
 }
 
 func RepoRoot(path string) (string, error) {
@@ -42,7 +69,7 @@ func ListRemotes(repoRoot string) ([]string, error) {
 		return nil, err
 	}
 	if strings.TrimSpace(out) == "" {
-		return nil, nil
+		return []string{}, nil
 	}
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	var remotes []string
@@ -172,6 +199,12 @@ type CommitMetadata struct {
 func GetCommitMetadata(repoPath, commit string) CommitMetadata {
 	meta := CommitMetadata{}
 
+	// Validate commit reference format
+	if !isValidCommitRef(commit) {
+		log.Warn("git: invalid commit reference format: %s", commit)
+		return meta
+	}
+
 	// Get parent commits using git rev-list
 	if parents, err := runGitInRepo(repoPath, "rev-parse", commit+"^@"); err == nil {
 		parentList := parseParents(parents)
@@ -287,10 +320,10 @@ func ListCommits(repoPath string, opts ListCommitsOptions) ([]HistoryCommit, err
 
 	args := []string{"-C", repoPath, "log", "--format=" + format, "--reverse"}
 
-	if opts.Since != "" {
+	if opts.Since != "" && dateArgPattern.MatchString(opts.Since) {
 		args = append(args, "--since="+opts.Since)
 	}
-	if opts.Until != "" {
+	if opts.Until != "" && dateArgPattern.MatchString(opts.Until) {
 		args = append(args, "--until="+opts.Until)
 	}
 	if opts.Limit > 0 {
@@ -304,7 +337,7 @@ func ListCommits(repoPath string, opts ListCommitsOptions) ([]HistoryCommit, err
 	}
 
 	if strings.TrimSpace(out) == "" {
-		return nil, nil
+		return []HistoryCommit{}, nil
 	}
 
 	lines := strings.Split(out, "\n")
@@ -318,6 +351,7 @@ func ListCommits(repoPath string, opts ListCommitsOptions) ([]HistoryCommit, err
 
 		parts := strings.SplitN(line, "\x00", 5)
 		if len(parts) < 5 {
+			log.Warn("git: skipping malformed commit line (expected 5 fields, got %d)", len(parts))
 			continue
 		}
 
