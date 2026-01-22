@@ -16,7 +16,10 @@ func Uninstall(hooksPath string) error {
 		backup := filepath.Join(backupDir, hook)
 
 		if Exists(backup) {
-			_ = os.Remove(target)
+			if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
+				log.Warn("hooks: could not remove existing hook %s before restore: %v", hook, err)
+				// Continue anyway - rename might still work or produce a clearer error
+			}
 			if err := os.Rename(backup, target); err != nil {
 				log.Error("hooks: failed to restore backup for %s: %v", hook, err)
 				return err
