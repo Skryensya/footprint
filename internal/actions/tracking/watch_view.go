@@ -21,6 +21,9 @@ func (m watchModel) View() string {
 	headerHeight := 3
 	footerHeight := 2
 	mainHeight := m.height - headerHeight - footerHeight
+	if mainHeight < 1 {
+		mainHeight = 1 // Ensure minimum height to prevent layout issues
+	}
 
 	// Create layout with drawer support
 	cfg := splitpanel.Config{
