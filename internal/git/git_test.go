@@ -165,7 +165,7 @@ func TestListRemotes(t *testing.T) {
 			require.NoError(t, err)
 
 			if tt.want == nil {
-				require.Nil(t, got)
+				require.Empty(t, got)
 			} else {
 				require.ElementsMatch(t, tt.want, got)
 			}

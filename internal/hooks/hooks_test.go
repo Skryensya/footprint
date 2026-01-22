@@ -96,8 +96,8 @@ func TestScript_GeneratesValidScript(t *testing.T) {
 	script := Script(fpPath, source)
 
 	require.Contains(t, script, "#!/bin/sh")
-	require.Contains(t, script, "FP_SOURCE=post-commit")
-	require.Contains(t, script, "/usr/local/bin/fp record")
+	require.Contains(t, script, "FP_SOURCE='post-commit'")
+	require.Contains(t, script, "'/usr/local/bin/fp' record")
 	require.Contains(t, script, ">/dev/null")
 }
 
@@ -106,7 +106,7 @@ func TestScript_DifferentSources(t *testing.T) {
 
 	for _, source := range ManagedHooks {
 		script := Script(fpPath, source)
-		require.Contains(t, script, "FP_SOURCE="+source)
+		require.Contains(t, script, "FP_SOURCE='"+source+"'")
 	}
 }
 
@@ -212,7 +212,7 @@ func TestInstall_BacksUpExistingHooks(t *testing.T) {
 	newContent, err := os.ReadFile(existingHook)
 	require.NoError(t, err)
 	require.Contains(t, string(newContent), "record")
-	require.Contains(t, string(newContent), "FP_SOURCE=post-commit")
+	require.Contains(t, string(newContent), "FP_SOURCE='post-commit'")
 }
 
 func TestUninstall_RemovesHooks(t *testing.T) {
