@@ -106,7 +106,8 @@ func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 	query += " ORDER BY timestamp DESC"
 
 	if filter.Limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d", filter.Limit)
+		query += " LIMIT ?"
+		args = append(args, filter.Limit)
 	}
 
 	rows, err := db.Query(query, args...)
