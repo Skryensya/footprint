@@ -47,7 +47,7 @@ func main() {
 	helpactions.SetBuildTreeFunc(cli.BuildTree)
 
 	// Set interactive browser function for fp help -i (avoids import cycle)
-	dispatchers.InteractiveBrowserFunc = helpactions.Browser
+	dispatchers.SetInteractiveBrowserFunc(helpactions.Browser)
 
 	root := cli.BuildTree()
 

@@ -2,13 +2,31 @@ package dispatchers
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/Skryensya/footprint/internal/help"
 	"github.com/Skryensya/footprint/internal/usage"
 )
 
-// InteractiveBrowserFunc is injected from main to avoid import cycles
-var InteractiveBrowserFunc CommandFunc
+// interactiveBrowserFunc is injected from main to avoid import cycles
+var (
+	interactiveBrowserFunc   CommandFunc
+	interactiveBrowserFuncMu sync.RWMutex
+)
+
+// SetInteractiveBrowserFunc sets the interactive browser function thread-safely.
+func SetInteractiveBrowserFunc(fn CommandFunc) {
+	interactiveBrowserFuncMu.Lock()
+	defer interactiveBrowserFuncMu.Unlock()
+	interactiveBrowserFunc = fn
+}
+
+// getInteractiveBrowserFunc gets the interactive browser function thread-safely.
+func getInteractiveBrowserFunc() CommandFunc {
+	interactiveBrowserFuncMu.RLock()
+	defer interactiveBrowserFuncMu.RUnlock()
+	return interactiveBrowserFunc
+}
 
 func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resolution, error) {
 	current := root
@@ -18,12 +36,13 @@ func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resoluti
 	for i, tok := range tokens {
 		if tok == "help" {
 			// Check for interactive flag first
-			if hasInteractiveFlag(flags) && InteractiveBrowserFunc != nil {
+			browserFn := getInteractiveBrowserFunc()
+			if hasInteractiveFlag(flags) && browserFn != nil {
 				return Resolution{
 					Node:    root,
 					Args:    nil,
 					Flags:   flags,
-					Execute: InteractiveBrowserFunc,
+					Execute: browserFn,
 				}, nil
 			}
 
@@ -187,6 +206,10 @@ func validateArgs(spec []ArgSpec, args []string) error {
 	}
 
 	if len(args) < requiredCount {
+		// Bounds check: ensure spec has enough elements
+		if len(args) >= len(spec) {
+			return usage.MissingArgument("argument")
+		}
 		missing := spec[len(args)].Name
 		return usage.MissingArgument(missing)
 	}
