@@ -1,6 +1,7 @@
 package git
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -37,6 +38,9 @@ func GlobalHooksPath() (string, error) {
 }
 
 func defaultHome() string {
-	out, _ := exec.Command("sh", "-c", "echo $HOME").Output()
-	return strings.TrimSpace(string(out))
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return home
 }
