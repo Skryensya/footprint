@@ -19,7 +19,7 @@ func activity(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	defer db.Close()
+	defer store.CloseDB(db)
 
 	var filter store.EventFilter
 

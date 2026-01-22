@@ -83,7 +83,7 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		}
 		return nil
 	}
-	defer db.Close()
+	defer store.CloseDB(db)
 
 	if err := deps.InitDB(db); err != nil {
 		// Critical error: DB initialization failed

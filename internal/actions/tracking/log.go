@@ -28,7 +28,7 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	defer db.Close()
+	defer store.CloseDB(db)
 
 	// Ensure database is initialized
 	if err := deps.InitDB(db); err != nil {
@@ -54,10 +54,15 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
 
 	go func() {
-		<-sigCh
-		cancel()
+		select {
+		case <-sigCh:
+			cancel()
+		case <-ctx.Done():
+			// Context cancelled, goroutine can exit
+		}
 	}()
 
 	// Polling loop
@@ -81,7 +86,11 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 				} else {
 					fmt.Fprintln(os.Stdout, FormatEvent(event, oneline))
 				}
-				lastID = event.ID
+				// Note: int64 overflow is not a practical concern (max ~9 quintillion).
+				// A negative ID would indicate database corruption.
+				if event.ID > 0 {
+					lastID = event.ID
+				}
 			}
 		}
 	}
