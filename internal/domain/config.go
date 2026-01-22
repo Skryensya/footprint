@@ -28,6 +28,11 @@ var ConfigKeys = []ConfigKey{
 		Hidden:      true,
 	},
 	{
+		Name:        "export_remote",
+		Default:     "",
+		Description: "Remote URL for syncing exports",
+	},
+	{
 		Name:        "log_enabled",
 		Default:     "true",
 		Description: "Enable debug logging to file",

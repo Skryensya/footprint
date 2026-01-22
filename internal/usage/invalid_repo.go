@@ -2,7 +2,7 @@ package usage
 
 func InvalidRepo() *Error {
 	return &Error{
-		Message:  "Invalid repository",
-		ExitCode: 1,
+		Kind:    ErrInvalidRepo,
+		Message: "fp: could not identify repository (no remote URL or valid path)",
 	}
 }

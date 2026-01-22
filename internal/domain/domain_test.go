@@ -1,57 +1,10 @@
 package domain
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestUsageError_Error(t *testing.T) {
-	err := NewUsageError(ErrInvalidFlag, "test message")
-
-	require.Equal(t, "test message", err.Error())
-}
-
-func TestUsageError_ExitCode(t *testing.T) {
-	tests := []struct {
-		kind     ErrorKind
-		expected int
-	}{
-		{ErrUnknown, 1},
-		{ErrInvalidFlag, 2},
-		{ErrMissingArgument, 2},
-		{ErrUnknownCommand, 1},
-		{ErrNotInGitRepo, 1},
-	}
-
-	for _, tt := range tests {
-		err := NewUsageError(tt.kind, "test")
-		require.Equal(t, tt.expected, err.ExitCode(), "kind: %v", tt.kind)
-	}
-}
-
-func TestUsageError_Unwrap(t *testing.T) {
-	cause := errors.New("underlying error")
-	err := WrapUsageError(ErrInvalidPath, "wrapped", cause)
-
-	require.Equal(t, cause, err.Unwrap())
-	require.True(t, errors.Is(err, cause))
-}
-
-func TestUsageError_IsKind(t *testing.T) {
-	err := NewUsageError(ErrInvalidFlag, "test")
-
-	require.True(t, err.IsKind(ErrInvalidFlag))
-	require.False(t, err.IsKind(ErrMissingArgument))
-}
-
-func TestNewUsageErrorf(t *testing.T) {
-	err := NewUsageErrorf(ErrUnknownCommand, "unknown: %s", "foo")
-
-	require.Equal(t, "unknown: foo", err.Error())
-	require.Equal(t, ErrUnknownCommand, err.Kind)
-}
 
 func TestRepoID_String(t *testing.T) {
 	id := RepoID("github.com/user/repo")
@@ -118,8 +71,8 @@ func TestEventStatus_String(t *testing.T) {
 	}{
 		{StatusPending, "PENDING"},
 		{StatusExported, "EXPORTED"},
+		{StatusOrphaned, "ORPHANED"},
 		{StatusSkipped, "SKIPPED"},
-		{StatusFailed, "FAILED"},
 		{EventStatus(99), "UNKNOWN"},
 	}
 
@@ -201,39 +154,4 @@ func TestVisibleConfigKeys(t *testing.T) {
 
 	// Should contain at least some visible keys
 	require.Greater(t, len(visible), 0)
-}
-
-func TestErrorConstructors(t *testing.T) {
-	tests := []struct {
-		name string
-		fn   func() *UsageError
-		kind ErrorKind
-	}{
-		{"InvalidFlag", func() *UsageError { return ErrInvalidFlagError("--test") }, ErrInvalidFlag},
-		{"MissingArgument", func() *UsageError { return ErrMissingArgumentError("arg") }, ErrMissingArgument},
-		{"UnknownCommand", func() *UsageError { return ErrUnknownCommandError("cmd") }, ErrUnknownCommand},
-		{"NotInGitRepo", ErrNotInGitRepoError, ErrNotInGitRepo},
-		{"InvalidRepo", ErrInvalidRepoError, ErrInvalidRepo},
-		{"InvalidPath", ErrInvalidPathError, ErrInvalidPath},
-		{"MissingRemote", ErrMissingRemoteError, ErrMissingRemote},
-		{"GitNotInstalled", ErrGitNotInstalledError, ErrGitNotInstalled},
-		{"InvalidConfigKey", func() *UsageError { return ErrInvalidConfigKeyError("key") }, ErrInvalidConfigKey},
-		{"FailedConfigPath", ErrFailedConfigPathError, ErrFailedConfigPath},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.fn()
-			require.Equal(t, tt.kind, err.Kind)
-			require.NotEmpty(t, err.Message)
-		})
-	}
-}
-
-func TestErrAmbiguousRemoteError(t *testing.T) {
-	err := ErrAmbiguousRemoteError([]string{"origin", "upstream"})
-
-	require.Equal(t, ErrAmbiguousRemote, err.Kind)
-	require.Contains(t, err.Message, "origin")
-	require.Contains(t, err.Message, "upstream")
 }

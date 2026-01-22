@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/git"
-	"github.com/Skryensya/footprint/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/git"
+	"github.com/footprint-tools/footprint-cli/internal/store"
 )
 
 const pollInterval = 300 * time.Millisecond
@@ -35,9 +35,28 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	// Parse flags
+	// Parse display flags
 	oneline := flags.Has("--oneline")
 	enrich := flags.Has("--enrich")
+
+	// Parse filter flags
+	var filter store.EventFilter
+
+	if statusStr := flags.String("--status", ""); statusStr != "" {
+		if status, ok := parseStatus(statusStr); ok {
+			filter.Status = &status
+		}
+	}
+
+	if sourceStr := flags.String("--source", ""); sourceStr != "" {
+		if source, ok := parseSource(sourceStr); ok {
+			filter.Source = &source
+		}
+	}
+
+	if repoID := flags.String("--repo", ""); repoID != "" {
+		filter.RepoID = &repoID
+	}
 
 	// Get current max ID as starting point (we only want new events)
 	lastID, err := store.GetMaxEventID(db)
@@ -74,7 +93,7 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			events, err := store.ListEventsSince(db, lastID)
+			events, err := store.ListEventsSinceFiltered(db, lastID, filter)
 			if err != nil {
 				continue
 			}

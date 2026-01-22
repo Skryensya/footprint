@@ -2,7 +2,7 @@ package usage
 
 func GitNotInstalled() *Error {
 	return &Error{
-		Message:  "Git is not installed in the system",
-		ExitCode: 1,
+		Kind:    ErrGitNotInstalled,
+		Message: "fp: git command not found in PATH",
 	}
 }

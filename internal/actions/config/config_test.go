@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 )
 
 // =========== GET TESTS ===========
@@ -135,6 +135,9 @@ func TestSet_ReadLinesError(t *testing.T) {
 		ReadLines: func() ([]string, error) {
 			return nil, errors.New("cannot read config")
 		},
+		Printf: func(format string, a ...any) (int, error) {
+			return 0, nil
+		},
 	}
 
 	flags := dispatchers.NewParsedFlags([]string{})
@@ -154,6 +157,9 @@ func TestSet_WriteLinesError(t *testing.T) {
 		},
 		WriteLines: func(lines []string) error {
 			return errors.New("cannot write config")
+		},
+		Printf: func(format string, a ...any) (int, error) {
+			return 0, nil
 		},
 	}
 
@@ -306,8 +312,8 @@ func TestList_Success(t *testing.T) {
 	deps := Deps{
 		GetAll: func() (map[string]string, error) {
 			return map[string]string{
-				"theme": "dark",
-				"limit": "10",
+				"color_theme": "dark",
+				"log_level":   "debug",
 			}, nil
 		},
 		Printf: func(format string, a ...any) (int, error) {

@@ -1,10 +1,10 @@
 package tracking
 
 import (
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/log"
-	"github.com/Skryensya/footprint/internal/repo"
-	"github.com/Skryensya/footprint/internal/usage"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/repo"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
 
 func Untrack(args []string, flags *dispatchers.ParsedFlags) error {

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Skryensya/footprint/internal/domain"
+	"github.com/footprint-tools/footprint-cli/internal/domain"
 )
 
 // Level representa el nivel de severidad del log

@@ -1,6 +1,6 @@
 package style
 
-import "github.com/Skryensya/footprint/internal/domain"
+import "github.com/footprint-tools/footprint-cli/internal/domain"
 
 // Styler implements domain.Styler using the global style functions.
 type Styler struct{}

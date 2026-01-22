@@ -8,36 +8,36 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	repodomain "github.com/Skryensya/footprint/internal/repo"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	repodomain "github.com/footprint-tools/footprint-cli/internal/repo"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAdopt_GitNotAvailable(t *testing.T) {
+func TestSyncRemote_GitNotAvailable(t *testing.T) {
 	deps := Deps{
 		GitIsAvailable: func() bool { return false },
 	}
 
 	flags := dispatchers.NewParsedFlags(nil)
 
-	err := adopt(nil, flags, deps)
+	err := syncRemote(nil, flags, deps)
 
 	require.Error(t, err)
 }
 
-func TestAdopt_InvalidPath(t *testing.T) {
+func TestSyncRemote_InvalidPath(t *testing.T) {
 	deps := Deps{
 		GitIsAvailable: func() bool { return true },
 	}
 
 	flags := dispatchers.NewParsedFlags(nil)
 
-	err := adopt([]string{"/nonexistent/path"}, flags, deps)
+	err := syncRemote([]string{"/nonexistent/path"}, flags, deps)
 
 	require.Error(t, err)
 }
 
-func TestAdopt_NotInGitRepo(t *testing.T) {
+func TestSyncRemote_NotInGitRepo(t *testing.T) {
 	deps := Deps{
 		GitIsAvailable: func() bool { return true },
 		RepoRoot: func(path string) (string, error) {
@@ -48,12 +48,12 @@ func TestAdopt_NotInGitRepo(t *testing.T) {
 	dir := t.TempDir()
 	flags := dispatchers.NewParsedFlags(nil)
 
-	err := adopt([]string{dir}, flags, deps)
+	err := syncRemote([]string{dir}, flags, deps)
 
 	require.Error(t, err)
 }
 
-func TestAdopt_MissingRemote(t *testing.T) {
+func TestSyncRemote_MissingRemote(t *testing.T) {
 	deps := Deps{
 		GitIsAvailable: func() bool { return true },
 		RepoRoot: func(path string) (string, error) {
@@ -67,12 +67,12 @@ func TestAdopt_MissingRemote(t *testing.T) {
 	dir := t.TempDir()
 	flags := dispatchers.NewParsedFlags(nil)
 
-	err := adopt([]string{dir}, flags, deps)
+	err := syncRemote([]string{dir}, flags, deps)
 
 	require.Error(t, err)
 }
 
-func TestAdopt_InvalidLocalID(t *testing.T) {
+func TestSyncRemote_InvalidLocalID(t *testing.T) {
 	deps := Deps{
 		GitIsAvailable: func() bool { return true },
 		RepoRoot: func(path string) (string, error) {
@@ -89,12 +89,12 @@ func TestAdopt_InvalidLocalID(t *testing.T) {
 	dir := t.TempDir()
 	flags := dispatchers.NewParsedFlags(nil)
 
-	err := adopt([]string{dir}, flags, deps)
+	err := syncRemote([]string{dir}, flags, deps)
 
 	require.Error(t, err)
 }
 
-func TestAdopt_LocalNotTracked(t *testing.T) {
+func TestSyncRemote_LocalNotTracked(t *testing.T) {
 	var deriveCount int
 	deps := Deps{
 		GitIsAvailable: func() bool { return true },
@@ -121,12 +121,12 @@ func TestAdopt_LocalNotTracked(t *testing.T) {
 	dir := t.TempDir()
 	flags := dispatchers.NewParsedFlags(nil)
 
-	err := adopt([]string{dir}, flags, deps)
+	err := syncRemote([]string{dir}, flags, deps)
 
 	require.Error(t, err)
 }
 
-func TestAdopt_Success(t *testing.T) {
+func TestSyncRemote_Success(t *testing.T) {
 	var untracked, tracked repodomain.RepoID
 	var printed []string
 	var deriveCount int
@@ -175,7 +175,7 @@ func TestAdopt_Success(t *testing.T) {
 	dir := t.TempDir()
 	flags := dispatchers.NewParsedFlags(nil)
 
-	err := adopt([]string{dir}, flags, deps)
+	err := syncRemote([]string{dir}, flags, deps)
 
 	require.NoError(t, err)
 	require.Equal(t, repodomain.RepoID("local/path/repo"), untracked)

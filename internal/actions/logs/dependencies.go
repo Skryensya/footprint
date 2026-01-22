@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Skryensya/footprint/internal/paths"
+	"github.com/footprint-tools/footprint-cli/internal/paths"
 )
 
 type Deps struct {

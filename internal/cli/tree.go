@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"github.com/Skryensya/footprint/internal/actions"
-	configactions "github.com/Skryensya/footprint/internal/actions/config"
-	logsactions "github.com/Skryensya/footprint/internal/actions/logs"
-	setupactions "github.com/Skryensya/footprint/internal/actions/setup"
-	themeactions "github.com/Skryensya/footprint/internal/actions/theme"
-	trackingactions "github.com/Skryensya/footprint/internal/actions/tracking"
-	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/actions"
+	configactions "github.com/footprint-tools/footprint-cli/internal/actions/config"
+	logsactions "github.com/footprint-tools/footprint-cli/internal/actions/logs"
+	setupactions "github.com/footprint-tools/footprint-cli/internal/actions/setup"
+	themeactions "github.com/footprint-tools/footprint-cli/internal/actions/theme"
+	trackingactions "github.com/footprint-tools/footprint-cli/internal/actions/tracking"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 )
 
 func BuildTree() *dispatchers.DispatchNode {
@@ -31,8 +31,18 @@ when built from a non-release commit.`,
 		Category: dispatchers.CategoryInspectActivity,
 	})
 
-	// -- config
+	addConfigCommands(root)
+	addThemeCommands(root)
+	addTrackingCommands(root)
+	addActivityCommands(root)
+	addSetupCommands(root)
+	addLogsCommand(root)
+	addHelpCommand(root)
 
+	return root
+}
+
+func addConfigCommands(root *dispatchers.DispatchNode) {
 	config := dispatchers.Group(dispatchers.GroupSpec{
 		Name:    "config",
 		Parent:  root,
@@ -114,9 +124,9 @@ set, the output will be empty.`,
 		Action:   configactions.List,
 		Category: dispatchers.CategoryConfig,
 	})
+}
 
-	// -- theme
-
+func addThemeCommands(root *dispatchers.DispatchNode) {
 	theme := dispatchers.Group(dispatchers.GroupSpec{
 		Name:    "theme",
 		Parent:  root,
@@ -185,9 +195,9 @@ The picker shows a live preview of each theme's colors as you navigate.`,
 		Action:   themeactions.Pick,
 		Category: dispatchers.CategoryTheme,
 	})
+}
 
-	// -- tracking
-
+func addTrackingCommands(root *dispatchers.DispatchNode) {
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "track",
 		Parent:  root,
@@ -289,7 +299,7 @@ the new identifier.
 If no path is provided, the current directory is used.`,
 		Usage:    "fp sync-remote [path]",
 		Args:     OptionalRepoPathArg,
-		Action:   trackingactions.Adopt,
+		Action:   trackingactions.SyncRemote,
 		Category: dispatchers.CategoryManageRepos,
 	})
 
@@ -309,9 +319,9 @@ records the event. If not, it exits silently without error.`,
 		Action:   trackingactions.Record,
 		Category: dispatchers.CategoryPlumbing,
 	})
+}
 
-	// -- activity
-
+func addActivityCommands(root *dispatchers.DispatchNode) {
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "activity",
 		Parent:  root,
@@ -401,9 +411,9 @@ Duplicate commits (same repo + commit hash + source) are automatically skipped.`
 		Action:   trackingactions.Backfill,
 		Category: dispatchers.CategoryManageRepos,
 	})
+}
 
-	// -- setup
-
+func addSetupCommands(root *dispatchers.DispatchNode) {
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "setup",
 		Parent:  root,
@@ -462,9 +472,9 @@ repository instead.`,
 		Action:   setupactions.Check,
 		Category: dispatchers.CategoryInspectActivity,
 	})
+}
 
-	// -- logs
-
+func addLogsCommand(root *dispatchers.DispatchNode) {
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "logs",
 		Parent:  root,
@@ -484,9 +494,9 @@ Log settings can be configured with:
 		Action:   logsAction,
 		Category: dispatchers.CategoryInspectActivity,
 	})
+}
 
-	// -- help
-
+func addHelpCommand(root *dispatchers.DispatchNode) {
 	dispatchers.NewNode(
 		"help",
 		root,
@@ -509,8 +519,6 @@ In interactive mode:
 		nil,
 		nil,
 	)
-
-	return root
 }
 
 // logsAction handles the logs command with its various flags

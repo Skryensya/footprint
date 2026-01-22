@@ -23,7 +23,7 @@ endif
 
 build: test
 	go build \
-		-ldflags "-X github.com/Skryensya/footprint/internal/app.Version=$(VERSION)" \
+		-ldflags "-X github.com/footprint-tools/footprint-cli/internal/app.Version=$(VERSION)" \
 		-o fp \
 		./cmd/fp
 

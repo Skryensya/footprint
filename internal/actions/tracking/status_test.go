@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/repo"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/repo"
 )
 
 func TestStatus_GitNotInstalled(t *testing.T) {
@@ -19,7 +19,7 @@ func TestStatus_GitNotInstalled(t *testing.T) {
 	err := status([]string{}, flags, deps)
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "Git is not installed")
+	require.Contains(t, err.Error(), "git command not found")
 }
 
 func TestStatus_NotInGitRepo(t *testing.T) {

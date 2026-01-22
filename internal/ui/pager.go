@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/config"
+	"github.com/footprint-tools/footprint-cli/internal/config"
 	"golang.org/x/term"
 )
 

@@ -6,13 +6,15 @@ import (
 )
 
 // EventStatus represents the export status of an event.
+// STABLE: Integer values are persisted to SQLite. Do not change existing values.
+// New statuses should be added with new integer values only.
 type EventStatus int
 
 const (
-	StatusPending  EventStatus = 0
-	StatusExported EventStatus = 1
-	StatusSkipped  EventStatus = 2
-	StatusFailed   EventStatus = 3
+	StatusPending  EventStatus = 0 // stable
+	StatusExported EventStatus = 1 // stable
+	StatusOrphaned EventStatus = 2 // stable - repo no longer tracked
+	StatusSkipped  EventStatus = 3 // stable
 )
 
 // String returns the string representation of the status.
@@ -22,10 +24,10 @@ func (s EventStatus) String() string {
 		return "PENDING"
 	case StatusExported:
 		return "EXPORTED"
+	case StatusOrphaned:
+		return "ORPHANED"
 	case StatusSkipped:
 		return "SKIPPED"
-	case StatusFailed:
-		return "FAILED"
 	default:
 		return "UNKNOWN"
 	}
@@ -38,26 +40,28 @@ func ParseEventStatus(s string) (EventStatus, bool) {
 		return StatusPending, true
 	case "EXPORTED":
 		return StatusExported, true
+	case "ORPHANED":
+		return StatusOrphaned, true
 	case "SKIPPED":
 		return StatusSkipped, true
-	case "FAILED":
-		return StatusFailed, true
 	default:
 		return 0, false
 	}
 }
 
 // EventSource represents the origin of an event.
+// STABLE: Integer values are persisted to SQLite. Do not change existing values.
+// New sources should be added with new integer values only.
 type EventSource int
 
 const (
-	SourcePostCommit   EventSource = 0
-	SourcePostRewrite  EventSource = 1
-	SourcePostCheckout EventSource = 2
-	SourcePostMerge    EventSource = 3
-	SourcePrePush      EventSource = 4
-	SourceManual       EventSource = 5
-	SourceBackfill     EventSource = 6
+	SourcePostCommit   EventSource = 0 // stable
+	SourcePostRewrite  EventSource = 1 // stable
+	SourcePostCheckout EventSource = 2 // stable
+	SourcePostMerge    EventSource = 3 // stable
+	SourcePrePush      EventSource = 4 // stable
+	SourceManual       EventSource = 5 // stable
+	SourceBackfill     EventSource = 6 // stable
 )
 
 // String returns the string representation of the source.

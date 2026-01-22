@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Skryensya/footprint/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/log"
 )
 
 type EventFilter struct {
@@ -68,49 +68,51 @@ func ListEvents(db *sql.DB, filter EventFilter) ([]RepoEvent, error) {
 	`
 
 	var (
-		clauses []string
-		args    []any
+		filterClauses []string
+		filterArgs    []any
 	)
 
 	if filter.Status != nil {
-		clauses = append(clauses, "status_id = ?")
-		args = append(args, int(*filter.Status))
+		filterClauses = append(filterClauses, "status_id = ?")
+		filterArgs = append(filterArgs, int(*filter.Status))
 	}
 
 	if filter.Source != nil {
-		clauses = append(clauses, "source_id = ?")
-		args = append(args, int(*filter.Source))
+		filterClauses = append(filterClauses, "source_id = ?")
+		filterArgs = append(filterArgs, int(*filter.Source))
 	}
 
 	if filter.Since != nil {
-		clauses = append(clauses, "timestamp >= ?")
-		args = append(args, filter.Since.Format(time.RFC3339))
+		filterClauses = append(filterClauses, "timestamp >= ?")
+		filterArgs = append(filterArgs, filter.Since.Format(time.RFC3339))
 	}
 
 	if filter.Until != nil {
-		clauses = append(clauses, "timestamp <= ?")
-		args = append(args, filter.Until.Format(time.RFC3339))
+		filterClauses = append(filterClauses, "timestamp <= ?")
+		filterArgs = append(filterArgs, filter.Until.Format(time.RFC3339))
 	}
 
 	if filter.RepoID != nil {
-		clauses = append(clauses, "repo_id = ?")
-		args = append(args, *filter.RepoID)
+		filterClauses = append(filterClauses, "repo_id = ?")
+		filterArgs = append(filterArgs, *filter.RepoID)
 	}
 
-	query := base
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(base)
 
-	if len(clauses) > 0 {
-		query += " WHERE " + strings.Join(clauses, " AND ")
+	if len(filterClauses) > 0 {
+		queryBuilder.WriteString(" WHERE ")
+		queryBuilder.WriteString(strings.Join(filterClauses, " AND "))
 	}
 
-	query += " ORDER BY timestamp DESC"
+	queryBuilder.WriteString(" ORDER BY timestamp DESC")
 
 	if filter.Limit > 0 {
-		query += " LIMIT ?"
-		args = append(args, filter.Limit)
+		queryBuilder.WriteString(" LIMIT ?")
+		filterArgs = append(filterArgs, filter.Limit)
 	}
 
-	rows, err := db.Query(query, args...)
+	rows, err := db.Query(queryBuilder.String(), filterArgs...)
 	if err != nil {
 		log.Error("store: list events query failed: %v", err)
 		return nil, err
@@ -148,7 +150,33 @@ func GetMaxEventID(db *sql.DB) (int64, error) {
 // ListEventsSince returns events with ID greater than afterID, ordered by ID ascending.
 // Used for polling new events in real-time.
 func ListEventsSince(db *sql.DB, afterID int64) ([]RepoEvent, error) {
-	query := `
+	return ListEventsSinceFiltered(db, afterID, EventFilter{})
+}
+
+// ListEventsSinceFiltered returns events with ID greater than afterID that match the filter.
+// Used for polling new events in real-time with optional filtering.
+func ListEventsSinceFiltered(db *sql.DB, afterID int64, filter EventFilter) ([]RepoEvent, error) {
+	var (
+		filterClauses = []string{"id > ?"}
+		filterArgs    = []any{afterID}
+	)
+
+	if filter.Status != nil {
+		filterClauses = append(filterClauses, "status_id = ?")
+		filterArgs = append(filterArgs, int(*filter.Status))
+	}
+
+	if filter.Source != nil {
+		filterClauses = append(filterClauses, "source_id = ?")
+		filterArgs = append(filterArgs, int(*filter.Source))
+	}
+
+	if filter.RepoID != nil {
+		filterClauses = append(filterClauses, "repo_id = ?")
+		filterArgs = append(filterArgs, *filter.RepoID)
+	}
+
+	query := fmt.Sprintf(`
 		SELECT
 			id,
 			repo_id,
@@ -159,11 +187,11 @@ func ListEventsSince(db *sql.DB, afterID int64) ([]RepoEvent, error) {
 			status_id,
 			source_id
 		FROM repo_events
-		WHERE id > ?
+		WHERE %s
 		ORDER BY id ASC
-	`
+	`, strings.Join(filterClauses, " AND "))
 
-	rows, err := db.Query(query, afterID)
+	rows, err := db.Query(query, filterArgs...)
 	if err != nil {
 		return nil, err
 	}

@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/ui/style"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/ui/style"
 )
+
+const defaultLogLimit = 50
 
 // View shows the last N lines of the log file
 func View(args []string, flags *dispatchers.ParsedFlags) error {
@@ -51,10 +53,10 @@ func view(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		lines = lines[:len(lines)-1]
 	}
 
-	// Get limit from flags (default 50)
-	limit := flags.Int("--limit", 50)
+	// Get limit from flags
+	limit := flags.Int("--limit", defaultLogLimit)
 	if limit <= 0 {
-		limit = 50
+		limit = defaultLogLimit
 	}
 
 	// Take last N lines

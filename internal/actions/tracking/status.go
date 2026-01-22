@@ -1,9 +1,9 @@
 package tracking
 
 import (
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	repodomain "github.com/Skryensya/footprint/internal/repo"
-	"github.com/Skryensya/footprint/internal/usage"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	repodomain "github.com/footprint-tools/footprint-cli/internal/repo"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
 
 func Status(args []string, flags *dispatchers.ParsedFlags) error {

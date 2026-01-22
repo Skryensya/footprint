@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/git"
-	"github.com/Skryensya/footprint/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/git"
+	"github.com/footprint-tools/footprint-cli/internal/store"
 )
 
 func Activity(args []string, flags *dispatchers.ParsedFlags) error {

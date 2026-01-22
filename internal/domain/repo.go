@@ -6,6 +6,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/footprint-tools/footprint-cli/internal/usage"
+)
+
+// RepoID constants for filesystem-safe conversion.
+const (
+	RepoIDMaxLength   = 100 // Maximum length before hashing
+	RepoIDTruncateLen = 50  // Length to truncate to when hashing
+	LocalRepoIDPrefix = "local/"
 )
 
 // RepoID represents a unique identifier for a repository.
@@ -44,9 +53,9 @@ func (id RepoID) ToFilesystemSafe() string {
 	s = strings.Trim(s, "_")
 
 	// If too long, hash it
-	if len(s) > 100 {
+	if len(s) > RepoIDMaxLength {
 		hash := sha256.Sum256([]byte(id))
-		s = s[:50] + "_" + hex.EncodeToString(hash[:8])
+		s = s[:RepoIDTruncateLen] + "_" + hex.EncodeToString(hash[:8])
 	}
 
 	return s
@@ -83,7 +92,7 @@ func deriveFromRemote(remoteURL string) (RepoID, error) {
 	url = strings.TrimSuffix(url, "/")
 
 	if url == "" {
-		return "", ErrInvalidRepoError()
+		return "", usage.InvalidRepo()
 	}
 
 	return RepoID(url), nil
@@ -92,12 +101,12 @@ func deriveFromRemote(remoteURL string) (RepoID, error) {
 // deriveFromPath creates a local identifier from the repository path.
 func deriveFromPath(localPath string) (RepoID, error) {
 	if localPath == "" {
-		return "", ErrInvalidPathError()
+		return "", usage.InvalidPath()
 	}
 
 	// Clean and get absolute-like representation
 	path := filepath.Clean(localPath)
 
 	// Use "local/" prefix to distinguish from remote repos
-	return RepoID("local/" + path), nil
+	return RepoID(LocalRepoIDPrefix + path), nil
 }

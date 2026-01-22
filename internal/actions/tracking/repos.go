@@ -3,7 +3,7 @@ package tracking
 import (
 	"sort"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 )
 
 func Repos(args []string, flags *dispatchers.ParsedFlags) error {

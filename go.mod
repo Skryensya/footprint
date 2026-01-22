@@ -1,4 +1,4 @@
-module github.com/Skryensya/footprint
+module github.com/footprint-tools/footprint-cli
 
 go 1.25.4
 

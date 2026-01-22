@@ -1,6 +1,6 @@
 package repo
 
-import "github.com/Skryensya/footprint/internal/domain"
+import "github.com/footprint-tools/footprint-cli/internal/domain"
 
 // Tracker wraps repository tracking operations and implements domain.RepoTracker.
 type Tracker struct{}

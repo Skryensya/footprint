@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/Skryensya/footprint/internal/paths"
+	"github.com/footprint-tools/footprint-cli/internal/paths"
 )
 
 // Default configuration values (in code, not persisted)
@@ -9,9 +9,17 @@ var Defaults = map[string]func() string{
 	"export_interval": func() string { return "3600" },
 	"export_repo":     func() string { return paths.ExportRepoDir() },
 	"export_last":     func() string { return "0" },
+	"export_remote":   func() string { return "" },
 	"color_theme":     func() string { return "default" }, // auto-detects -dark/-light
+	"color_success":   func() string { return "" },        // uses theme default
+	"color_warning":   func() string { return "" },        // uses theme default
+	"color_error":     func() string { return "" },        // uses theme default
+	"color_info":      func() string { return "" },        // uses theme default
+	"color_muted":     func() string { return "" },        // uses theme default
+	"color_header":    func() string { return "" },        // uses theme default
 	"log_enabled":     func() string { return "true" },
 	"log_level":       func() string { return "debug" }, // debug, info, warn, error
+	"pager":           func() string { return "" },      // default: less -FRSX
 }
 
 // Get returns the value for a config key.

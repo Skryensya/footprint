@@ -3,9 +3,9 @@ package setup
 import (
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/hooks"
-	"github.com/Skryensya/footprint/internal/usage"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/hooks"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
 
 func Setup(args []string, flags *dispatchers.ParsedFlags) error {

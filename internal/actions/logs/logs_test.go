@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 )
 
 // =========== VIEW TESTS ===========

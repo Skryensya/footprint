@@ -1,8 +1,8 @@
 package theme
 
 import (
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/ui/style"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/ui/style"
 	"github.com/charmbracelet/lipgloss"
 )
 

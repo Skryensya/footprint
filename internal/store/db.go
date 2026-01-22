@@ -4,15 +4,15 @@ import (
 	"database/sql"
 	"sync"
 
-	"github.com/Skryensya/footprint/internal/log"
-	"github.com/Skryensya/footprint/internal/store/migrations"
+	"github.com/footprint-tools/footprint-cli/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/store/migrations"
 )
 
 var (
 	db          *sql.DB
 	once        sync.Once
 	openError   error
-	singletonMu sync.RWMutex // Protects db and openError for thread-safe access
+	singletonMu sync.RWMutex
 )
 
 // Open opens the database and runs any pending migrations.

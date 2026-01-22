@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Skryensya/footprint/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/log"
 )
 
 func BackupDir(hooksPath string) string {

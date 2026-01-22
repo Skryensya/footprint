@@ -22,7 +22,7 @@ func UnknownCommand(command string, suggestions ...string) *Error {
 	}
 
 	return &Error{
-		Message:  strings.TrimSuffix(msg.String(), "\n"),
-		ExitCode: 1,
+		Kind:    ErrUnknownCommand,
+		Message: strings.TrimSuffix(msg.String(), "\n"),
 	}
 }

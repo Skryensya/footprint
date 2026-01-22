@@ -4,7 +4,7 @@ import "fmt"
 
 func MissingArgument(arg string) *Error {
 	return &Error{
-		Message:  fmt.Sprintf("fp: missing required argument '%s'", arg),
-		ExitCode: 2,
+		Kind:    ErrMissingArgument,
+		Message: fmt.Sprintf("fp: missing required argument '%s'", arg),
 	}
 }

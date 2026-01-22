@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/usage"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
 
 func Get(args []string, flags *dispatchers.ParsedFlags) error {

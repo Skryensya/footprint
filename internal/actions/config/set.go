@@ -1,9 +1,10 @@
 package config
 
 import (
-	"github.com/Skryensya/footprint/internal/actions/tracking"
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/usage"
+	"github.com/footprint-tools/footprint-cli/internal/actions/tracking"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/domain"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
 
 func Set(args []string, flags *dispatchers.ParsedFlags) error {
@@ -17,6 +18,11 @@ func set(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 
 	key := args[0]
 	value := args[1]
+
+	// Warn if key is not a recognized config key
+	if !domain.IsValidConfigKey(key) {
+		deps.Printf("warning: '%s' is not a recognized config key\n", key)
+	}
 
 	lines, err := deps.ReadLines()
 	if err != nil {

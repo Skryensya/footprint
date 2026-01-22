@@ -9,8 +9,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/Skryensya/footprint/internal/domain"
-	"github.com/Skryensya/footprint/internal/store/migrations"
+	"github.com/footprint-tools/footprint-cli/internal/domain"
+	"github.com/footprint-tools/footprint-cli/internal/store/migrations"
 )
 
 // Store wraps a SQLite database connection for event storage.
@@ -120,54 +120,56 @@ func (s *Store) List(filter domain.EventFilter) ([]domain.RepoEvent, error) {
 	`
 
 	var (
-		clauses []string
-		args    []any
+		filterClauses []string
+		filterArgs    []any
 	)
 
 	if filter.Status != nil {
-		clauses = append(clauses, "status_id = ?")
-		args = append(args, int(*filter.Status))
+		filterClauses = append(filterClauses, "status_id = ?")
+		filterArgs = append(filterArgs, int(*filter.Status))
 	}
 
 	if filter.Source != nil {
-		clauses = append(clauses, "source_id = ?")
-		args = append(args, int(*filter.Source))
+		filterClauses = append(filterClauses, "source_id = ?")
+		filterArgs = append(filterArgs, int(*filter.Source))
 	}
 
 	if filter.Since != nil {
-		clauses = append(clauses, "timestamp >= ?")
-		args = append(args, filter.Since.Format(time.RFC3339))
+		filterClauses = append(filterClauses, "timestamp >= ?")
+		filterArgs = append(filterArgs, filter.Since.Format(time.RFC3339))
 	}
 
 	if filter.Until != nil {
-		clauses = append(clauses, "timestamp <= ?")
-		args = append(args, filter.Until.Format(time.RFC3339))
+		filterClauses = append(filterClauses, "timestamp <= ?")
+		filterArgs = append(filterArgs, filter.Until.Format(time.RFC3339))
 	}
 
 	if !filter.RepoID.IsEmpty() {
-		clauses = append(clauses, "repo_id = ?")
-		args = append(args, filter.RepoID.String())
+		filterClauses = append(filterClauses, "repo_id = ?")
+		filterArgs = append(filterArgs, filter.RepoID.String())
 	}
 
 	if filter.SinceID > 0 {
-		clauses = append(clauses, "id > ?")
-		args = append(args, filter.SinceID)
+		filterClauses = append(filterClauses, "id > ?")
+		filterArgs = append(filterArgs, filter.SinceID)
 	}
 
-	query := base
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(base)
 
-	if len(clauses) > 0 {
-		query += " WHERE " + strings.Join(clauses, " AND ")
+	if len(filterClauses) > 0 {
+		queryBuilder.WriteString(" WHERE ")
+		queryBuilder.WriteString(strings.Join(filterClauses, " AND "))
 	}
 
-	query += " ORDER BY timestamp DESC"
+	queryBuilder.WriteString(" ORDER BY timestamp DESC")
 
 	if filter.Limit > 0 {
-		query += " LIMIT ?"
-		args = append(args, filter.Limit)
+		queryBuilder.WriteString(" LIMIT ?")
+		filterArgs = append(filterArgs, filter.Limit)
 	}
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.Query(queryBuilder.String(), filterArgs...)
 	if err != nil {
 		return nil, err
 	}

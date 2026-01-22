@@ -2,7 +2,7 @@ package usage
 
 func FailedConfigPath() *Error {
 	return &Error{
-		Message:  "Getting the Config file path failed",
-		ExitCode: 1,
+		Kind:    ErrFailedConfigPath,
+		Message: "fp: could not determine config file location",
 	}
 }

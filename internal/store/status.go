@@ -1,25 +1,15 @@
 package store
 
-type Status int
+import "github.com/footprint-tools/footprint-cli/internal/domain"
 
+// Status is an alias for domain.EventStatus.
+// Kept for backward compatibility with existing code.
+type Status = domain.EventStatus
+
+// Status constants - aliases for domain constants.
 const (
-	StatusPending  Status = 0
-	StatusExported Status = 1
-	StatusOrphaned Status = 2
-	StatusSkipped  Status = 3
+	StatusPending  = domain.StatusPending
+	StatusExported = domain.StatusExported
+	StatusOrphaned = domain.StatusOrphaned
+	StatusSkipped  = domain.StatusSkipped
 )
-
-func (s Status) String() string {
-	switch s {
-	case StatusPending:
-		return "PENDING"
-	case StatusExported:
-		return "EXPORTED"
-	case StatusOrphaned:
-		return "ORPHANED"
-	case StatusSkipped:
-		return "SKIPPED"
-	default:
-		return "UNKNOWN"
-	}
-}

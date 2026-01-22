@@ -2,7 +2,7 @@ package usage
 
 func MissingRemote() *Error {
 	return &Error{
-		Message:  "Current repository does not have a remote",
-		ExitCode: 2,
+		Kind:    ErrMissingRemote,
+		Message: "fp: current repository does not have a remote",
 	}
 }

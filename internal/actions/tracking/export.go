@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Skryensya/footprint/internal/config"
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/git"
-	"github.com/Skryensya/footprint/internal/log"
-	"github.com/Skryensya/footprint/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/config"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/git"
+	"github.com/footprint-tools/footprint-cli/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/store"
 )
 
 const (
@@ -123,7 +123,6 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 }
 
 // doExportWork performs the core export workflow: export events to CSV, commit, update DB.
-// Returns the count of exported events, whether push succeeded, and any error.
 func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, error) {
 	exportRepo := deps.GetExportRepo()
 

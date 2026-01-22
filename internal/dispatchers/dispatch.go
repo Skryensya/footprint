@@ -4,9 +4,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Skryensya/footprint/internal/help"
-	"github.com/Skryensya/footprint/internal/usage"
+	"github.com/footprint-tools/footprint-cli/internal/help"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
+
+const defaultSuggestionsCount = 3
 
 // interactiveBrowserFunc is injected from main to avoid import cycles
 var (
@@ -28,68 +30,52 @@ func getInteractiveBrowserFunc() CommandFunc {
 	return interactiveBrowserFunc
 }
 
+func handleHelpCommand(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resolution, error, bool) {
+	for i, tok := range tokens {
+		if tok != "help" {
+			continue
+		}
+
+		browserFn := getInteractiveBrowserFunc()
+		if hasInteractiveFlag(flags) && browserFn != nil {
+			return Resolution{Node: root, Flags: flags, Execute: browserFn}, nil, true
+		}
+
+		targetPath := tokens[:i]
+		if len(tokens[i+1:]) > 0 {
+			targetPath = tokens[i+1:]
+		}
+
+		if len(targetPath) == 1 && targetPath[0] == "topics" {
+			return Resolution{Node: root, Flags: flags, Execute: TopicsListAction()}, nil, true
+		}
+
+		target := resolveNode(root, targetPath)
+		if target != nil {
+			return Resolution{Node: target, Flags: flags, Execute: HelpAction(target, root)}, nil, true
+		}
+
+		if len(targetPath) == 1 {
+			topic := help.LookupTopic(targetPath[0])
+			if topic != nil {
+				return Resolution{Node: root, Flags: flags, Execute: TopicHelpAction(topic)}, nil, true
+			}
+		}
+
+		suggestions := FindSimilarCommands(targetPath[0], root, defaultSuggestionsCount)
+		return Resolution{}, usage.UnknownCommand(strings.Join(targetPath, " "), suggestions...), true
+	}
+	return Resolution{}, nil, false
+}
+
 func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resolution, error) {
+	if res, err, handled := handleHelpCommand(root, tokens, flags); handled {
+		return res, err
+	}
+
 	current := root
 	lastValid := root
 	pathLen := 0
-
-	for i, tok := range tokens {
-		if tok == "help" {
-			// Check for interactive flag first
-			browserFn := getInteractiveBrowserFunc()
-			if hasInteractiveFlag(flags) && browserFn != nil {
-				return Resolution{
-					Node:    root,
-					Args:    nil,
-					Flags:   flags,
-					Execute: browserFn,
-				}, nil
-			}
-
-			targetPath := tokens[:i]
-			if len(tokens[i+1:]) > 0 {
-				targetPath = tokens[i+1:]
-			}
-
-			// Handle "fp help topics" - list all topics
-			if len(targetPath) == 1 && targetPath[0] == "topics" {
-				return Resolution{
-					Node:    root,
-					Args:    nil,
-					Flags:   flags,
-					Execute: TopicsListAction(),
-				}, nil
-			}
-
-			// Try to resolve as a command first
-			target := resolveNode(root, targetPath)
-			if target != nil {
-				return Resolution{
-					Node:    target,
-					Args:    nil,
-					Flags:   flags,
-					Execute: HelpAction(target, root),
-				}, nil
-			}
-
-			// Try to resolve as a help topic
-			if len(targetPath) == 1 {
-				topic := help.LookupTopic(targetPath[0])
-				if topic != nil {
-					return Resolution{
-						Node:    root,
-						Args:    nil,
-						Flags:   flags,
-						Execute: TopicHelpAction(topic),
-					}, nil
-				}
-			}
-
-			// Neither command nor topic found - try to suggest similar commands
-			suggestions := FindSimilarCommands(targetPath[0], root, 3)
-			return Resolution{}, usage.UnknownCommand(strings.Join(targetPath, " "), suggestions...)
-		}
-	}
 
 	for i, tok := range tokens {
 		child, ok := current.Children[tok]
@@ -97,13 +83,13 @@ func Dispatch(root *DispatchNode, tokens []string, flags *ParsedFlags) (Resoluti
 			// If this is the first token (top-level command) and it doesn't exist,
 			// it's likely a typo - suggest similar commands
 			if i == 0 && len(current.Children) > 0 {
-				suggestions := FindSimilarCommands(tok, current, 3)
+				suggestions := FindSimilarCommands(tok, current, defaultSuggestionsCount)
 				return Resolution{}, usage.UnknownCommand(tok, suggestions...)
 			}
 			// For subcommands: if the current node has children but no action,
 			// it's a command group and unknown tokens are errors, not args
 			if current.Action == nil && len(current.Children) > 0 {
-				suggestions := FindSimilarCommands(tok, current, 3)
+				suggestions := FindSimilarCommands(tok, current, defaultSuggestionsCount)
 				cmdPath := strings.Join(append(current.Path, tok), " ")
 				return Resolution{}, usage.UnknownCommand(cmdPath, suggestions...)
 			}

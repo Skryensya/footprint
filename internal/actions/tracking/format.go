@@ -3,13 +3,27 @@ package tracking
 import (
 	"fmt"
 
-	"github.com/Skryensya/footprint/internal/git"
-	"github.com/Skryensya/footprint/internal/store"
-	"github.com/Skryensya/footprint/internal/ui/style"
+	"github.com/footprint-tools/footprint-cli/internal/git"
+	"github.com/footprint-tools/footprint-cli/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/ui/style"
 )
 
+const (
+	maxSubjectLengthOneline = 40
+	truncatedSubjectLength  = 37
+)
+
+var sourceStylers = map[store.Source]func(string) string{
+	store.SourcePostCommit:   style.Color1,
+	store.SourcePostRewrite:  style.Color2,
+	store.SourcePostCheckout: style.Color3,
+	store.SourcePostMerge:    style.Color4,
+	store.SourcePrePush:      style.Color5,
+	store.SourceBackfill:     style.Color6,
+	store.SourceManual:       style.Color7,
+}
+
 // FormatEvent formats a single event for display.
-// If oneline is true, uses compact single-line format.
 func FormatEvent(e store.RepoEvent, oneline bool) string {
 	if oneline {
 		// source(colored) commit(bold) repo(muted) branch
@@ -33,26 +47,11 @@ func FormatEvent(e store.RepoEvent, oneline bool) string {
 	)
 }
 
-// formatSource applies distinct colors to each hook source.
 func formatSource(source store.Source) string {
-	switch source {
-	case store.SourcePostCommit:
-		return style.Color1(source.String())
-	case store.SourcePostRewrite:
-		return style.Color2(source.String())
-	case store.SourcePostCheckout:
-		return style.Color3(source.String())
-	case store.SourcePostMerge:
-		return style.Color4(source.String())
-	case store.SourcePrePush:
-		return style.Color5(source.String())
-	case store.SourceBackfill:
-		return style.Color6(source.String())
-	case store.SourceManual:
-		return style.Color7(source.String())
-	default:
-		return source.String()
+	if styler, ok := sourceStylers[source]; ok {
+		return styler(source.String())
 	}
+	return source.String()
 }
 
 // FormatEventEnriched formats a single event with git metadata (author, commit message).
@@ -61,8 +60,8 @@ func FormatEventEnriched(e store.RepoEvent, meta git.CommitMetadata, oneline boo
 	if oneline {
 		// source commit repo branch "message"
 		subject := meta.Subject
-		if len(subject) > 40 {
-			subject = subject[:37] + "..."
+		if len(subject) > maxSubjectLengthOneline {
+			subject = subject[:truncatedSubjectLength] + "..."
 		}
 		return fmt.Sprintf("%s %s %s %s %s",
 			formatSource(e.Source),

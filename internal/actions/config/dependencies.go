@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/Skryensya/footprint/internal/config"
+	"github.com/footprint-tools/footprint-cli/internal/config"
 )
 
 type Deps struct {

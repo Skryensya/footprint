@@ -3,7 +3,7 @@ package splitpanel
 import (
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/ui/style"
+	"github.com/footprint-tools/footprint-cli/internal/ui/style"
 	"github.com/charmbracelet/lipgloss"
 )
 

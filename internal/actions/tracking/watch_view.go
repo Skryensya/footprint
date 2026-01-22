@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/store"
-	"github.com/Skryensya/footprint/internal/ui/splitpanel"
+	"github.com/footprint-tools/footprint-cli/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/ui/splitpanel"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -377,14 +377,15 @@ func (m *watchModel) buildDrawerPanel(layout *splitpanel.Layout, height int) spl
 			lines = append(lines, headerStyle.Render("STATS"))
 			lines = append(lines, "")
 
-			statsLine := fmt.Sprintf("  %d files", meta.FilesChanged)
+			var statsBuilder strings.Builder
+			fmt.Fprintf(&statsBuilder, "  %d files", meta.FilesChanged)
 			if meta.Insertions > 0 {
-				statsLine += fmt.Sprintf(" +%d", meta.Insertions)
+				fmt.Fprintf(&statsBuilder, " +%d", meta.Insertions)
 			}
 			if meta.Deletions > 0 {
-				statsLine += fmt.Sprintf(" -%d", meta.Deletions)
+				fmt.Fprintf(&statsBuilder, " -%d", meta.Deletions)
 			}
-			lines = append(lines, valueStyle.Render(statsLine))
+			lines = append(lines, valueStyle.Render(statsBuilder.String()))
 			lines = append(lines, "")
 		}
 

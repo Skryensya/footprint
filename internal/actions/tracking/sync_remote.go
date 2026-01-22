@@ -4,20 +4,20 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/log"
-	"github.com/Skryensya/footprint/internal/paths"
-	repodomain "github.com/Skryensya/footprint/internal/repo"
-	"github.com/Skryensya/footprint/internal/store"
-	"github.com/Skryensya/footprint/internal/usage"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/paths"
+	repodomain "github.com/footprint-tools/footprint-cli/internal/repo"
+	"github.com/footprint-tools/footprint-cli/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
 
-func Adopt(args []string, flags *dispatchers.ParsedFlags) error {
-	return adopt(args, flags, DefaultDeps())
+func SyncRemote(args []string, flags *dispatchers.ParsedFlags) error {
+	return syncRemote(args, flags, DefaultDeps())
 }
 
-func adopt(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
-	log.Debug("adopt: starting")
+func syncRemote(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
+	log.Debug("sync-remote: starting")
 
 	if !deps.GitIsAvailable() {
 		return usage.GitNotInstalled()
@@ -48,7 +48,7 @@ func adopt(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 		return usage.InvalidRepo()
 	}
 
-	log.Debug("adopt: localID=%s, remoteID=%s", localID, remoteID)
+	log.Debug("sync-remote: localID=%s, remoteID=%s", localID, remoteID)
 
 	isLocalTracked, err := deps.IsTracked(localID)
 	if err != nil {
@@ -56,22 +56,22 @@ func adopt(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 	}
 
 	if !isLocalTracked {
-		log.Debug("adopt: local ID is not tracked")
+		log.Debug("sync-remote: local ID is not tracked")
 		return usage.InvalidRepo()
 	}
 
 	// Update tracking
 	if _, err := deps.Untrack(localID); err != nil {
-		log.Error("adopt: failed to untrack local ID: %v", err)
+		log.Error("sync-remote: failed to untrack local ID: %v", err)
 		return err
 	}
 
 	if _, err := deps.Track(remoteID); err != nil {
-		log.Error("adopt: failed to track remote ID: %v", err)
+		log.Error("sync-remote: failed to track remote ID: %v", err)
 		return err
 	}
 
-	log.Info("adopt: changed identity from %s to %s", localID, remoteID)
+	log.Info("sync-remote: changed identity from %s to %s", localID, remoteID)
 	deps.Printf("adopted identity:\n  %s\n→ %s\n", localID, remoteID)
 
 	// Migrate pending events in database
@@ -82,14 +82,14 @@ func adopt(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 
 		migrated, err := store.MigratePendingRepoID(db, string(localID), string(remoteID))
 		if err == nil && migrated > 0 {
-			log.Debug("adopt: migrated %d pending events", migrated)
+			log.Debug("sync-remote: migrated %d pending events", migrated)
 			deps.Printf("migrated %d pending events\n", migrated)
 		}
 	}
 
 	// Rename export directory if it exists
 	if renamed := renameExportDir(localID, remoteID); renamed {
-		log.Debug("adopt: renamed export directory")
+		log.Debug("sync-remote: renamed export directory")
 		deps.Println("renamed export directory")
 	}
 

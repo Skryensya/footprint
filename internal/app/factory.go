@@ -1,16 +1,16 @@
 package app
 
 import (
-	"github.com/Skryensya/footprint/internal/config"
-	"github.com/Skryensya/footprint/internal/domain"
-	"github.com/Skryensya/footprint/internal/git"
-	"github.com/Skryensya/footprint/internal/hooks"
-	"github.com/Skryensya/footprint/internal/log"
-	"github.com/Skryensya/footprint/internal/paths"
-	"github.com/Skryensya/footprint/internal/repo"
-	"github.com/Skryensya/footprint/internal/store"
-	"github.com/Skryensya/footprint/internal/ui"
-	"github.com/Skryensya/footprint/internal/ui/style"
+	"github.com/footprint-tools/footprint-cli/internal/config"
+	"github.com/footprint-tools/footprint-cli/internal/domain"
+	"github.com/footprint-tools/footprint-cli/internal/git"
+	"github.com/footprint-tools/footprint-cli/internal/hooks"
+	"github.com/footprint-tools/footprint-cli/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/paths"
+	"github.com/footprint-tools/footprint-cli/internal/repo"
+	"github.com/footprint-tools/footprint-cli/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/ui"
+	"github.com/footprint-tools/footprint-cli/internal/ui/style"
 )
 
 // Options configures the application factory.

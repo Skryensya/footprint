@@ -5,8 +5,25 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/store"
 )
+
+var statusMap = map[string]store.Status{
+	"pending":  store.StatusPending,
+	"exported": store.StatusExported,
+	"orphaned": store.StatusOrphaned,
+	"skipped":  store.StatusSkipped,
+}
+
+var sourceMap = map[string]store.Source{
+	"post-commit":   store.SourcePostCommit,
+	"post-rewrite":  store.SourcePostRewrite,
+	"post-checkout": store.SourcePostCheckout,
+	"post-merge":    store.SourcePostMerge,
+	"pre-push":      store.SourcePrePush,
+	"manual":        store.SourceManual,
+	"backfill":      store.SourceBackfill,
+}
 
 func resolvePath(args []string) (string, error) {
 	p := "."
@@ -37,37 +54,11 @@ func resolvePath(args []string) (string, error) {
 }
 
 func parseStatus(s string) (store.Status, bool) {
-	switch strings.ToLower(s) {
-	case "pending":
-		return store.StatusPending, true
-	case "exported":
-		return store.StatusExported, true
-	case "orphaned":
-		return store.StatusOrphaned, true
-	case "skipped":
-		return store.StatusSkipped, true
-	default:
-		return 0, false
-	}
+	status, ok := statusMap[strings.ToLower(s)]
+	return status, ok
 }
 
 func parseSource(s string) (store.Source, bool) {
-	switch strings.ToLower(s) {
-	case "post-commit":
-		return store.SourcePostCommit, true
-	case "post-rewrite":
-		return store.SourcePostRewrite, true
-	case "post-checkout":
-		return store.SourcePostCheckout, true
-	case "post-merge":
-		return store.SourcePostMerge, true
-	case "pre-push":
-		return store.SourcePrePush, true
-	case "manual":
-		return store.SourceManual, true
-	case "backfill":
-		return store.SourceBackfill, true
-	default:
-		return 0, false
-	}
+	source, ok := sourceMap[strings.ToLower(s)]
+	return source, ok
 }

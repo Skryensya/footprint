@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/log"
 )
 
 // dateArgPattern validates git date arguments to prevent injection
@@ -72,7 +72,7 @@ func ListRemotes(repoRoot string) ([]string, error) {
 		return []string{}, nil
 	}
 	lines := strings.Split(strings.TrimSpace(out), "\n")
-	var remotes []string
+	remotes := make([]string, 0, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line != "" {
@@ -257,7 +257,7 @@ func parseParents(output string) []string {
 		return nil
 	}
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	var parents []string
+	parents := make([]string, 0, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line != "" {

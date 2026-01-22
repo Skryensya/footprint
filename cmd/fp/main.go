@@ -6,15 +6,15 @@ import (
 	"strconv"
 	"strings"
 
-	helpactions "github.com/Skryensya/footprint/internal/actions/help"
-	"github.com/Skryensya/footprint/internal/cli"
-	"github.com/Skryensya/footprint/internal/config"
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	"github.com/Skryensya/footprint/internal/log"
-	"github.com/Skryensya/footprint/internal/paths"
-	"github.com/Skryensya/footprint/internal/ui"
-	"github.com/Skryensya/footprint/internal/ui/style"
-	"github.com/Skryensya/footprint/internal/usage"
+	helpactions "github.com/footprint-tools/footprint-cli/internal/actions/help"
+	"github.com/footprint-tools/footprint-cli/internal/cli"
+	"github.com/footprint-tools/footprint-cli/internal/config"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/log"
+	"github.com/footprint-tools/footprint-cli/internal/paths"
+	"github.com/footprint-tools/footprint-cli/internal/ui"
+	"github.com/footprint-tools/footprint-cli/internal/ui/style"
+	"github.com/footprint-tools/footprint-cli/internal/usage"
 	"golang.org/x/term"
 )
 
@@ -56,7 +56,7 @@ func main() {
 	if err != nil {
 		if ue, ok := err.(*usage.Error); ok {
 			fmt.Fprintln(os.Stderr, ue.Error())
-			os.Exit(ue.ExitCode)
+			os.Exit(ue.GetExitCode())
 		}
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

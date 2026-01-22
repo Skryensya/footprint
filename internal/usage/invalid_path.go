@@ -2,7 +2,7 @@ package usage
 
 func InvalidPath() *Error {
 	return &Error{
-		Message:  "Invalid path",
-		ExitCode: 1,
+		Kind:    ErrInvalidPath,
+		Message: "fp: path does not exist or is not accessible",
 	}
 }

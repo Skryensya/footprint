@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/Skryensya/footprint/internal/dispatchers"
+import "github.com/footprint-tools/footprint-cli/internal/dispatchers"
 
 var (
 	RootFlags = []dispatchers.FlagDescriptor{
@@ -54,7 +54,7 @@ var (
 		{
 			Names:       []string{"--status"},
 			ValueHint:   "<status>",
-			Description: "Filter by status (pending, exported, orphaned, skipped)",
+			Description: "Filter by status: pending, exported, orphaned, skipped",
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 		{
@@ -150,6 +150,24 @@ var (
 		{
 			Names:       []string{"--interactive", "-i"},
 			Description: "Run in interactive TUI mode with stats and detail view",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
+			Names:       []string{"--status"},
+			ValueHint:   "<status>",
+			Description: "Filter by status: pending, exported, orphaned, skipped",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
+			Names:       []string{"--source"},
+			ValueHint:   "<source>",
+			Description: "Filter by source (post-commit, post-rewrite, post-checkout, post-merge, pre-push, manual, backfill)",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
+			Names:       []string{"--repo"},
+			ValueHint:   "<id>",
+			Description: "Filter by repository id",
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 	}

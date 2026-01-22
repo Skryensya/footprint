@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Skryensya/footprint/internal/dispatchers"
-	repodomain "github.com/Skryensya/footprint/internal/repo"
+	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	repodomain "github.com/footprint-tools/footprint-cli/internal/repo"
 	"github.com/stretchr/testify/require"
 )
 

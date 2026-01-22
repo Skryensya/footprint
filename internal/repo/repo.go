@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/Skryensya/footprint/internal/config"
+	"github.com/footprint-tools/footprint-cli/internal/config"
 )
 
 type RepoID string
@@ -157,7 +157,7 @@ func Untrack(id RepoID) (bool, error) {
 		return false, err
 	}
 
-	out := make([]RepoID, 0, len(current))
+	remainingRepos := make([]RepoID, 0, len(current))
 	removed := false
 
 	for _, existing := range current {
@@ -165,20 +165,20 @@ func Untrack(id RepoID) (bool, error) {
 			removed = true
 			continue
 		}
-		out = append(out, existing)
+		remainingRepos = append(remainingRepos, existing)
 	}
 
 	if !removed {
 		return false, nil
 	}
 
-	if len(out) == 0 {
+	if len(remainingRepos) == 0 {
 		lines, _ = config.Unset(lines, trackedReposKey)
 		return true, config.WriteLines(lines)
 	}
 
-	values := make([]string, 0, len(out))
-	for _, v := range out {
+	values := make([]string, 0, len(remainingRepos))
+	for _, v := range remainingRepos {
 		values = append(values, string(v))
 	}
 
