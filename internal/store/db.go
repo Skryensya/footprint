@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	db        *sql.DB
-	once      sync.Once
-	openError error
+	db          *sql.DB
+	once        sync.Once
+	openError   error
+	singletonMu sync.RWMutex // Protects db and openError for thread-safe access
 )
 
 // Open opens the database and runs any pending migrations.
@@ -23,30 +24,43 @@ func Open(path string) (*sql.DB, error) {
 		log.Debug("store: opening database at %s", path)
 
 		var err error
-		db, err = sql.Open("sqlite3", path)
+		conn, err := sql.Open("sqlite3", path)
 		if err != nil {
+			singletonMu.Lock()
 			openError = err
+			singletonMu.Unlock()
 			log.Error("store: failed to open database: %v", err)
 			return
 		}
 
-		if err = db.Ping(); err != nil {
+		if err = conn.Ping(); err != nil {
+			conn.Close()
+			singletonMu.Lock()
 			openError = err
+			singletonMu.Unlock()
 			log.Error("store: failed to ping database: %v", err)
 			return
 		}
 
 		setDBPermissions(path)
 
-		if err = migrations.Run(db); err != nil {
+		if err = migrations.Run(conn); err != nil {
+			conn.Close()
+			singletonMu.Lock()
 			openError = err
+			singletonMu.Unlock()
 			log.Error("store: migrations failed: %v", err)
 			return
 		}
 
+		singletonMu.Lock()
+		db = conn
+		singletonMu.Unlock()
 		log.Debug("store: database ready")
 	})
 
+	singletonMu.RLock()
+	defer singletonMu.RUnlock()
 	return db, openError
 }
 
@@ -66,6 +80,8 @@ func OpenFresh(path string) (*sql.DB, error) {
 //
 // Deprecated: Use store.New() instead which doesn't use singletons.
 func ResetSingleton() {
+	singletonMu.Lock()
+	defer singletonMu.Unlock()
 	once = sync.Once{}
 	db = nil
 	openError = nil
