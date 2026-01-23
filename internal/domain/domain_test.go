@@ -124,19 +124,19 @@ func TestParseEventSource(t *testing.T) {
 }
 
 func TestConfigKey_GetConfigKey(t *testing.T) {
-	key, ok := GetConfigKey("export_interval")
+	key, ok := GetConfigKey("export_interval_sec")
 	require.True(t, ok)
-	require.Equal(t, "export_interval", key.Name)
+	require.Equal(t, "export_interval_sec", key.Name)
 	require.Equal(t, "3600", key.Default)
 }
 
 func TestConfigKey_IsValidConfigKey(t *testing.T) {
-	require.True(t, IsValidConfigKey("export_interval"))
+	require.True(t, IsValidConfigKey("export_interval_sec"))
 	require.False(t, IsValidConfigKey("invalid_key"))
 }
 
 func TestConfigKey_GetDefaultValue(t *testing.T) {
-	val, ok := GetDefaultValue("export_interval")
+	val, ok := GetDefaultValue("export_interval_sec")
 	require.True(t, ok)
 	require.Equal(t, "3600", val)
 

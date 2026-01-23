@@ -6,10 +6,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/footprint-tools/footprint-cli/internal/app"
-	"github.com/footprint-tools/footprint-cli/internal/config"
+	"github.com/footprint-tools/footprint-cli/internal/state"
 	"github.com/footprint-tools/footprint-cli/internal/ui/style"
 )
 
@@ -25,6 +26,13 @@ type CheckResult struct {
 	LatestVersion   string
 }
 
+// cleanVersion removes build metadata like -dirty suffix for comparison
+func cleanVersion(v string) string {
+	// Remove -dirty suffix (uncommitted changes)
+	v = strings.TrimSuffix(v, "-dirty")
+	return v
+}
+
 // CheckForUpdate checks if a newer version is available.
 // Uses cached result if checked recently (within CheckInterval).
 func CheckForUpdate() *CheckResult {
@@ -33,14 +41,17 @@ func CheckForUpdate() *CheckResult {
 		return &CheckResult{UpdateAvailable: false, CurrentVersion: currentVersion}
 	}
 
+	// Clean version for comparison (strip -dirty, etc.)
+	cleanCurrent := cleanVersion(currentVersion)
+
 	// Check if we should skip (checked recently)
-	lastCheck, _ := config.Get("update_last_check")
+	lastCheck, _ := state.Get("update_last_check")
 	if lastCheck != "" {
 		if t, err := time.Parse(time.RFC3339, lastCheck); err == nil {
 			if time.Since(t) < CheckInterval {
 				// Use cached version
-				cachedVersion, _ := config.Get("update_latest_version")
-				if cachedVersion != "" && cachedVersion != currentVersion {
+				cachedVersion, _ := state.Get("update_latest_version")
+				if cachedVersion != "" && cachedVersion != cleanCurrent {
 					return &CheckResult{
 						UpdateAvailable: true,
 						CurrentVersion:  currentVersion,
@@ -60,11 +71,11 @@ func CheckForUpdate() *CheckResult {
 	}
 
 	// Cache the result
-	saveConfig("update_last_check", time.Now().Format(time.RFC3339))
-	saveConfig("update_latest_version", latestVersion)
+	saveState("update_last_check", time.Now().Format(time.RFC3339))
+	saveState("update_latest_version", latestVersion)
 
-	// Compare versions
-	updateAvailable := latestVersion != currentVersion && latestVersion != ""
+	// Compare versions (use cleaned current version)
+	updateAvailable := latestVersion != cleanCurrent && latestVersion != ""
 
 	return &CheckResult{
 		UpdateAvailable: updateAvailable,
@@ -103,15 +114,10 @@ func fetchLatestVersionQuick() (string, error) {
 	return release.TagName, nil
 }
 
-// saveConfig is a helper to save a config value without error handling
-// (we don't want update checks to fail if config can't be written)
-func saveConfig(key, value string) {
-	lines, err := config.ReadLines()
-	if err != nil {
-		return
-	}
-	lines, _ = config.Set(lines, key, value)
-	_ = config.WriteLines(lines)
+// saveState is a helper to save a state value without error handling
+// (we don't want update checks to fail if state can't be written)
+func saveState(key, value string) {
+	_ = state.Set(key, value)
 }
 
 // PrintUpdateNotice prints an update notice if one is available.
@@ -123,13 +129,16 @@ func PrintUpdateNotice() {
 		return
 	}
 
-	// Print colored notice
-	notice := fmt.Sprintf("Update available: %s → %s",
+	// Build notice text
+	notice := fmt.Sprintf("Update available: %s → %s (run '%s')",
 		style.Muted(result.CurrentVersion),
-		style.Success(result.LatestVersion))
-	command := style.Info("fp update")
+		style.Success(result.LatestVersion),
+		style.Info("fp update"))
 
-	fmt.Fprintf(os.Stderr, "\n  %s (run '%s')\n\n", notice, command)
+	// Print with border
+	border := style.Border("─")
+	line := strings.Repeat(border, 50)
+	fmt.Fprintf(os.Stderr, "\n%s\n  %s\n%s\n\n", line, notice, line)
 }
 
 // ShouldCheckUpdate returns true if the command should trigger an update check.

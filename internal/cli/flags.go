@@ -247,6 +247,11 @@ var (
 
 	LogsFlags = []dispatchers.FlagDescriptor{
 		{
+			Names:       []string{"-i", "--interactive"},
+			Description: "Interactive log viewer with filtering and navigation",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
 			Names:       []string{"--tail", "-f"},
 			Description: "Follow logs in real time",
 			Scope:       dispatchers.FlagScopeLocal,

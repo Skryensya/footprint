@@ -80,20 +80,15 @@ func main() {
 }
 
 // initLogger initializes the logger based on config settings.
-// Reads log_enabled and log_level from config.
 func initLogger() {
 	// Check if logging is enabled
-	enabled, _ := config.Get("log_enabled")
+	enabled, _ := config.Get("enable_log")
 	if enabled == "false" {
 		return
 	}
 
-	// Get log level from config
-	levelStr, _ := config.Get("log_level")
-	level := log.ParseLevel(levelStr)
-
-	// Initialize logger (ignore errors - logging is optional)
-	_ = log.Init(paths.LogFilePath(), level)
+	// Initialize logger at debug level (log everything)
+	_ = log.Init(paths.LogFilePath(), log.LevelDebug)
 }
 
 // extractFlagsAndCommands parses command-line arguments into flags and commands.

@@ -179,7 +179,7 @@ func TestLoadColorConfig_DarkTheme(t *testing.T) {
 func TestLoadColorConfig_LightTheme(t *testing.T) {
 	clearColorEnvVars(t)
 
-	cfg := map[string]string{"color_theme": "default-light"}
+	cfg := map[string]string{"theme": "default-light"}
 	colors := LoadColorConfig(cfg)
 
 	if colors.Success != "28" {
@@ -203,7 +203,7 @@ func TestLoadColorConfig_IndividualOverride(t *testing.T) {
 	clearColorEnvVars(t)
 
 	cfg := map[string]string{
-		"color_theme":   "default-dark",
+		"theme":   "default-dark",
 		"color_success": "82",
 		"color_error":   "196",
 	}
@@ -242,7 +242,7 @@ func TestLoadColorConfig_EnvThemeOverridesConfig(t *testing.T) {
 	t.Setenv("FP_COLOR_THEME", "default-light")
 
 	cfg := map[string]string{
-		"color_theme": "default-dark", // Should be overridden by env
+		"theme": "default-dark", // Should be overridden by env
 	}
 	colors := LoadColorConfig(cfg)
 
@@ -259,7 +259,7 @@ func TestLoadColorConfig_EnvThemeOverridesConfig(t *testing.T) {
 func TestLoadColorConfig_UnknownThemeFallsBackToDefaultDark(t *testing.T) {
 	clearColorEnvVars(t)
 
-	cfg := map[string]string{"color_theme": "nonexistent"}
+	cfg := map[string]string{"theme": "nonexistent"}
 	colors := LoadColorConfig(cfg)
 
 	// Should fall back to default-dark theme (bright green = 10)

@@ -171,7 +171,7 @@ When configured, exports are automatically pushed to the remote.
 |-----|-------------|
 | `export_remote` | Remote URL for syncing exports |
 | `export_interval` | Seconds between auto-exports (default: 3600) |
-| `export_repo` | Path to local export repository |
+| `export_path` | Path to local export repository |
 
 ### Importing historical data
 
@@ -224,9 +224,9 @@ Available configuration keys:
 | `pager` | Override the default pager. Set to `cat` to disable paging. |
 | `export_remote` | Remote URL for syncing exports (configures git remote) |
 | `export_interval` | Seconds between automatic exports (default: 3600) |
-| `export_repo` | Path to export repository |
+| `export_path` | Path to export repository |
 | `theme` | Color theme (default, neon, aurora, mono, ocean, sunset, candy, contrast) |
-| `log_enabled` | Enable/disable logging (true/false) |
+| `enable_log` | Enable/disable logging (true/false) |
 | `log_level` | Log verbosity (debug, info, warn, error) |
 
 Pager precedence:

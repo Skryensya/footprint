@@ -439,7 +439,7 @@ func ResolveThemeName(name string) string {
 // Resolution priority:
 // 1. Environment variable (FP_COLOR_*)
 // 2. Config file value
-// 3. Theme value (from color_theme config)
+// 3. Theme value (from theme config)
 // 4. Default theme (auto-detected based on terminal background)
 func LoadColorConfig(cfg map[string]string) ColorConfig {
 	// Start with auto-detected default
@@ -448,7 +448,7 @@ func LoadColorConfig(cfg map[string]string) ColorConfig {
 	// Check env for theme override
 	if envTheme := os.Getenv("FP_COLOR_THEME"); envTheme != "" {
 		themeName = ResolveThemeName(envTheme)
-	} else if cfgTheme, ok := cfg["color_theme"]; ok && cfgTheme != "" {
+	} else if cfgTheme, ok := cfg["theme"]; ok && cfgTheme != "" {
 		themeName = ResolveThemeName(cfgTheme)
 	}
 

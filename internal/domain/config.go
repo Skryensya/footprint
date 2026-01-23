@@ -5,93 +5,92 @@ type ConfigKey struct {
 	Name        string
 	Default     string
 	Description string
-	Hidden      bool // Hidden keys are not shown in help
+	Hidden      bool // Hidden keys are not shown in help or config list
+	HideIfEmpty bool // Only show in config list if explicitly set
 }
 
 // ConfigKeys defines all available configuration keys.
 // This is the single source of truth for configuration.
+// Order determines display order in `fp config list`.
 var ConfigKeys = []ConfigKey{
+	// Display
 	{
-		Name:        "export_interval",
+		Name:        "pager",
+		Default:     "less -FRSX",
+		Description: "Pager command for long output",
+	},
+	{
+		Name:        "theme",
+		Default:     "default",
+		Description: "Color theme: default, neon, aurora, mono, ocean, sunset, candy, contrast",
+	},
+	{
+		Name:        "display_date",
+		Default:     "Jan 02",
+		Description: "Display date format: dd/mm/yyyy, mm/dd/yyyy, yyyy-mm-dd, or Go format (e.g., Jan 02, Jan 02 2006)",
+	},
+	{
+		Name:        "display_time",
+		Default:     "24h",
+		Description: "Display time format: 12h, 24h",
+	},
+	{
+		Name:        "color_success",
+		Description: "ANSI color code override for success messages",
+		HideIfEmpty: true,
+	},
+	{
+		Name:        "color_warning",
+		Description: "ANSI color code override for warning messages",
+		HideIfEmpty: true,
+	},
+	{
+		Name:        "color_error",
+		Description: "ANSI color code override for error messages",
+		HideIfEmpty: true,
+	},
+	{
+		Name:        "color_info",
+		Description: "ANSI color code override for info messages",
+		HideIfEmpty: true,
+	},
+	{
+		Name:        "color_muted",
+		Description: "ANSI color code override for muted text",
+		HideIfEmpty: true,
+	},
+	{
+		Name:        "color_header",
+		Description: "Style override for headers (e.g., 'bold')",
+		HideIfEmpty: true,
+	},
+	// Logging
+	{
+		Name:        "enable_log",
+		Default:     "true",
+		Description: "Enable logging to file",
+	},
+	// Export
+	{
+		Name:        "export_interval_sec",
 		Default:     "3600",
-		Description: "Seconds between automatic exports (default: 3600 = 1 hour)",
+		Description: "Seconds between automatic exports",
 	},
 	{
-		Name:        "export_repo",
-		Default:     "", // Will be set dynamically to paths.ExportRepoDir()
+		Name:        "export_path",
+		Default:     "", // Set dynamically to paths.ExportRepoDir()
 		Description: "Path to the export repository",
-	},
-	{
-		Name:        "export_last",
-		Default:     "0",
-		Description: "Unix timestamp of last export (managed internally)",
-		Hidden:      true,
 	},
 	{
 		Name:        "export_remote",
 		Default:     "",
 		Description: "Remote URL for syncing exports",
 	},
+	// Hidden (internal)
 	{
-		Name:        "log_enabled",
-		Default:     "true",
-		Description: "Enable debug logging to file",
-	},
-	{
-		Name:        "log_level",
-		Default:     "debug",
-		Description: "Minimum log level: debug, info, warn, error",
-	},
-	{
-		Name:        "color_theme",
-		Default:     "default",
-		Description: "Color theme: default, default-dark, default-light",
-	},
-	{
-		Name:        "color_success",
-		Default:     "",
-		Description: "ANSI color code for success messages",
-	},
-	{
-		Name:        "color_warning",
-		Default:     "",
-		Description: "ANSI color code for warning messages",
-	},
-	{
-		Name:        "color_error",
-		Default:     "",
-		Description: "ANSI color code for error messages",
-	},
-	{
-		Name:        "color_info",
-		Default:     "",
-		Description: "ANSI color code for info messages",
-	},
-	{
-		Name:        "color_muted",
-		Default:     "",
-		Description: "ANSI color code for muted text",
-	},
-	{
-		Name:        "color_header",
-		Default:     "",
-		Description: "Style for headers (e.g., 'bold')",
-	},
-	{
-		Name:        "pager",
-		Default:     "",
-		Description: "Pager command (default: less -FRSX)",
-	},
-	{
-		Name:        "update_last_check",
-		Default:     "",
-		Description: "ISO8601 timestamp of last update check (managed internally)",
-		Hidden:      true,
-	},
-	{
-		Name:        "update_latest_version",
-		Default:     "",
-		Description: "Latest known version from GitHub (managed internally)",
+		Name:        "export_last",
+		Default:     "0",
+		Description: "Unix timestamp of last export",
 		Hidden:      true,
 	},
 }

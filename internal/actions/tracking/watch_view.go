@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/footprint-tools/footprint-cli/internal/format"
 	"github.com/footprint-tools/footprint-cli/internal/store"
 	"github.com/footprint-tools/footprint-cli/internal/ui/splitpanel"
 	"github.com/charmbracelet/lipgloss"
@@ -120,10 +121,6 @@ func (m *watchModel) buildStatsPanel(layout *splitpanel.Layout, height int) spli
 	// Total events
 	lines = append(lines, labelStyle.Render("Events: ")+valueStyle.Render(fmt.Sprintf("%d", m.totalEvents)))
 
-	// Events per minute
-	rate := m.eventsPerMinute()
-	lines = append(lines, labelStyle.Render("Rate: ")+valueStyle.Render(fmt.Sprintf("%.1f/min", rate)))
-
 	// Buffer info
 	lines = append(lines, labelStyle.Render("Buffer: ")+valueStyle.Render(fmt.Sprintf("%d/%d", len(m.events), maxEvents)))
 
@@ -235,17 +232,15 @@ func (m watchModel) formatEventLine(event store.RepoEvent, width int, selected b
 	colors := m.colors
 	infoColor := lipgloss.Color(colors.Info)
 	mutedColor := lipgloss.Color(colors.Muted)
+	successColor := lipgloss.Color(colors.Success)
 
-	// Time
-	timeStr := event.Timestamp.Format("15:04:05")
-
-	// Type (for now all are commits)
-	typeStr := "commit"
+	// Date and time (e.g., "23/01 15:04")
+	dateStr := format.DateTimeShort(event.Timestamp)
 
 	// Repo name (basename)
 	repoName := filepath.Base(event.RepoPath)
-	if len(repoName) > 12 {
-		repoName = repoName[:9] + "..."
+	if len(repoName) > 14 {
+		repoName = repoName[:11] + "..."
 	}
 
 	// Commit (short)
@@ -254,10 +249,17 @@ func (m watchModel) formatEventLine(event store.RepoEvent, width int, selected b
 		commitShort = commitShort[:7]
 	}
 
-	// Branch
-	branch := event.Branch
-	if len(branch) > 15 {
-		branch = branch[:12] + "..."
+	// Commit message
+	message := m.getCommitMessage(event.Commit)
+	// Calculate available space for message
+	// Format: "  Jan 02 15:04  repo          abc1234  message"
+	fixedWidth := 2 + 12 + 2 + 14 + 1 + 7 + 2 // prefix + date + spaces + repo + space + commit + spaces
+	msgWidth := width - fixedWidth
+	if msgWidth < 10 {
+		msgWidth = 10
+	}
+	if len(message) > msgWidth {
+		message = message[:msgWidth-3] + "..."
 	}
 
 	// Format line
@@ -266,25 +268,34 @@ func (m watchModel) formatEventLine(event store.RepoEvent, width int, selected b
 		prefix = "> "
 	}
 
-	line := fmt.Sprintf("%s%-8s %-6s %-12s %-7s %s",
-		prefix, timeStr, typeStr, repoName, commitShort, branch)
+	// Style components
+	dateStyle := lipgloss.NewStyle().Foreground(mutedColor)
+	repoStyle := lipgloss.NewStyle().Foreground(infoColor)
+	commitStyle := lipgloss.NewStyle().Foreground(successColor)
+	msgStyle := lipgloss.NewStyle().Foreground(mutedColor)
 
-	// Truncate if needed
-	if len(line) > width {
-		line = line[:width-3] + "..."
-	}
-
-	// Style
 	if selected {
+		// Selected row - use inverted colors
 		style := lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("0")).
 			Background(infoColor)
+		line := fmt.Sprintf("%s%-12s  %-14s %-7s  %s",
+			prefix, dateStr, repoName, commitShort, message)
+		if len(line) > width {
+			line = line[:width]
+		}
 		return style.Render(line)
 	}
 
-	style := lipgloss.NewStyle().Foreground(mutedColor)
-	return style.Render(line)
+	// Normal row - use colored components
+	line := prefix +
+		dateStyle.Render(fmt.Sprintf("%-12s", dateStr)) + "  " +
+		repoStyle.Render(fmt.Sprintf("%-14s", repoName)) + " " +
+		commitStyle.Render(fmt.Sprintf("%-7s", commitShort)) + "  " +
+		msgStyle.Render(message)
+
+	return line
 }
 
 func (m *watchModel) buildDrawerPanel(layout *splitpanel.Layout, height int) splitpanel.Panel {
@@ -335,7 +346,7 @@ func (m *watchModel) buildDrawerPanel(layout *splitpanel.Layout, height int) spl
 		if meta.AuthoredAt != "" {
 			lines = append(lines, labelStyle.Render("  Authored: ")+valueStyle.Render(meta.AuthoredAt))
 		}
-		lines = append(lines, labelStyle.Render("  Recorded: ")+valueStyle.Render(event.Timestamp.Format("2006-01-02 15:04:05")))
+		lines = append(lines, labelStyle.Render("  Recorded: ")+valueStyle.Render(format.Full(event.Timestamp)))
 		lines = append(lines, "")
 
 		// Author

@@ -32,7 +32,7 @@ func pick(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 		return errors.New("theme picker requires an interactive terminal")
 	}
 
-	current, _ := deps.Get("color_theme")
+	current, _ := deps.Get("theme")
 	if current == "" {
 		current = "default-dark"
 	}
@@ -75,7 +75,7 @@ func pick(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 		if err != nil {
 			return err
 		}
-		lines, _ = deps.Set(lines, "color_theme", fm.chosen)
+		lines, _ = deps.Set(lines, "theme", fm.chosen)
 		if err := deps.WriteLines(lines); err != nil {
 			return err
 		}
@@ -320,10 +320,7 @@ func (m model) renderHeader() string {
 	mutedStyle := lipgloss.NewStyle().Foreground(mutedColor)
 
 	title := titleStyle.Render("fp theme pick")
-	count := mutedStyle.Render(" (" + strings.Join([]string{
-		strings.Join([]string{fmt.Sprintf("%d", len(m.themes))}, ""),
-		" themes)",
-	}, "") + " themes)")
+	count := mutedStyle.Render(fmt.Sprintf(" (%d themes)", len(m.themes)))
 
 	headerContent := title + count
 

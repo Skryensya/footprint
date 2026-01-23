@@ -38,6 +38,9 @@ type watchModel struct {
 	// Event buffer (circular, newest first for display)
 	events []store.RepoEvent
 
+	// Cached commit messages (commit hash -> subject)
+	commitMessages map[string]string
+
 	// Session stats
 	sessionStart time.Time
 	totalEvents  int
@@ -64,13 +67,14 @@ type watchModel struct {
 
 func newWatchModel(db *sql.DB, lastID int64) watchModel {
 	return watchModel{
-		db:           db,
-		lastID:       lastID,
-		events:       make([]store.RepoEvent, 0, maxEvents),
-		sessionStart: time.Now(),
-		byType:       make(map[string]int),
-		byRepo:       make(map[string]int),
-		colors:       style.GetColors(),
+		db:             db,
+		lastID:         lastID,
+		events:         make([]store.RepoEvent, 0, maxEvents),
+		commitMessages: make(map[string]string),
+		sessionStart:   time.Now(),
+		byType:         make(map[string]int),
+		byRepo:         make(map[string]int),
+		colors:         style.GetColors(),
 	}
 }
 
@@ -319,6 +323,12 @@ func (m *watchModel) addEvents(events []store.RepoEvent) {
 		repoName := filepath.Base(e.RepoPath)
 		m.byRepo[repoName]++
 
+		// Fetch and cache commit message
+		if _, exists := m.commitMessages[e.Commit]; !exists {
+			meta := git.GetCommitMetadata(e.RepoPath, e.Commit)
+			m.commitMessages[e.Commit] = meta.Subject
+		}
+
 		// Add to buffer (prepend for newest-first)
 		// More efficient prepend: shift in place instead of allocating new slice
 		if len(m.events) < maxEvents {
@@ -356,10 +366,12 @@ func (m watchModel) filteredEvents() []store.RepoEvent {
 		repoName := strings.ToLower(filepath.Base(e.RepoPath))
 		branch := strings.ToLower(e.Branch)
 		commit := strings.ToLower(e.Commit)
+		message := strings.ToLower(m.getCommitMessage(e.Commit))
 
 		if strings.Contains(repoName, query) ||
 			strings.Contains(branch, query) ||
-			strings.Contains(commit, query) {
+			strings.Contains(commit, query) ||
+			strings.Contains(message, query) {
 			filtered = append(filtered, e)
 		}
 	}
@@ -405,14 +417,9 @@ func (m watchModel) sessionDuration() time.Duration {
 	return time.Since(m.sessionStart)
 }
 
-func (m watchModel) eventsPerMinute() float64 {
-	duration := m.sessionDuration()
-	if duration < time.Second {
-		return 0
+func (m watchModel) getCommitMessage(commit string) string {
+	if msg, exists := m.commitMessages[commit]; exists {
+		return msg
 	}
-	minutes := duration.Minutes()
-	if minutes < 0.1 {
-		minutes = 0.1
-	}
-	return float64(m.totalEvents) / minutes
+	return ""
 }

@@ -35,7 +35,7 @@ func setTheme(args []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 		return err
 	}
 
-	lines, _ = deps.Set(lines, "color_theme", themeName)
+	lines, _ = deps.Set(lines, "theme", themeName)
 
 	if err := deps.WriteLines(lines); err != nil {
 		return err

@@ -2,6 +2,7 @@ package repo
 
 import (
 	"errors"
+	"net/url"
 	"strings"
 
 	"github.com/footprint-tools/footprint-cli/internal/config"
@@ -10,6 +11,16 @@ import (
 type RepoID string
 
 const trackedReposKey = "trackedRepos"
+
+// decodeRepoID decodes a URL-encoded repo ID.
+// Used for backward compatibility with old comma-separated format.
+func decodeRepoID(encoded string) RepoID {
+	decoded, err := url.QueryUnescape(encoded)
+	if err != nil {
+		return RepoID(encoded)
+	}
+	return RepoID(decoded)
+}
 
 // containsPathTraversal checks if a string contains path traversal sequences
 func containsPathTraversal(s string) bool {
@@ -44,7 +55,8 @@ func DeriveID(remoteURL, repoRoot string) (RepoID, error) {
 				return "", errors.New("invalid remote url: contains path traversal sequence")
 			}
 
-			return RepoID(host + "/" + path), nil
+			// Normalize remote URLs to lowercase to prevent duplicates
+			return RepoID(strings.ToLower(host + "/" + path)), nil
 		}
 
 		if strings.HasPrefix(remoteURL, "https://") || strings.HasPrefix(remoteURL, "http://") {
@@ -56,7 +68,8 @@ func DeriveID(remoteURL, repoRoot string) (RepoID, error) {
 				return "", errors.New("invalid remote url: contains path traversal sequence")
 			}
 
-			return RepoID(remoteURL), nil
+			// Normalize remote URLs to lowercase to prevent duplicates
+			return RepoID(strings.ToLower(remoteURL)), nil
 		}
 
 		// Support git:// protocol (read-only git protocol)
@@ -68,7 +81,8 @@ func DeriveID(remoteURL, repoRoot string) (RepoID, error) {
 				return "", errors.New("invalid remote url: contains path traversal sequence")
 			}
 
-			return RepoID(remoteURL), nil
+			// Normalize remote URLs to lowercase to prevent duplicates
+			return RepoID(strings.ToLower(remoteURL)), nil
 		}
 
 		// Support file:// protocol (local repositories)
@@ -94,6 +108,17 @@ func ListTracked() ([]RepoID, error) {
 		return nil, err
 	}
 
+	// Try new array format first (trackedRepos[]=value)
+	values := config.ParseArray(lines, trackedReposKey)
+	if len(values) > 0 {
+		out := make([]RepoID, 0, len(values))
+		for _, v := range values {
+			out = append(out, RepoID(v))
+		}
+		return out, nil
+	}
+
+	// Fall back to old comma-separated format (trackedRepos=a,b,c)
 	cfg, err := config.Parse(lines)
 	if err != nil {
 		return nil, err
@@ -110,7 +135,7 @@ func ListTracked() ([]RepoID, error) {
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p != "" {
-			out = append(out, RepoID(p))
+			out = append(out, decodeRepoID(p))
 		}
 	}
 
@@ -118,73 +143,100 @@ func ListTracked() ([]RepoID, error) {
 }
 
 func Track(id RepoID) (bool, error) {
-	lines, err := config.ReadLines()
-	if err != nil {
-		return false, err
-	}
-
-	current, err := ListTracked()
-	if err != nil {
-		return false, err
-	}
-
-	for _, existing := range current {
-		if existing == id {
-			return false, nil
+	var added bool
+	err := config.WithLock(func() error {
+		lines, err := config.ReadLines()
+		if err != nil {
+			return err
 		}
-	}
 
-	current = append(current, id)
+		// Migrate from old format if needed
+		lines, err = migrateToArrayFormat(lines)
+		if err != nil {
+			return err
+		}
 
-	values := make([]string, 0, len(current))
-	for _, v := range current {
-		values = append(values, string(v))
-	}
+		// Add to array (AppendArray checks for duplicates)
+		var wasAdded bool
+		lines, wasAdded = config.AppendArray(lines, trackedReposKey, string(id))
+		added = wasAdded
 
-	lines, _ = config.Set(lines, trackedReposKey, strings.Join(values, ","))
+		if !wasAdded {
+			return nil // Already tracked
+		}
 
-	return true, config.WriteLines(lines)
+		return config.WriteLines(lines)
+	})
+	return added, err
 }
 
 func Untrack(id RepoID) (bool, error) {
-	lines, err := config.ReadLines()
-	if err != nil {
-		return false, err
-	}
-
-	current, err := ListTracked()
-	if err != nil {
-		return false, err
-	}
-
-	remainingRepos := make([]RepoID, 0, len(current))
-	removed := false
-
-	for _, existing := range current {
-		if existing == id {
-			removed = true
-			continue
+	var removed bool
+	err := config.WithLock(func() error {
+		lines, err := config.ReadLines()
+		if err != nil {
+			return err
 		}
-		remainingRepos = append(remainingRepos, existing)
+
+		// Migrate from old format if needed
+		lines, err = migrateToArrayFormat(lines)
+		if err != nil {
+			return err
+		}
+
+		// Remove from array
+		var wasRemoved bool
+		lines, wasRemoved = config.RemoveFromArray(lines, trackedReposKey, string(id))
+		removed = wasRemoved
+
+		if !wasRemoved {
+			return nil // Wasn't tracked
+		}
+
+		return config.WriteLines(lines)
+	})
+	return removed, err
+}
+
+// migrateToArrayFormat converts old comma-separated format to new array format.
+// If already in array format or no tracked repos, returns lines unchanged.
+func migrateToArrayFormat(lines []string) ([]string, error) {
+	// Check if already using array format
+	values := config.ParseArray(lines, trackedReposKey)
+	if len(values) > 0 {
+		return lines, nil // Already migrated
 	}
 
-	if !removed {
-		return false, nil
+	// Check for old format
+	cfg, err := config.Parse(lines)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(remainingRepos) == 0 {
-		lines, _ = config.Unset(lines, trackedReposKey)
-		return true, config.WriteLines(lines)
+	value, ok := cfg[trackedReposKey]
+	if !ok || strings.TrimSpace(value) == "" {
+		return lines, nil // Nothing to migrate
 	}
 
-	values := make([]string, 0, len(remainingRepos))
-	for _, v := range remainingRepos {
-		values = append(values, string(v))
+	// Parse old format
+	parts := strings.Split(value, ",")
+	var repos []RepoID
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			repos = append(repos, decodeRepoID(p))
+		}
 	}
 
-	lines, _ = config.Set(lines, trackedReposKey, strings.Join(values, ","))
+	// Remove old format
+	lines, _ = config.Unset(lines, trackedReposKey)
 
-	return true, config.WriteLines(lines)
+	// Add in new format
+	for _, repo := range repos {
+		lines, _ = config.AppendArray(lines, trackedReposKey, string(repo))
+	}
+
+	return lines, nil
 }
 
 func IsTracked(id RepoID) (bool, error) {

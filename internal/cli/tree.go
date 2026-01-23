@@ -80,11 +80,12 @@ If the key already exists, its value is overwritten.
 The configuration file is created if it does not exist.
 
 Common configuration keys:
-  export_remote    Remote URL for syncing exports (configures git remote)
-  export_interval  Seconds between auto-exports (default: 3600)
-  theme            Color theme name
-  log_enabled      Enable/disable logging (true/false)
-  log_level        Log verbosity (debug, info, warn, error)
+  export_remote       Remote URL for syncing exports (configures git remote)
+  export_interval_sec Seconds between auto-exports (default: 3600)
+  theme               Color theme name
+  enable_log          Enable/disable logging (true/false)
+  display_date        Date format: Jan 02, dd/mm/yyyy, mm/dd/yyyy, or Go format
+  display_time        Time format: 12h, 24h
 
 Example:
   fp config set export_remote git@github.com:user/my-exports.git`,
@@ -377,8 +378,8 @@ Default location: ~/.config/Footprint/exports
 
 Configuration (via 'fp config set'):
   export_remote    Remote URL for syncing exports
-  export_interval  Seconds between auto-exports (default: 3600)
-  export_repo      Path to export repository
+  export_interval_sec  Seconds between auto-exports (default: 3600)
+  export_path      Path to export repository
 
 Use --force to export immediately regardless of interval.
 Use --open to open the export directory in file manager.`,
@@ -485,13 +486,14 @@ func addLogsCommand(root *dispatchers.DispatchNode) {
 
 By default, shows the last 50 lines. Use -n to change the number of lines.
 
+Use -i for an interactive viewer with filtering, navigation, and auto-tail.
 Use --tail or -f to follow logs in real time (like tail -f).
 Use --clear to empty the log file.
 
 Log settings can be configured with:
-  fp config set log_enabled false    Disable logging
+  fp config set enable_log false    Disable logging
   fp config set log_level debug      Set log level (debug, info, warn, error)`,
-		Usage:    "fp logs [-n <lines>] [--tail] [--clear]",
+		Usage:    "fp logs [-i] [-n <lines>] [--tail] [--clear]",
 		Flags:    LogsFlags,
 		Action:   logsAction,
 		Category: dispatchers.CategoryInspectActivity,
@@ -556,6 +558,9 @@ In interactive mode:
 func logsAction(args []string, flags *dispatchers.ParsedFlags) error {
 	if flags.Has("--clear") {
 		return logsactions.Clear(args, flags)
+	}
+	if flags.Has("-i") || flags.Has("--interactive") {
+		return logsactions.Interactive(args, flags)
 	}
 	if flags.Has("--tail") || flags.Has("-f") {
 		return logsactions.Tail(args, flags)

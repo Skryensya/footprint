@@ -181,7 +181,7 @@ func TestAmbiguousRemote_SingleRemote(t *testing.T) {
 
 	require.NotNil(t, err)
 	require.Contains(t, err.Message, "custom")
-	require.Contains(t, err.Message, "--remote=<custom>")
+	require.Contains(t, err.Message, "--remote=custom")
 	require.Equal(t, ErrAmbiguousRemote, err.Kind)
 }
 

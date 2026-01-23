@@ -55,15 +55,19 @@ if ! git config user.email &>/dev/null; then
 fi
 
 section "Setting up fp"
-"$FP_BIN" setup --force
+# Check if hooks are already installed (globally or locally)
+if ! "$FP_BIN" check 2>/dev/null | grep -q "post-commit.*installed"; then
+    log "Hooks not installed, installing locally for test..."
+    "$FP_BIN" setup --repo --force
+fi
 "$FP_BIN" track
 
 section "Verifying setup"
 "$FP_BIN" status
 "$FP_BIN" check
 
-# Verify hooks exist
-if [ ! -f ".git/hooks/post-commit" ]; then
+# Verify hooks are working (fp check already validates this)
+if ! "$FP_BIN" check 2>/dev/null | grep -q "post-commit.*installed"; then
     echo "ERROR: post-commit hook not installed"
     exit 1
 fi

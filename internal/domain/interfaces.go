@@ -76,6 +76,15 @@ type EventStore interface {
 	// MigrateRepoID changes the repo ID for all pending events.
 	MigrateRepoID(oldID, newID RepoID) (int64, error)
 
+	// MarkOrphaned marks all pending events for a repo as orphaned.
+	MarkOrphaned(repoID RepoID) (int64, error)
+
+	// DeleteOrphaned deletes all orphaned events.
+	DeleteOrphaned() (int64, error)
+
+	// CountOrphaned returns the count of orphaned events.
+	CountOrphaned() (int64, error)
+
 	// Close closes the store connection.
 	Close() error
 }

@@ -312,12 +312,12 @@ func TestList_Success(t *testing.T) {
 	deps := Deps{
 		GetAll: func() (map[string]string, error) {
 			return map[string]string{
-				"color_theme": "dark",
-				"log_level":   "debug",
+				"theme": "neon",
+				"log_level":   "info",
 			}, nil
 		},
 		Printf: func(format string, a ...any) (int, error) {
-			printedLines = append(printedLines, format)
+			printedLines = append(printedLines, fmt.Sprintf(format, a...))
 			return 0, nil
 		},
 	}
@@ -326,17 +326,18 @@ func TestList_Success(t *testing.T) {
 	err := list([]string{}, flags, deps)
 
 	require.NoError(t, err)
-	require.Len(t, printedLines, 2)
+	// Should show visible keys (HideIfEmpty keys are hidden when not set)
+	require.Len(t, printedLines, 8) // 8 always-visible keys
 }
 
-func TestList_Empty(t *testing.T) {
+func TestList_ShowsDefaults(t *testing.T) {
 	var printedLines []string
 	deps := Deps{
 		GetAll: func() (map[string]string, error) {
 			return map[string]string{}, nil
 		},
 		Printf: func(format string, a ...any) (int, error) {
-			printedLines = append(printedLines, format)
+			printedLines = append(printedLines, fmt.Sprintf(format, a...))
 			return 0, nil
 		},
 	}
@@ -345,7 +346,31 @@ func TestList_Empty(t *testing.T) {
 	err := list([]string{}, flags, deps)
 
 	require.NoError(t, err)
-	require.Empty(t, printedLines)
+	// Should show visible keys with defaults (HideIfEmpty keys are hidden)
+	require.Len(t, printedLines, 8)
+}
+
+func TestList_ShowsColorOverridesWhenSet(t *testing.T) {
+	var printedLines []string
+	deps := Deps{
+		GetAll: func() (map[string]string, error) {
+			return map[string]string{
+				"color_success": "46",
+				"color_error":   "196",
+			}, nil
+		},
+		Printf: func(format string, a ...any) (int, error) {
+			printedLines = append(printedLines, fmt.Sprintf(format, a...))
+			return 0, nil
+		},
+	}
+
+	flags := dispatchers.NewParsedFlags([]string{})
+	err := list([]string{}, flags, deps)
+
+	require.NoError(t, err)
+	// 8 always-visible + 2 color overrides that are set
+	require.Len(t, printedLines, 10)
 }
 
 func TestList_GetAllError(t *testing.T) {

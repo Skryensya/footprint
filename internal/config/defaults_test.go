@@ -18,44 +18,37 @@ func TestGet(t *testing.T) {
 	}{
 		{
 			name:        "key exists in config file",
-			configLines: []string{"export_interval=7200"},
-			key:         "export_interval",
+			configLines: []string{"export_interval_sec=7200"},
+			key:         "export_interval_sec",
 			wantValue:   "7200",
 			wantFound:   true,
 		},
 		{
 			name:        "key exists in defaults but not in file",
 			configLines: []string{},
-			key:         "export_interval",
+			key:         "export_interval_sec",
 			wantValue:   "3600",
 			wantFound:   true,
 		},
 		{
-			name:        "key exists in defaults - log_enabled",
+			name:        "key exists in defaults - enable_log",
 			configLines: []string{},
-			key:         "log_enabled",
+			key:         "enable_log",
 			wantValue:   "true",
 			wantFound:   true,
 		},
 		{
-			name:        "key exists in defaults - log_level",
+			name:        "key exists in defaults - theme",
 			configLines: []string{},
-			key:         "log_level",
-			wantValue:   "debug",
-			wantFound:   true,
-		},
-		{
-			name:        "key exists in defaults - color_theme",
-			configLines: []string{},
-			key:         "color_theme",
+			key:         "theme",
 			wantValue:   "default",
 			wantFound:   true,
 		},
 		{
 			name:        "config overrides default",
-			configLines: []string{"log_level=error"},
-			key:         "log_level",
-			wantValue:   "error",
+			configLines: []string{"export_interval_sec=1800"},
+			key:         "export_interval_sec",
+			wantValue:   "1800",
 			wantFound:   true,
 		},
 		{
@@ -75,12 +68,12 @@ func TestGet(t *testing.T) {
 		{
 			name: "config file with multiple keys",
 			configLines: []string{
-				"export_interval=1800",
-				"log_level=info",
+				"export_interval_sec=1800",
+				"theme=neon",
 				"custom=value",
 			},
-			key:       "log_level",
-			wantValue: "info",
+			key:       "theme",
+			wantValue: "neon",
 			wantFound: true,
 		},
 	}
@@ -129,7 +122,7 @@ func TestGet_EmptyConfigFile(t *testing.T) {
 	})
 
 	// Should return default value
-	value, found := Get("export_interval")
+	value, found := Get("export_interval_sec")
 	require.True(t, found)
 	require.Equal(t, "3600", value)
 }
@@ -145,12 +138,11 @@ func TestGet_AllDefaults(t *testing.T) {
 
 	// Test all default keys exist
 	defaultKeys := []string{
-		"export_interval",
-		"export_repo",
+		"export_interval_sec",
+		"export_path",
 		"export_last",
-		"color_theme",
-		"log_enabled",
-		"log_level",
+		"theme",
+		"enable_log",
 	}
 
 	for _, key := range defaultKeys {
@@ -172,22 +164,21 @@ func TestGetAll(t *testing.T) {
 			name:        "empty config returns all defaults",
 			configLines: []string{},
 			wantContains: map[string]string{
-				"export_interval": "3600",
-				"log_enabled":     "true",
-				"log_level":       "debug",
-				"color_theme":     "default",
+				"export_interval_sec": "3600",
+				"enable_log":     "true",
+				"theme":     "default",
 			},
 		},
 		{
 			name: "config overrides some defaults",
 			configLines: []string{
-				"export_interval=7200",
-				"log_level=error",
+				"export_interval_sec=7200",
+				"theme=neon",
 			},
 			wantContains: map[string]string{
-				"export_interval": "7200",
-				"log_level":       "error",
-				"log_enabled":     "true", // Still default
+				"export_interval_sec": "7200",
+				"theme":     "neon",
+				"enable_log":     "true", // Still default
 			},
 		},
 		{
@@ -199,19 +190,19 @@ func TestGetAll(t *testing.T) {
 			wantContains: map[string]string{
 				"custom_key1":     "value1",
 				"custom_key2":     "value2",
-				"export_interval": "3600", // Default still present
+				"export_interval_sec": "3600", // Default still present
 			},
 		},
 		{
 			name: "config overrides and adds custom",
 			configLines: []string{
-				"export_interval=1800",
+				"export_interval_sec=1800",
 				"custom=value",
 			},
 			wantContains: map[string]string{
-				"export_interval": "1800",
+				"export_interval_sec": "1800",
 				"custom":          "value",
-				"log_enabled":     "true",
+				"enable_log":     "true",
 			},
 		},
 	}
@@ -270,17 +261,15 @@ func TestGetAll_NoConfigFile(t *testing.T) {
 	require.NotEmpty(t, got)
 
 	// Verify all defaults are present
-	require.Contains(t, got, "export_interval")
-	require.Contains(t, got, "log_enabled")
-	require.Contains(t, got, "log_level")
-	require.Contains(t, got, "color_theme")
+	require.Contains(t, got, "export_interval_sec")
+	require.Contains(t, got, "enable_log")
+	require.Contains(t, got, "theme")
 	require.Contains(t, got, "export_last")
-	require.Contains(t, got, "export_repo")
+	require.Contains(t, got, "export_path")
 
 	// Verify values
-	require.Equal(t, "3600", got["export_interval"])
-	require.Equal(t, "true", got["log_enabled"])
-	require.Equal(t, "debug", got["log_level"])
+	require.Equal(t, "3600", got["export_interval_sec"])
+	require.Equal(t, "true", got["enable_log"])
 }
 
 func TestGetAll_OnlyReturnsDefaults(t *testing.T) {
@@ -306,8 +295,8 @@ func TestGetAll_MergesCorrectly(t *testing.T) {
 
 	// Create config with 2 defaults overridden + 1 custom
 	configLines := []string{
-		"export_interval=9999",
-		"log_level=warn",
+		"export_interval_sec=9999",
+		"theme=neon",
 		"my_custom_setting=custom_value",
 	}
 	content := ""
@@ -331,13 +320,12 @@ func TestGetAll_MergesCorrectly(t *testing.T) {
 	require.Len(t, got, expectedCount)
 
 	// Verify overrides
-	require.Equal(t, "9999", got["export_interval"])
-	require.Equal(t, "warn", got["log_level"])
+	require.Equal(t, "9999", got["export_interval_sec"])
+	require.Equal(t, "neon", got["theme"])
 
 	// Verify custom
 	require.Equal(t, "custom_value", got["my_custom_setting"])
 
 	// Verify non-overridden defaults still present
-	require.Equal(t, "true", got["log_enabled"])
-	require.Equal(t, "default", got["color_theme"])
+	require.Equal(t, "true", got["enable_log"])
 }

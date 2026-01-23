@@ -172,6 +172,13 @@ func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, e
 		return 0, false, fmt.Errorf("could not update event statuses: %w", err)
 	}
 
+	// Clean up orphaned events (from untracked repos)
+	if deleted, err := store.DeleteOrphanedEvents(db); err != nil {
+		log.Warn("export: failed to delete orphaned events: %v", err)
+	} else if deleted > 0 {
+		log.Info("export: deleted %d orphaned events", deleted)
+	}
+
 	_ = saveExportLast(deps.Now().Unix())
 
 	return len(exportedIDs), pushed, nil
@@ -441,7 +448,7 @@ func getHostname() string {
 }
 
 func shouldExport(deps Deps) (bool, error) {
-	intervalStr, _ := config.Get("export_interval")
+	intervalStr, _ := config.Get("export_interval_sec")
 	lastExportStr, _ := config.Get("export_last")
 
 	// Parse interval with default of 0 (always export if not configured)
@@ -450,7 +457,7 @@ func shouldExport(deps Deps) (bool, error) {
 		var err error
 		interval, err = strconv.Atoi(intervalStr)
 		if err != nil {
-			log.Warn("export: invalid export_interval config value '%s', using 0", intervalStr)
+			log.Warn("export: invalid export_interval_sec config value '%s', using 0", intervalStr)
 			interval = 0
 		}
 	}
@@ -471,7 +478,7 @@ func shouldExport(deps Deps) (bool, error) {
 }
 
 func getExportRepo() string {
-	value, _ := config.Get("export_repo")
+	value, _ := config.Get("export_path")
 	return value
 }
 

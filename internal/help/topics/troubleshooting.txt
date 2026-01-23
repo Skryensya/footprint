@@ -39,7 +39,7 @@ VIEWING LOGS
 
 Enable logging to debug issues:
 
-    $ fp config set log_enabled true
+    $ fp config set enable_log true
     $ fp config set log_level debug
     $ fp logs --tail
 

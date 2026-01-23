@@ -21,7 +21,6 @@ type Options struct {
 
 	// Log options
 	LogEnabled bool
-	LogLevel   string
 
 	// Style options
 	StyleEnabled bool
@@ -30,13 +29,11 @@ type Options struct {
 
 // DefaultOptions returns the default application options.
 func DefaultOptions() Options {
-	logEnabled, _ := config.Get("log_enabled")
-	logLevel, _ := config.Get("log_level")
+	logEnabled, _ := config.Get("enable_log")
 	styleConfig, _ := config.GetAll()
 
 	return Options{
 		LogEnabled:   logEnabled == "true",
-		LogLevel:     logLevel,
 		StyleEnabled: true,
 		StyleConfig:  styleConfig,
 	}
@@ -44,11 +41,11 @@ func DefaultOptions() Options {
 
 // New creates a new Application with all dependencies wired up.
 func New(opts Options) (*domain.Application, error) {
-	// Initialize logger
+	// Initialize logger (always at debug level - log everything)
 	var logger domain.Logger
 	if opts.LogEnabled {
 		logPath := paths.LogFilePath()
-		l, err := log.New(logPath, log.ParseLevel(opts.LogLevel))
+		l, err := log.New(logPath, log.LevelDebug)
 		if err != nil {
 			// Fall back to NopLogger on error
 			logger = log.NopLogger{}

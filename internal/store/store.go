@@ -317,5 +317,42 @@ func (s *Store) scanRepoEvent(rows *sql.Rows) (domain.RepoEvent, error) {
 	return e, nil
 }
 
+// MarkOrphaned marks all events for a repo as orphaned.
+// Returns the number of events updated.
+func (s *Store) MarkOrphaned(repoID domain.RepoID) (int64, error) {
+	query := `
+		UPDATE repo_events
+		SET status_id = ?
+		WHERE repo_id = ? AND status_id = ?
+	`
+	result, err := s.db.Exec(query, int(domain.StatusOrphaned), repoID.String(), int(domain.StatusPending))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// DeleteOrphaned deletes all orphaned events from the database.
+// Returns the number of events deleted.
+func (s *Store) DeleteOrphaned() (int64, error) {
+	query := `DELETE FROM repo_events WHERE status_id = ?`
+	result, err := s.db.Exec(query, int(domain.StatusOrphaned))
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// CountOrphaned returns the count of orphaned events.
+func (s *Store) CountOrphaned() (int64, error) {
+	var count int64
+	query := `SELECT COUNT(*) FROM repo_events WHERE status_id = ?`
+	err := s.db.QueryRow(query, int(domain.StatusOrphaned)).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // Verify Store implements domain.EventStore
 var _ domain.EventStore = (*Store)(nil)

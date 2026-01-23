@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/footprint-tools/footprint-cli/internal/domain"
 	"github.com/footprint-tools/footprint-cli/internal/git"
 	repodomain "github.com/footprint-tools/footprint-cli/internal/repo"
 	"github.com/footprint-tools/footprint-cli/internal/store"
@@ -32,11 +33,12 @@ type Deps struct {
 	ListTracked func() ([]repodomain.RepoID, error)
 
 	// store
-	DBPath      func() string
-	OpenDB      func(string) (*sql.DB, error)
-	InitDB      func(*sql.DB) error
-	InsertEvent func(*sql.DB, store.RepoEvent) error
-	ListEvents  func(*sql.DB, store.EventFilter) ([]store.RepoEvent, error)
+	DBPath       func() string
+	OpenDB       func(string) (*sql.DB, error)
+	InitDB       func(*sql.DB) error
+	InsertEvent  func(*sql.DB, store.RepoEvent) error
+	ListEvents   func(*sql.DB, store.EventFilter) ([]store.RepoEvent, error)
+	MarkOrphaned func(repoID repodomain.RepoID) (int64, error)
 
 	// io
 	Printf  func(string, ...any) (int, error)
@@ -72,11 +74,12 @@ func DefaultDeps() Deps {
 		IsTracked:   repodomain.IsTracked,
 		ListTracked: repodomain.ListTracked,
 
-		DBPath: store.DBPath,
-		OpenDB: store.Open, //nolint:staticcheck // TODO: refactor to use store.New() with *Store interface
-		InitDB: store.Init,
-		InsertEvent: store.InsertEvent,
-		ListEvents:  store.ListEvents,
+		DBPath:       store.DBPath,
+		OpenDB:       store.Open, //nolint:staticcheck // TODO: refactor to use store.New() with *Store interface
+		InitDB:       store.Init,
+		InsertEvent:  store.InsertEvent,
+		ListEvents:   store.ListEvents,
+		MarkOrphaned: markOrphanedWrapper,
 
 		Printf:  fmt.Printf,
 		Println: fmt.Println,
@@ -90,4 +93,17 @@ func DefaultDeps() Deps {
 		PullExportRepo: pullExportRepo,
 		PushExportRepo: pushExportRepo,
 	}
+}
+
+// markOrphanedWrapper opens the database, marks events as orphaned, and closes.
+func markOrphanedWrapper(repoID repodomain.RepoID) (int64, error) {
+	s, err := store.New(store.DBPath())
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = s.Close() }()
+
+	// Convert repo.RepoID to domain.RepoID (both are string aliases)
+	domainRepoID := domain.RepoID(string(repoID))
+	return s.MarkOrphaned(domainRepoID)
 }

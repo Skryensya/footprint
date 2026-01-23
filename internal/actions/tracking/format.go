@@ -3,6 +3,7 @@ package tracking
 import (
 	"fmt"
 
+	"github.com/footprint-tools/footprint-cli/internal/format"
 	"github.com/footprint-tools/footprint-cli/internal/git"
 	"github.com/footprint-tools/footprint-cli/internal/store"
 	"github.com/footprint-tools/footprint-cli/internal/ui/style"
@@ -43,7 +44,7 @@ func FormatEvent(e store.RepoEvent, oneline bool) string {
 		style.Header(fmt.Sprintf("%.7s", e.Commit)),
 		e.Branch,
 		style.Muted(e.RepoID),
-		style.Muted(e.Timestamp.Format("Mon Jan 2 15:04:05 2006")),
+		style.Muted(format.Full(e.Timestamp)),
 	)
 }
 
@@ -78,7 +79,7 @@ func FormatEventEnriched(e store.RepoEvent, meta git.CommitMetadata, oneline boo
 		style.Header(fmt.Sprintf("%.7s", e.Commit)),
 		e.Branch,
 		style.Muted(e.RepoID),
-		style.Muted(e.Timestamp.Format("Mon Jan 2 15:04:05 2006")),
+		style.Muted(format.Full(e.Timestamp)),
 		meta.AuthorName,
 		meta.AuthorEmail,
 		meta.Subject,

@@ -18,7 +18,7 @@ func TestList_Success(t *testing.T) {
 	var printedLines []string
 	deps := Deps{
 		Get: func(key string) (string, bool) {
-			if key == "color_theme" {
+			if key == "theme" {
 				return "default-dark", true
 			}
 			return "", false

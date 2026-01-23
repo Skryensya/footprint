@@ -316,3 +316,142 @@ func TestNew_InvalidPath(t *testing.T) {
 	// The error happens on ping, not open
 	require.Error(t, err)
 }
+
+func TestStore_MarkOrphaned(t *testing.T) {
+	s := newTestStore(t)
+
+	events := []domain.RepoEvent{
+		{
+			RepoID:    domain.RepoID("github.com/test/repo1"),
+			RepoPath:  "/path/to/repo1",
+			Commit:    "abc1234",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusPending,
+			Source:    domain.SourcePostCommit,
+		},
+		{
+			RepoID:    domain.RepoID("github.com/test/repo1"),
+			RepoPath:  "/path/to/repo1",
+			Commit:    "def5678",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusExported, // Already exported, should not be marked
+			Source:    domain.SourcePostCommit,
+		},
+		{
+			RepoID:    domain.RepoID("github.com/test/repo2"),
+			RepoPath:  "/path/to/repo2",
+			Commit:    "ghi9012",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusPending,
+			Source:    domain.SourcePostCommit,
+		},
+	}
+
+	for _, e := range events {
+		require.NoError(t, s.Insert(e))
+	}
+
+	// Mark repo1 events as orphaned
+	count, err := s.MarkOrphaned(domain.RepoID("github.com/test/repo1"))
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count, "only pending events should be marked")
+
+	// Verify the orphaned event
+	orphaned := domain.StatusOrphaned
+	result, err := s.List(domain.EventFilter{Status: &orphaned})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, domain.RepoID("github.com/test/repo1"), result[0].RepoID)
+	require.Equal(t, "abc1234", result[0].Commit)
+}
+
+func TestStore_DeleteOrphaned(t *testing.T) {
+	s := newTestStore(t)
+
+	events := []domain.RepoEvent{
+		{
+			RepoID:    domain.RepoID("github.com/test/repo1"),
+			RepoPath:  "/path/to/repo1",
+			Commit:    "abc1234",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusOrphaned,
+			Source:    domain.SourcePostCommit,
+		},
+		{
+			RepoID:    domain.RepoID("github.com/test/repo2"),
+			RepoPath:  "/path/to/repo2",
+			Commit:    "def5678",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusPending,
+			Source:    domain.SourcePostCommit,
+		},
+	}
+
+	for _, e := range events {
+		require.NoError(t, s.Insert(e))
+	}
+
+	// Delete orphaned events
+	count, err := s.DeleteOrphaned()
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count)
+
+	// Verify only non-orphaned event remains
+	result, err := s.List(domain.EventFilter{})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, domain.RepoID("github.com/test/repo2"), result[0].RepoID)
+}
+
+func TestStore_CountOrphaned(t *testing.T) {
+	s := newTestStore(t)
+
+	// Initially no orphaned events
+	count, err := s.CountOrphaned()
+	require.NoError(t, err)
+	require.Equal(t, int64(0), count)
+
+	// Add some events
+	events := []domain.RepoEvent{
+		{
+			RepoID:    domain.RepoID("github.com/test/repo1"),
+			RepoPath:  "/path/to/repo1",
+			Commit:    "abc1234",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusOrphaned,
+			Source:    domain.SourcePostCommit,
+		},
+		{
+			RepoID:    domain.RepoID("github.com/test/repo2"),
+			RepoPath:  "/path/to/repo2",
+			Commit:    "def5678",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusOrphaned,
+			Source:    domain.SourcePostCommit,
+		},
+		{
+			RepoID:    domain.RepoID("github.com/test/repo3"),
+			RepoPath:  "/path/to/repo3",
+			Commit:    "ghi9012",
+			Branch:    "main",
+			Timestamp: time.Now(),
+			Status:    domain.StatusPending,
+			Source:    domain.SourcePostCommit,
+		},
+	}
+
+	for _, e := range events {
+		require.NoError(t, s.Insert(e))
+	}
+
+	count, err = s.CountOrphaned()
+	require.NoError(t, err)
+	require.Equal(t, int64(2), count)
+}

@@ -11,7 +11,7 @@ func List(args []string, flags *dispatchers.ParsedFlags) error {
 }
 
 func list(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
-	current, _ := deps.Get("color_theme")
+	current, _ := deps.Get("theme")
 	if current == "" {
 		current = style.ResolveThemeName("default")
 	}

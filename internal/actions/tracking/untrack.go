@@ -57,6 +57,17 @@ func untrack(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		return nil
 	}
 
+	// Mark any pending events for this repo as orphaned
+	if deps.MarkOrphaned != nil {
+		orphaned, err := deps.MarkOrphaned(id)
+		if err != nil {
+			log.Error("untrack: failed to mark events as orphaned: %v", err)
+			// Don't fail the untrack if we can't mark events as orphaned
+		} else if orphaned > 0 {
+			log.Info("untrack: marked %d events as orphaned", orphaned)
+		}
+	}
+
 	log.Info("untrack: stopped tracking %s", id)
 	_, _ = deps.Printf("untracked %s\n", id)
 	return nil
@@ -75,6 +86,17 @@ func untrackByID(idStr string, deps Deps) error {
 		log.Debug("untrack: repo was not tracked (id=%s)", id)
 		_, _ = deps.Printf("repository not tracked: %s\n", id)
 		return nil
+	}
+
+	// Mark any pending events for this repo as orphaned
+	if deps.MarkOrphaned != nil {
+		orphaned, err := deps.MarkOrphaned(id)
+		if err != nil {
+			log.Error("untrack: failed to mark events as orphaned: %v", err)
+			// Don't fail the untrack if we can't mark events as orphaned
+		} else if orphaned > 0 {
+			log.Info("untrack: marked %d events as orphaned", orphaned)
+		}
 	}
 
 	log.Info("untrack: stopped tracking %s", id)

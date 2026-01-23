@@ -3,6 +3,7 @@ package repo
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,6 +39,13 @@ func TestDeriveID(t *testing.T) {
 			wantErr:   false,
 		},
 		{
+			name:      "SSH format with uppercase - normalized to lowercase",
+			remoteURL: "git@GitHub.com:User/Repo.git",
+			repoRoot:  "",
+			want:      "github.com/user/repo",
+			wantErr:   false,
+		},
+		{
 			name:      "HTTPS format",
 			remoteURL: "https://github.com/user/repo.git",
 			repoRoot:  "",
@@ -47,6 +55,13 @@ func TestDeriveID(t *testing.T) {
 		{
 			name:      "HTTPS format without .git",
 			remoteURL: "https://github.com/user/repo",
+			repoRoot:  "",
+			want:      "github.com/user/repo",
+			wantErr:   false,
+		},
+		{
+			name:      "HTTPS format with uppercase - normalized to lowercase",
+			remoteURL: "https://GitHub.com/User/Repo.git",
 			repoRoot:  "",
 			want:      "github.com/user/repo",
 			wantErr:   false,
@@ -77,6 +92,13 @@ func TestDeriveID(t *testing.T) {
 			remoteURL: "",
 			repoRoot:  "/path/to/repo/",
 			want:      "local:/path/to/repo",
+			wantErr:   false,
+		},
+		{
+			name:      "local path preserves case",
+			remoteURL: "",
+			repoRoot:  "/Path/To/MyRepo",
+			want:      "local:/Path/To/MyRepo",
 			wantErr:   false,
 		},
 		{
@@ -157,8 +179,50 @@ func TestListTracked(t *testing.T) {
 			want:        []RepoID{},
 			wantErr:     false,
 		},
+		// New array format tests
 		{
-			name: "single repo",
+			name: "array format - single repo",
+			configLines: []string{
+				"trackedRepos[]=github.com/user/repo",
+			},
+			want:    []RepoID{"github.com/user/repo"},
+			wantErr: false,
+		},
+		{
+			name: "array format - multiple repos",
+			configLines: []string{
+				"trackedRepos[]=github.com/user/repo1",
+				"trackedRepos[]=github.com/user/repo2",
+				"trackedRepos[]=local:/path/to/repo",
+			},
+			want: []RepoID{
+				"github.com/user/repo1",
+				"github.com/user/repo2",
+				"local:/path/to/repo",
+			},
+			wantErr: false,
+		},
+		{
+			name: "array format - path with comma",
+			configLines: []string{
+				"trackedRepos[]=local:/path/to/my,repo",
+			},
+			want:    []RepoID{"local:/path/to/my,repo"},
+			wantErr: false,
+		},
+		{
+			name: "array format - ignores other config keys",
+			configLines: []string{
+				"export_interval=3600",
+				"trackedRepos[]=github.com/user/repo",
+				"export_last=2024-01-01T00:00:00Z",
+			},
+			want:    []RepoID{"github.com/user/repo"},
+			wantErr: false,
+		},
+		// Legacy comma-separated format tests (backward compatibility)
+		{
+			name: "legacy format - single repo",
 			configLines: []string{
 				"trackedRepos=github.com/user/repo",
 			},
@@ -166,7 +230,7 @@ func TestListTracked(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "multiple repos",
+			name: "legacy format - multiple repos",
 			configLines: []string{
 				"trackedRepos=github.com/user/repo1,github.com/user/repo2,local:/path/to/repo",
 			},
@@ -178,7 +242,7 @@ func TestListTracked(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "repos with spaces",
+			name: "legacy format - repos with spaces",
 			configLines: []string{
 				"trackedRepos=github.com/user/repo1 , github.com/user/repo2 , local:/path/to/repo",
 			},
@@ -190,7 +254,7 @@ func TestListTracked(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "ignores other config keys",
+			name: "legacy format - ignores other config keys",
 			configLines: []string{
 				"export_interval=3600",
 				"trackedRepos=github.com/user/repo",
@@ -254,11 +318,11 @@ func TestListTracked(t *testing.T) {
 
 func TestTrack(t *testing.T) {
 	tests := []struct {
-		name            string
-		initialRepos    []RepoID
-		trackID         RepoID
-		wantAdded       bool
-		wantFinalRepos  []RepoID
+		name           string
+		initialRepos   []RepoID
+		trackID        RepoID
+		wantAdded      bool
+		wantFinalRepos []RepoID
 	}{
 		{
 			name:           "add to empty list",
@@ -266,6 +330,13 @@ func TestTrack(t *testing.T) {
 			trackID:        "github.com/user/repo",
 			wantAdded:      true,
 			wantFinalRepos: []RepoID{"github.com/user/repo"},
+		},
+		{
+			name:           "path with comma works in new format",
+			initialRepos:   []RepoID{},
+			trackID:        "local:/path/to/my,repo",
+			wantAdded:      true,
+			wantFinalRepos: []RepoID{"local:/path/to/my,repo"},
 		},
 		{
 			name:           "add to existing list",
@@ -304,9 +375,9 @@ func TestTrack(t *testing.T) {
 			tempHome := t.TempDir()
 			configPath := filepath.Join(tempHome, ".fprc")
 
-			// Write initial config
+			// Write initial config (using array format)
 			if len(tt.initialRepos) > 0 {
-				content := "trackedRepos=" + joinRepoIDs(tt.initialRepos) + "\n"
+				content := repoIDsToConfigLines(tt.initialRepos)
 				err := os.WriteFile(configPath, []byte(content), 0600)
 				require.NoError(t, err)
 			}
@@ -382,9 +453,9 @@ func TestUntrack(t *testing.T) {
 			tempHome := t.TempDir()
 			configPath := filepath.Join(tempHome, ".fprc")
 
-			// Write initial config
+			// Write initial config (using array format)
 			if len(tt.initialRepos) > 0 {
-				content := "trackedRepos=" + joinRepoIDs(tt.initialRepos) + "\n"
+				content := repoIDsToConfigLines(tt.initialRepos)
 				err := os.WriteFile(configPath, []byte(content), 0600)
 				require.NoError(t, err)
 			}
@@ -449,9 +520,9 @@ func TestIsTracked(t *testing.T) {
 			tempHome := t.TempDir()
 			configPath := filepath.Join(tempHome, ".fprc")
 
-			// Write initial config
+			// Write initial config (using array format)
 			if len(tt.trackedRepos) > 0 {
-				content := "trackedRepos=" + joinRepoIDs(tt.trackedRepos) + "\n"
+				content := repoIDsToConfigLines(tt.trackedRepos)
 				err := os.WriteFile(configPath, []byte(content), 0600)
 				require.NoError(t, err)
 			}
@@ -511,14 +582,14 @@ func TestToFilesystemSafe(t *testing.T) {
 	}
 }
 
-// Helper function to join RepoIDs for config file
-func joinRepoIDs(ids []RepoID) string {
+// Helper function to create config lines for repo IDs (new array format)
+func repoIDsToConfigLines(ids []RepoID) string {
 	if len(ids) == 0 {
 		return ""
 	}
-	result := string(ids[0])
-	for i := 1; i < len(ids); i++ {
-		result += "," + string(ids[i])
+	var lines []string
+	for _, id := range ids {
+		lines = append(lines, "trackedRepos[]="+string(id))
 	}
-	return result
+	return strings.Join(lines, "\n") + "\n"
 }

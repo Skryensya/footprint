@@ -42,7 +42,9 @@ func TestFormatEvent_Multiline(t *testing.T) {
 	require.Contains(t, output, "abc1234")
 	require.Contains(t, output, "main")
 	require.Contains(t, output, "github.com/test/repo")
-	require.Contains(t, output, "Mon Jan 15")
+	// Date format is configurable (default: "Jan 02"), check for date components
+	require.Contains(t, output, "Jan")
+	require.Contains(t, output, "15")
 }
 
 func TestFormatSource_AllSources(t *testing.T) {
@@ -140,5 +142,7 @@ func TestFormatEventEnriched_Multiline(t *testing.T) {
 	require.Contains(t, output, "Test User")
 	require.Contains(t, output, "test@example.com")
 	require.Contains(t, output, "Fix a bug")
-	require.Contains(t, output, "Mon Jan 15")
+	// Date format is configurable (default: "Jan 02"), check for date components
+	require.Contains(t, output, "Jan")
+	require.Contains(t, output, "15")
 }

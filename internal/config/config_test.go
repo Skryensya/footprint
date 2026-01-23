@@ -26,11 +26,7 @@ func TestReadLines(t *testing.T) {
 		setupContent string
 		wantLines    []string
 	}{
-		{
-			name:         "empty file",
-			setupContent: "",
-			wantLines:    nil,
-		},
+		// Empty file case is tested in TestReadLines_CreatesFileIfNotExists
 		{
 			name: "single line",
 			setupContent: "key=value\n",
@@ -85,14 +81,21 @@ func TestReadLines_CreatesFileIfNotExists(t *testing.T) {
 	_, err := os.Stat(configPath)
 	require.True(t, os.IsNotExist(err))
 
-	// ReadLines should create it
+	// ReadLines should create it with defaults
 	lines, err := ReadLines()
 	require.NoError(t, err)
-	require.Empty(t, lines)
+	require.NotEmpty(t, lines, "should initialize with default config")
 
 	// Verify file was created
 	_, err = os.Stat(configPath)
 	require.NoError(t, err)
+
+	// Verify it contains expected defaults
+	content, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	require.Contains(t, string(content), "pager=")
+	require.Contains(t, string(content), "theme=")
+	require.Contains(t, string(content), "# color_success=") // commented
 }
 
 func TestWriteLines(t *testing.T) {

@@ -48,7 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Theme system with `theme list`, `theme set`, and `theme pick` commands
 - 8 built-in themes with dark/light variants: default, neon, aurora, mono, ocean, sunset, candy, contrast
 - Application logging system with `logs` command
-- `log_level` and `log_enabled` configuration options
+- `log_level` and `enable_log` configuration options
 - Interactive help browser for navigating commands and topics
 
 ### Changed
