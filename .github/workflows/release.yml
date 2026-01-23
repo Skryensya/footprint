@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}/${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - os: darwin
+            arch: arm64
+            runner: macos-latest
+          - os: darwin
+            arch: amd64
+            runner: macos-latest
+          - os: linux
+            arch: amd64
+            runner: ubuntu-latest
+          - os: linux
+            arch: arm64
+            runner: ubuntu-latest
+          - os: windows
+            arch: amd64
+            runner: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build
+        shell: bash
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: '0'
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          OUTPUT="fp"
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            OUTPUT="fp.exe"
+          fi
+          go build \
+            -ldflags "-s -w -X github.com/footprint-tools/footprint-cli/internal/app.Version=${VERSION}" \
+            -o ${OUTPUT} \
+            ./cmd/fp
+
+      - name: Package (Unix)
+        if: matrix.os != 'windows'
+        run: |
+          tar -czvf fp_${{ matrix.os }}_${{ matrix.arch }}.tar.gz fp
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          Compress-Archive -Path fp.exe -DestinationPath fp_${{ matrix.os }}_${{ matrix.arch }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fp_${{ matrix.os }}_${{ matrix.arch }}
+          path: fp_${{ matrix.os }}_${{ matrix.arch }}.*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          # Extract changelog section for this version
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Remove 'v' prefix for changelog matching
+          VERSION_NUM=${VERSION#v}
+
+          # Extract the section between this version and the next
+          CHANGELOG=$(awk "/^## \[${VERSION_NUM}\]|^## ${VERSION_NUM}/,/^## \[|^## [0-9]/" CHANGELOG.md | head -n -1)
+
+          # If no changelog found, use default message
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Release ${VERSION}"
+          fi
+
+          # Save to file for multi-line support
+          echo "$CHANGELOG" > changelog_section.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.version.outputs.VERSION }}
+          body_path: changelog_section.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
+          files: |
+            artifacts/**/*

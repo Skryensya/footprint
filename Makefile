@@ -1,52 +1,52 @@
-VERSION := $(shell git describe --tags --dirty --always)
-UNAME := $(shell uname)
+VERSION := $(shell git describe --tags --dirty --always 2>/dev/null || echo "dev")
+LDFLAGS := -ldflags "-X github.com/footprint-tools/footprint-cli/internal/app.Version=$(VERSION)"
 
-# Config directory (database): uses os.UserConfigDir() pattern
-# - macOS: ~/Library/Application Support/Footprint
-# - Linux: $XDG_CONFIG_HOME/Footprint or ~/.config/Footprint
-ifeq ($(UNAME),Darwin)
-	FP_CONFIG_DIR := $(HOME)/Library/Application Support/Footprint
-else
-	FP_CONFIG_DIR := $(or $(XDG_CONFIG_HOME),$(HOME)/.config)/Footprint
-endif
+.PHONY: all build test lint fmt clean install wipe integration
 
-# Data directory (exports): uses XDG_DATA_HOME pattern
-# - macOS: ~/Library/Application Support/footprint
-# - Linux: $XDG_DATA_HOME/footprint or ~/.local/share/footprint
-ifeq ($(UNAME),Darwin)
-	FP_DATA_DIR := $(HOME)/Library/Application Support/footprint
-else
-	FP_DATA_DIR := $(or $(XDG_DATA_HOME),$(HOME)/.local/share)/footprint
-endif
+# Default target
+all: build
 
-.PHONY: build test test-nocache test-actions test-hooks test-export test-backfill wipe
-
+# Build binary (runs tests first)
 build: test
-	go build \
-		-ldflags "-X github.com/footprint-tools/footprint-cli/internal/app.Version=$(VERSION)" \
-		-o fp \
-		./cmd/fp
+	go build $(LDFLAGS) -o fp ./cmd/fp
 
+# Build without tests (for quick iteration)
+build-fast:
+	go build $(LDFLAGS) -o fp ./cmd/fp
+
+# Run unit tests
 test:
 	go test ./...
 
-test-nocache:
-	go test -count=1 ./...
+# Run linter
+lint:
+	golangci-lint run ./...
 
-test-actions:
-	go test ./internal/actions
+# Format code
+fmt:
+	go fmt ./...
+	goimports -w .
 
-test-hooks: build
+# Clean build artifacts
+clean:
+	rm -f fp
+	go clean
+
+# Install to GOPATH/bin
+install: test
+	go install $(LDFLAGS) ./cmd/fp
+
+# Run integration tests (slow, requires built binary)
+integration: build
 	./scripts/test-hooks.sh
-
-test-export: build
 	./scripts/test-export-flow.sh
-
-test-backfill: build
 	./scripts/test-backfill.sh
 
+# Wipe all local data (database, exports, config)
 wipe:
-	rm -rf "$(FP_CONFIG_DIR)"
-	rm -rf "$(FP_DATA_DIR)"
+	rm -rf "$(HOME)/Library/Application Support/Footprint"
+	rm -rf "$(HOME)/Library/Application Support/footprint"
+	rm -rf "$${XDG_CONFIG_HOME:-$$HOME/.config}/Footprint"
+	rm -rf "$${XDG_DATA_HOME:-$$HOME/.local/share}/footprint"
 	rm -f ~/.fprc
 	@echo "Wiped database, exports, and config"

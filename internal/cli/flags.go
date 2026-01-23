@@ -263,4 +263,12 @@ var (
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 	}
+
+	UpdateFlags = []dispatchers.FlagDescriptor{
+		{
+			Names:       []string{"--tag"},
+			Description: "Install from git tag using go install (requires Go)",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+	}
 )

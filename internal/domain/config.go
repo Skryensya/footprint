@@ -82,6 +82,18 @@ var ConfigKeys = []ConfigKey{
 		Default:     "",
 		Description: "Pager command (default: less -FRSX)",
 	},
+	{
+		Name:        "update_last_check",
+		Default:     "",
+		Description: "ISO8601 timestamp of last update check (managed internally)",
+		Hidden:      true,
+	},
+	{
+		Name:        "update_latest_version",
+		Default:     "",
+		Description: "Latest known version from GitHub (managed internally)",
+		Hidden:      true,
+	},
 }
 
 // configKeyMap is a lookup map for configuration keys.

@@ -39,4 +39,12 @@ var (
 			Required:    true,
 		},
 	}
+
+	OptionalVersionArg = []dispatchers.ArgSpec{
+		{
+			Name:        "version",
+			Description: "Version to install (e.g., v0.1.0)",
+			Required:    false,
+		},
+	}
 )

@@ -6,7 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.0.9] - 2026-01-22
+
 ### Added
+- Auto-update check: notifies when new version is available (non-blocking)
+- `fp update` command to download and install latest version
+- GitHub Actions workflows for CI and automated releases
+- Release documentation in `docs/releasing.md`
 - Interactive help browser with `fp help -i` flag (replaces `help-browser` command)
 - Command suggestions for typos using Levenshtein distance
 - Border color in theme system for interactive UI elements
@@ -16,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Tests for tracking actions (adopt, backfill, export)
 
 ### Changed
+- Improved Makefile: added `lint`, `fmt`, `clean`, `install`, `integration` targets
 - Replaced `help-browser` command with `-i` flag on `help`
 - Refactored store package for cleaner database operations
 - Simplified action dependencies
@@ -127,12 +136,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `config` subcommands: `get`, `set`, `unset --all`, `list`
 - `version` command with build-time injection
 
-[Unreleased]: https://github.com/Skryensya/footprint/compare/v0.0.8...HEAD
-[0.0.8]: https://github.com/Skryensya/footprint/compare/v0.0.7...v0.0.8
-[0.0.7]: https://github.com/Skryensya/footprint/compare/v0.0.6...v0.0.7
-[0.0.6]: https://github.com/Skryensya/footprint/compare/v0.0.5...v0.0.6
-[0.0.5]: https://github.com/Skryensya/footprint/compare/v0.0.4...v0.0.5
-[0.0.4]: https://github.com/Skryensya/footprint/compare/v0.0.3...v0.0.4
-[0.0.3]: https://github.com/Skryensya/footprint/compare/v0.0.2...v0.0.3
-[0.0.2]: https://github.com/Skryensya/footprint/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/Skryensya/footprint/releases/tag/v0.0.1
+[Unreleased]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.9...HEAD
+[0.0.9]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.8...v0.0.9
+[0.0.8]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.7...v0.0.8
+[0.0.7]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.6...v0.0.7
+[0.0.6]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.5...v0.0.6
+[0.0.5]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.4...v0.0.5
+[0.0.4]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.3...v0.0.4
+[0.0.3]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.2...v0.0.3
+[0.0.2]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.1...v0.0.2
+[0.0.1]: https://github.com/footprint-tools/footprint-cli/releases/tag/v0.0.1

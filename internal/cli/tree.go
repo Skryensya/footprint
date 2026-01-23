@@ -7,6 +7,7 @@ import (
 	setupactions "github.com/footprint-tools/footprint-cli/internal/actions/setup"
 	themeactions "github.com/footprint-tools/footprint-cli/internal/actions/theme"
 	trackingactions "github.com/footprint-tools/footprint-cli/internal/actions/tracking"
+	updateactions "github.com/footprint-tools/footprint-cli/internal/actions/update"
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 )
 
@@ -37,6 +38,7 @@ when built from a non-release commit.`,
 	addActivityCommands(root)
 	addSetupCommands(root)
 	addLogsCommand(root)
+	addUpdateCommand(root)
 	addHelpCommand(root)
 
 	return root
@@ -493,6 +495,35 @@ Log settings can be configured with:
 		Flags:    LogsFlags,
 		Action:   logsAction,
 		Category: dispatchers.CategoryInspectActivity,
+	})
+}
+
+func addUpdateCommand(root *dispatchers.DispatchNode) {
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "update",
+		Parent:  root,
+		Summary: "Update fp to the latest version",
+		Description: `Downloads and installs a newer version of fp.
+
+By default, installs the latest GitHub release. Specify a version to install
+a specific release (e.g., 'fp update v0.1.0').
+
+The command downloads a pre-built binary for your OS and architecture.
+If no binary is available, it falls back to building from source using
+'go install' (requires Go to be installed).
+
+Use --tag to install from a git tag that hasn't been released yet.
+This always uses 'go install' and requires Go.
+
+Examples:
+  fp update              Install latest release
+  fp update v0.1.0       Install specific release
+  fp update --tag v0.2.0-beta  Build from tag using go install`,
+		Usage:    "fp update [version] [--tag]",
+		Args:     OptionalVersionArg,
+		Flags:    UpdateFlags,
+		Action:   updateactions.Update,
+		Category: dispatchers.CategoryManageRepos,
 	})
 }
 

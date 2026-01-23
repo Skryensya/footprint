@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	helpactions "github.com/footprint-tools/footprint-cli/internal/actions/help"
+	updateactions "github.com/footprint-tools/footprint-cli/internal/actions/update"
 	"github.com/footprint-tools/footprint-cli/internal/cli"
 	"github.com/footprint-tools/footprint-cli/internal/config"
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
@@ -60,6 +61,11 @@ func main() {
 		}
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
+	}
+
+	// Check for updates before executing interactive commands
+	if len(commands) > 0 && updateactions.ShouldCheckUpdate(commands[0]) {
+		updateactions.PrintUpdateNotice()
 	}
 
 	if err := res.Execute(res.Args, res.Flags); err != nil {
