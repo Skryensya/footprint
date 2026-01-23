@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -602,6 +603,14 @@ func TestDoExportWork_OfflineMode_ContinuesWhenPullFails(t *testing.T) {
 	exportDir := filepath.Join(dir, "export")
 	err := ensureExportRepo(exportDir)
 	require.NoError(t, err)
+
+	// Configure git user for CI environment (no global config)
+	cmd := exec.Command("git", "config", "user.name", "Test User")
+	cmd.Dir = exportDir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd.Dir = exportDir
+	_ = cmd.Run()
 
 	// Create a temp database
 	dbPath := filepath.Join(dir, "test.db")
