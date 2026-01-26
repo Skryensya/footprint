@@ -968,7 +968,7 @@ func (m model) colorizeTopicContent(content string, _ int) string {
 			// Check if it's truly a header (letters only, no special chars except spaces)
 			isHeader := true
 			for _, r := range trimmed {
-				if !((r >= 'A' && r <= 'Z') || r == ' ' || r == '(' || r == ')') {
+				if (r < 'A' || r > 'Z') && r != ' ' && r != '(' && r != ')' {
 					isHeader = false
 					break
 				}

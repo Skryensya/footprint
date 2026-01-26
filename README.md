@@ -1,270 +1,138 @@
 # Footprint
 
-Footprint is a local tool that records activity from Git repositories and stores it on your machine.
+Local Git activity tracker. Records commits, merges, checkouts, rebases, and pushes to a SQLite database on your machine.
 
-It helps you keep a structured history of work without using external services or sending data anywhere.
+## Install
 
-## What it does
-
-Footprint records events that happen in Git repositories and saves them locally in a SQLite database.
-
-Recorded events include commits, merges, checkouts, rebases, and pushes.
-
-The data can be inspected, filtered, or exported later. Everything stays under your control.
-
-## What it does not do
-
-* Footprint does not upload data
-* Footprint does not track time
-* Footprint does not monitor behavior
-* Footprint does not depend on online services
-
-## Installation
-
-Build from source:
-
-```
+```bash
+# Build from source
 make build
+
+# Or install to GOPATH/bin
+make install
 ```
 
-This creates the `fp` binary in the current directory.
+## Quick Start
 
-## Quick start
-
-```
-fp setup              # Install git hooks (in current repo)
-fp track              # Start tracking the current repository
-```
-
-From now on, footprint records activity automatically. You can inspect it with:
-
-```
-fp activity           # Show recorded events
-fp watch              # Watch for new events in real time
-```
-
-## Global flags
-
-These flags work with any command:
-
-```
-fp --no-color <command>        # Disable colored output
-fp --no-pager <command>        # Do not use pager for output
-fp --pager=<cmd> <command>     # Use specified pager for this command
+```bash
+fp setup                  # Install hooks in current repo
+fp activity               # View recorded events
 ```
 
 ## Commands
 
-### Getting started
+### Getting Started
 
-Install git hooks in the current repository:
-
-```
-fp setup
-fp setup --force           # Skip confirmation prompt
-```
-
-Install git hooks globally (applies to all repositories):
-
-```
-fp setup --global
+```bash
+fp setup                     # Install hooks in current repo
+fp setup ~/projects/myapp    # Install in specific repo
+fp setup --core-hooks-path   # Set global hooks (git core.hooksPath)
+fp check                     # Verify hooks are installed
 ```
 
-Start tracking a repository:
+### View Activity
 
-```
-fp track [path]
-fp track --remote=<name> [path]   # Use specific remote instead of 'origin'
-```
+```bash
+fp activity                  # Show recent events
+fp activity -n 50            # Limit to 50 events
+fp activity -e               # Include commit messages
+fp activity --repo <id>      # Filter by repository
 
-### Inspecting activity
-
-Show recorded activity (newest first):
-
-```
-fp activity
+fp watch                     # Stream events in real time
+fp watch -i                  # Interactive dashboard
 ```
 
-Filter activity with flags:
+### Manage Repositories
 
-```
-fp activity --oneline              # Compact one-line format
-fp activity --since=2024-01-01     # Events after date
-fp activity --until=2024-12-31     # Events before date
-fp activity --status=<status>      # pending, exported, orphaned, skipped
-fp activity --source=<source>      # post-commit, post-merge, post-checkout, post-rewrite, pre-push, manual, backfill
-fp activity --repo=<id>            # Filter by repository
-fp activity --limit=50             # Limit results
-```
+```bash
+fp repos                     # List repos with activity
+fp repos list                # Same as above
+fp repos scan                # Find repos and show hook status
+fp repos scan --root ~/dev   # Scan from specific path
+fp repos -i                  # Interactive hook manager
 
-Watch for new events in real time:
-
-```
-fp watch
-fp watch --oneline
+fp teardown                  # Remove hooks from current repo
+fp teardown ~/projects/app   # Remove from specific repo
 ```
 
-This runs continuously like `tail -f`. Press Ctrl+C to stop.
+### Import History
 
-### Repository status
-
-Check tracking status of current repository:
-
-```
-fp status [path]
-```
-
-List all tracked repositories:
-
-```
-fp repos
-fp list              # Alias for repos
+```bash
+fp backfill                  # Import all past commits
+fp backfill --since 2024-01-01
+fp backfill --limit 100
+fp backfill --dry-run        # Preview only
 ```
 
-### Managing repositories
+### Export Data
 
-Stop tracking a repository:
-
-```
-fp untrack [path]
-fp untrack --id=<repo-id>    # Untrack by ID (useful for orphaned repos)
-```
-
-Update repository ID after remote URL changes:
-
-```
-fp sync-remote [path]
+```bash
+fp export --force            # Export now
+fp export --dry-run          # Preview
+fp export --open             # Open export folder
 ```
 
-### Exporting data
-
-Events are automatically exported to CSV files after recording. You can also trigger manually:
-
-```
-fp export --force            # Export immediately
-fp export --dry-run          # Preview what would be exported
-fp export --open             # Open export directory in file manager
-```
-
-**CSV Structure (year-based rotation):**
-
-```
-~/.config/Footprint/exports/
-├── commits.csv          # Current year
-├── commits-2024.csv     # Events from 2024
-└── commits-2023.csv     # Events from 2023
-```
-
-Each CSV contains enriched data: authored_at, repo, branch, commit, subject, author, files, additions, deletions, parents, committer, committed_at, source, and machine.
-
-**Sync to remote repository:**
-
-```
-fp config set export_remote git@github.com:user/my-exports.git
-```
-
-When configured, exports are automatically pushed to the remote.
-
-**Configuration:**
-
-| Key | Description |
-|-----|-------------|
-| `export_remote` | Remote URL for syncing exports |
-| `export_interval` | Seconds between auto-exports (default: 3600) |
-| `export_path` | Path to local export repository |
-
-### Importing historical data
-
-Import existing commits from a repository:
-
-```
-fp backfill [path]
-fp backfill --since=2024-01-01     # Import commits after date
-fp backfill --until=2024-12-31     # Import commits before date
-fp backfill --limit=100            # Limit number of commits
-fp backfill --branch=<name>        # Use specific branch name for all commits
-fp backfill --dry-run              # Preview what would be imported
-```
-
-Events are inserted with source "BACKFILL" and status "pending". Run `fp export --force` afterward to export the backfilled events.
-
-### Managing hooks
-
-Check installed hooks:
-
-```
-fp check
-fp check --global
-```
-
-Remove hooks:
-
-```
-fp teardown
-fp teardown --global
-fp teardown --force          # Skip confirmation prompt
-```
+Exports go to `~/.config/Footprint/exports/` as CSV files.
 
 ### Configuration
 
-```
-fp config list                  # Show all config values
-fp config get <key>             # Get a value
-fp config set <key> <value>     # Set a value
-fp config unset <key>           # Remove a value
-fp config unset --all           # Remove all values
+```bash
+fp config list               # Show all settings
+fp config get <key>          # Get a value
+fp config set <key> <value>  # Set a value
+fp config unset <key>        # Remove a value
 ```
 
-Configuration is stored in `~/.fprc`.
-
-Available configuration keys:
+Settings:
 
 | Key | Description |
 |-----|-------------|
-| `pager` | Override the default pager. Set to `cat` to disable paging. |
-| `export_remote` | Remote URL for syncing exports (configures git remote) |
-| `export_interval` | Seconds between automatic exports (default: 3600) |
-| `export_path` | Path to export repository |
-| `theme` | Color theme (default, neon, aurora, mono, ocean, sunset, candy, contrast) |
-| `enable_log` | Enable/disable logging (true/false) |
-| `log_level` | Log verbosity (debug, info, warn, error) |
+| `theme` | Color theme (neon-dark, ocean-light, etc.) |
+| `display_date` | Date format (dd/mm/yyyy, mm/dd/yyyy, yyyy-mm-dd) |
+| `display_time` | Time format (12h, 24h) |
+| `pager` | Pager command (default: less -FRSX) |
+| `enable_log` | Enable logging (true/false) |
 
-Pager precedence:
-1. `--no-pager` flag → direct output
-2. stdout not a TTY → direct output
-3. `--pager=<cmd>` flag → uses specified pager, `cat` bypasses
-4. `pager` config → uses configured pager, `cat` bypasses
-5. `$PAGER` env var → uses env pager, `cat` bypasses
-6. Default → `less -FRSX`
+### Themes
 
-Pagers can include arguments: `fp config set pager "less -R"`
-
-### Help
-
-```
-fp --help                # Show all commands
-fp help <command>        # Help for a specific command
-fp help <topic>          # Conceptual documentation
-fp version               # Show version
+```bash
+fp theme list                # Show available themes
+fp theme set neon-dark       # Apply a theme
+fp theme pick                # Interactive theme picker
 ```
 
-Available help topics: `overview`, `workflow`, `hooks`, `data`, `configuration`, `troubleshooting`.
+Themes: default, neon, aurora, mono, ocean, sunset, candy, contrast (each with -dark/-light variants)
 
-## Data storage
+### Other
 
-Events are stored in a SQLite database at:
+```bash
+fp version                   # Show version
+fp update                    # Update to latest version
+fp logs                      # View fp logs
+fp logs -i                   # Interactive log viewer
+fp help                      # Show help
+fp help -i                   # Interactive help browser
+```
 
-- macOS: `~/Library/Application Support/Footprint/store.db`
-- Linux: `~/.config/Footprint/store.db`
+## Global Flags
 
-Tracked repositories are stored in `~/.fprc`.
+```bash
+fp --no-color <command>      # Disable colors
+fp --no-pager <command>      # Disable pager
+fp --pager=<cmd> <command>   # Use specific pager
+```
+
+## Data Storage
+
+- Database: `~/.config/Footprint/store.db`
+- Config: `~/.fprc`
+- Exports: `~/.config/Footprint/exports/`
+- Logs: `~/.config/Footprint/fp.log`
 
 ## Privacy
 
-All data stays on your machine.
-Nothing is shared unless you choose to export it.
-There is no telemetry.
+All data stays local. No telemetry. No network requests except `fp update`.
 
 ## License
 
-MIT License. See the LICENSE file for details.
+MIT

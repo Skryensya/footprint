@@ -732,29 +732,3 @@ func (m watchModel) renderFooter() string {
 
 	return footerStyle.Render(footer)
 }
-
-func wrapTextSimple(text string, width int) string {
-	if width <= 0 || len(text) <= width {
-		return text
-	}
-
-	var result strings.Builder
-	words := strings.Fields(text)
-	lineLen := 0
-
-	for i, word := range words {
-		if i > 0 {
-			if lineLen+1+len(word) > width {
-				result.WriteString("\n")
-				lineLen = 0
-			} else {
-				result.WriteString(" ")
-				lineLen++
-			}
-		}
-		result.WriteString(word)
-		lineLen += len(word)
-	}
-
-	return result.String()
-}

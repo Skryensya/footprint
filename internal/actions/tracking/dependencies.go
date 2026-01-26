@@ -67,7 +67,7 @@ func DefaultDeps() Deps {
 		DeriveID: repodomain.DeriveID,
 
 		DBPath:       store.DBPath,
-		OpenDB:       store.Open, //nolint:staticcheck // TODO: refactor to use store.New() with *Store interface
+		OpenDB:       store.Open, //nolint:staticcheck // uses deprecated singleton; see store.New()
 		InitDB:       store.Init,
 		InsertEvent:  store.InsertEvent,
 		ListEvents:   store.ListEvents,

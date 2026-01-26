@@ -22,10 +22,11 @@ import (
 
 // RepoEntry represents a discovered git repository.
 type RepoEntry struct {
-	Path         string            // Absolute path to the repo
-	Name         string            // Directory name
-	HasHooks     bool              // Whether fp hooks are installed
-	HooksChanged bool              // Whether hooks state was changed this session
+	Path         string               // Absolute path to the repo
+	Name         string               // Directory name
+	HasHooks     bool                 // Whether fp hooks are installed
+	HooksChanged bool                 // Whether hooks state was changed this session
+	Selected     bool                 // Whether selected for batch operation
 	Inspection   hooks.RepoInspection // Preflight inspection result
 }
 
@@ -185,17 +186,18 @@ func scanForRepos(root string, maxDepth int) ([]RepoEntry, error) {
 
 // reposModel is the Bubble Tea model for the interactive repos view.
 type reposModel struct {
-	repos          []RepoEntry
-	cursor         int
-	scroll         int
-	width          int
-	height         int
-	installed      int
-	uninstalled    int
-	message        string
-	colors         style.ColorConfig
-	focusSidebar   bool
-	showingGuidance bool // Whether to show the guidance overlay
+	repos        []RepoEntry
+	cursor       int
+	scroll       int
+	width        int
+	height       int
+	installed    int
+	uninstalled  int
+	message      string
+	colors       style.ColorConfig
+	focusSidebar bool
+	drawerOpen   bool // Whether the details drawer is open
+	drawerScroll int  // Scroll position within the drawer
 }
 
 func newReposModel(repos []RepoEntry) reposModel {
@@ -219,14 +221,66 @@ func (m reposModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// If showing guidance, any key closes it
-		if m.showingGuidance {
-			m.showingGuidance = false
+		// If drawer is open, handle drawer-specific keys
+		if m.drawerOpen {
+			switch msg.Type {
+			case tea.KeyCtrlC:
+				return m, tea.Quit
+			case tea.KeyEsc, tea.KeyEnter:
+				m.drawerOpen = false
+				m.drawerScroll = 0
+				return m, nil
+			case tea.KeyUp:
+				if m.drawerScroll > 0 {
+					m.drawerScroll--
+				}
+				return m, nil
+			case tea.KeyDown:
+				m.drawerScroll++
+				return m, nil
+			case tea.KeyPgUp:
+				m.drawerScroll -= 5
+				if m.drawerScroll < 0 {
+					m.drawerScroll = 0
+				}
+				return m, nil
+			case tea.KeyPgDown:
+				m.drawerScroll += 5
+				return m, nil
+			case tea.KeyHome:
+				m.drawerScroll = 0
+				return m, nil
+			case tea.KeyRunes:
+				switch string(msg.Runes) {
+				case "q":
+					m.drawerOpen = false
+					m.drawerScroll = 0
+					return m, nil
+				case "j":
+					m.drawerScroll++
+					return m, nil
+				case "k":
+					if m.drawerScroll > 0 {
+						m.drawerScroll--
+					}
+					return m, nil
+				case "g":
+					m.drawerScroll = 0
+					return m, nil
+				case "?":
+					m.drawerOpen = false
+					m.drawerScroll = 0
+					return m, nil
+				}
+			}
 			return m, nil
 		}
 
 		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+
+		case tea.KeyEsc:
 			return m, tea.Quit
 
 		case tea.KeyTab:
@@ -270,8 +324,9 @@ func (m reposModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case tea.KeyEnter, tea.KeySpace:
-			if !m.focusSidebar {
-				m.toggleHooks()
+			// Both toggle selection
+			if !m.focusSidebar && len(m.repos) > 0 {
+				m.toggleSelection()
 			}
 
 		case tea.KeyRunes:
@@ -299,21 +354,18 @@ func (m reposModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "l":
 				m.focusSidebar = false
 			case "i":
-				if !m.focusSidebar && !m.repos[m.cursor].HasHooks {
-					m.toggleHooks()
-				}
+				m.installSelected()
 			case "u":
-				if !m.focusSidebar && m.repos[m.cursor].HasHooks {
-					m.toggleHooks()
-				}
+				m.uninstallSelected()
 			case "a":
-				m.installAll()
+				m.selectAll()
 			case "A":
-				m.uninstallAll()
-			case "?":
-				// Show guidance for non-clean repos
-				if len(m.repos) > 0 && !m.repos[m.cursor].Inspection.Status.CanInstall() {
-					m.showingGuidance = true
+				m.deselectAll()
+			case "?", "d":
+				// Open drawer for any repo (d = details)
+				if len(m.repos) > 0 {
+					m.drawerOpen = true
+					m.drawerScroll = 0
 				}
 			}
 		}
@@ -322,56 +374,81 @@ func (m reposModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *reposModel) toggleHooks() {
+func (m *reposModel) toggleSelection() {
 	if len(m.repos) == 0 {
 		return
 	}
 
 	repo := &m.repos[m.cursor]
 
-	// If already installed, allow uninstall
-	if repo.HasHooks {
-		hooksPath, err := git.RepoHooksPath(repo.Path)
+	// Blocked repos can't be selected, show drawer instead
+	if !repo.Inspection.Status.CanInstall() && !repo.HasHooks {
+		m.drawerOpen = true
+		return
+	}
+
+	// Toggle selection for clean repos or repos with hooks installed
+	repo.Selected = !repo.Selected
+}
+
+func (m *reposModel) installSelected() {
+	count := 0
+	for i := range m.repos {
+		r := &m.repos[i]
+		if !r.Selected || r.HasHooks {
+			continue
+		}
+		if !r.Inspection.Status.CanInstall() {
+			continue
+		}
+		hooksPath, err := git.RepoHooksPath(r.Path)
 		if err != nil {
-			m.message = fmt.Sprintf("Error: %v", err)
-			return
+			continue
+		}
+		if err := hooks.Install(hooksPath); err != nil {
+			continue
+		}
+		r.HasHooks = true
+		r.HooksChanged = true
+		r.Inspection.FpInstalled = true
+		r.Selected = false
+		m.installed++
+		count++
+		addRepoToStore(r.Path)
+	}
+	if count > 0 {
+		m.message = fmt.Sprintf("Installed hooks in %d repos", count)
+	} else {
+		m.message = "No repos selected for installation"
+	}
+}
+
+func (m *reposModel) uninstallSelected() {
+	count := 0
+	for i := range m.repos {
+		r := &m.repos[i]
+		if !r.Selected || !r.HasHooks {
+			continue
+		}
+		hooksPath, err := git.RepoHooksPath(r.Path)
+		if err != nil {
+			continue
 		}
 		if err := hooks.Uninstall(hooksPath); err != nil {
-			m.message = fmt.Sprintf("Error: %v", err)
-			return
+			continue
 		}
-		repo.HasHooks = false
-		repo.HooksChanged = true
+		r.HasHooks = false
+		r.HooksChanged = true
+		r.Selected = false
 		m.uninstalled++
-		m.message = fmt.Sprintf("Removed hooks from %s", repo.Name)
-		removeRepoFromStore(repo.Path)
-		return
+		count++
+		removeRepoFromStore(r.Path)
 	}
-
-	// Check if installation is allowed
-	if !repo.Inspection.Status.CanInstall() {
-		m.message = fmt.Sprintf("Cannot install: %s", repo.Inspection.Status)
-		return
+	if count > 0 {
+		m.message = fmt.Sprintf("Removed hooks from %d repos", count)
+	} else {
+		m.message = "No repos selected for removal"
 	}
-
-	hooksPath, err := git.RepoHooksPath(repo.Path)
-	if err != nil {
-		m.message = fmt.Sprintf("Error: %v", err)
-		return
-	}
-
-	if err := hooks.Install(hooksPath); err != nil {
-		m.message = fmt.Sprintf("Error: %v", err)
-		return
-	}
-	repo.HasHooks = true
-	repo.HooksChanged = true
-	repo.Inspection.FpInstalled = true
-	m.installed++
-	m.message = fmt.Sprintf("Installed hooks in %s", repo.Name)
-
-	// Track the repo in the store
-	addRepoToStore(repo.Path)
 }
 
 func addRepoToStore(repoPath string) {
@@ -392,60 +469,31 @@ func removeRepoFromStore(repoPath string) {
 	_ = s.RemoveRepo(repoPath)
 }
 
-func (m *reposModel) installAll() {
+func (m *reposModel) selectAll() {
 	count := 0
-	skipped := 0
 	for i := range m.repos {
 		r := &m.repos[i]
-		if r.HasHooks {
-			continue
+		// Only select repos that can be installed or already have hooks
+		if r.Inspection.Status.CanInstall() || r.HasHooks {
+			if !r.Selected {
+				r.Selected = true
+				count++
+			}
 		}
-		// Only install in clean repos
-		if !r.Inspection.Status.CanInstall() {
-			skipped++
-			continue
-		}
-		hooksPath, err := git.RepoHooksPath(r.Path)
-		if err != nil {
-			continue
-		}
-		if err := hooks.Install(hooksPath); err != nil {
-			continue
-		}
-		r.HasHooks = true
-		r.HooksChanged = true
-		r.Inspection.FpInstalled = true
-		m.installed++
-		count++
-		addRepoToStore(r.Path)
 	}
-	if skipped > 0 {
-		m.message = fmt.Sprintf("Installed in %d repos, %d skipped (not clean)", count, skipped)
-	} else {
-		m.message = fmt.Sprintf("Installed hooks in %d repositories", count)
-	}
+	m.message = fmt.Sprintf("Selected %d repos", count)
 }
 
-func (m *reposModel) uninstallAll() {
+func (m *reposModel) deselectAll() {
 	count := 0
 	for i := range m.repos {
 		r := &m.repos[i]
-		if r.HasHooks {
-			hooksPath, err := git.RepoHooksPath(r.Path)
-			if err != nil {
-				continue
-			}
-			if err := hooks.Uninstall(hooksPath); err != nil {
-				continue
-			}
-			r.HasHooks = false
-			r.HooksChanged = true
-			m.uninstalled++
+		if r.Selected {
+			r.Selected = false
 			count++
-			removeRepoFromStore(r.Path)
 		}
 	}
-	m.message = fmt.Sprintf("Removed hooks from %d repositories", count)
+	m.message = fmt.Sprintf("Deselected %d repos", count)
 }
 
 func (m *reposModel) countWithHooks() int {
@@ -463,11 +511,6 @@ func (m reposModel) View() string {
 		return "Loading..."
 	}
 
-	// Show guidance overlay if active
-	if m.showingGuidance && len(m.repos) > 0 {
-		return m.renderGuidanceOverlay()
-	}
-
 	// Calculate dimensions
 	headerHeight := 3
 	footerHeight := 2
@@ -476,14 +519,25 @@ func (m reposModel) View() string {
 		mainHeight = 1
 	}
 
-	// Create layout
+	// Create layout with drawer support
 	cfg := splitpanel.Config{
 		SidebarWidthPercent: 0.22,
 		SidebarMinWidth:     18,
 		SidebarMaxWidth:     24,
+		HasDrawer:           true,
+		DrawerWidthPercent:  0.40,
 	}
 	layout := splitpanel.NewLayout(m.width, cfg, m.colors)
-	layout.SetFocus(m.focusSidebar)
+	layout.SetDrawerOpen(m.drawerOpen)
+
+	// Set focus: drawer (2) > sidebar (1) > content (0)
+	if m.drawerOpen {
+		layout.SetFocusedPanel(2)
+	} else if m.focusSidebar {
+		layout.SetFocusedPanel(1)
+	} else {
+		layout.SetFocusedPanel(0)
+	}
 
 	// Build panels
 	statsPanel := m.buildStatsPanel(layout, mainHeight)
@@ -491,59 +545,166 @@ func (m reposModel) View() string {
 
 	// Render
 	header := m.renderHeader()
-	main := layout.Render(statsPanel, reposPanel, mainHeight)
+
+	var main string
+	if m.drawerOpen && len(m.repos) > 0 {
+		drawerPanel := m.buildDrawerPanel(layout, mainHeight)
+		main = layout.RenderWithDrawer(statsPanel, reposPanel, &drawerPanel, mainHeight)
+	} else {
+		main = layout.Render(statsPanel, reposPanel, mainHeight)
+	}
+
 	footer := m.renderFooter()
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, main, footer)
 }
 
-func (m reposModel) renderGuidanceOverlay() string {
+func (m *reposModel) buildDrawerPanel(layout *splitpanel.Layout, height int) splitpanel.Panel {
 	colors := m.colors
 	headerColor := lipgloss.Color(colors.Header)
+	infoColor := lipgloss.Color(colors.Info)
 	mutedColor := lipgloss.Color(colors.Muted)
+	successColor := lipgloss.Color(colors.Success)
 	warnColor := lipgloss.Color(colors.Warning)
 
-	repo := m.repos[m.cursor]
-	guidance := hooks.GetGuidance(repo.Inspection)
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(headerColor)
+	labelStyle := lipgloss.NewStyle().Foreground(mutedColor)
+	valueStyle := lipgloss.NewStyle().Foreground(infoColor)
+	successStyle := lipgloss.NewStyle().Foreground(successColor)
+	warnStyle := lipgloss.NewStyle().Foreground(warnColor)
 
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(headerColor)
-	statusStyle := lipgloss.NewStyle().Foreground(warnColor)
-	contentStyle := lipgloss.NewStyle().Foreground(mutedColor)
-	hintStyle := lipgloss.NewStyle().Foreground(mutedColor).Italic(true)
-
-	// Build the overlay content
 	var lines []string
-	lines = append(lines, titleStyle.Render("Integration Guide: "+repo.Name))
-	lines = append(lines, "")
-	lines = append(lines, statusStyle.Render("Status: "+repo.Inspection.Status.String()))
+	width := layout.DrawerContentWidth()
+
+	repo := m.repos[m.cursor]
+
+	// Header with repo name
+	lines = append(lines, headerStyle.Render(repo.Name))
 	lines = append(lines, "")
 
-	// Add guidance text, respecting terminal width
-	maxWidth := m.width - 4
-	if maxWidth < 40 {
-		maxWidth = 40
-	}
-	for _, line := range strings.Split(guidance, "\n") {
-		if len(line) > maxWidth {
-			lines = append(lines, contentStyle.Render(line[:maxWidth]))
-		} else {
-			lines = append(lines, contentStyle.Render(line))
+	// Path
+	lines = append(lines, labelStyle.Render(repo.Path))
+	lines = append(lines, "")
+
+	// Status section based on repo state
+	if repo.HasHooks {
+		// Installed repo
+		lines = append(lines, successStyle.Render("Tracking active"))
+		lines = append(lines, "")
+		lines = append(lines, labelStyle.Render("Footprint hooks are installed"))
+		lines = append(lines, labelStyle.Render("and recording your activity."))
+		lines = append(lines, "")
+		lines = append(lines, headerStyle.Render("ACTIONS"))
+		lines = append(lines, "")
+		lines = append(lines, labelStyle.Render("Select and press ")+valueStyle.Render("u")+labelStyle.Render(" to remove"))
+	} else if repo.Inspection.Status.CanInstall() {
+		// Ready to install
+		lines = append(lines, valueStyle.Render("Ready to track"))
+		lines = append(lines, "")
+		lines = append(lines, labelStyle.Render("This repo has no conflicts."))
+		lines = append(lines, labelStyle.Render("You can install hooks now."))
+		lines = append(lines, "")
+		lines = append(lines, headerStyle.Render("ACTIONS"))
+		lines = append(lines, "")
+		lines = append(lines, labelStyle.Render("Select and press ")+valueStyle.Render("i")+labelStyle.Render(" to install"))
+	} else {
+		// Blocked - needs setup
+		lines = append(lines, warnStyle.Render("Needs setup"))
+		lines = append(lines, "")
+		lines = append(lines, labelStyle.Render("Status: ")+warnStyle.Render(repo.Inspection.Status.String()))
+		lines = append(lines, "")
+
+		// Show details about conflicts
+		if repo.Inspection.GlobalHooksPath != "" {
+			lines = append(lines, headerStyle.Render("DETECTED"))
+			lines = append(lines, "")
+			lines = append(lines, labelStyle.Render("Global hooks path:"))
+			lines = append(lines, labelStyle.Render("  "+repo.Inspection.GlobalHooksPath))
+			lines = append(lines, "")
+		}
+		if len(repo.Inspection.UnmanagedHooks) > 0 {
+			lines = append(lines, headerStyle.Render("EXISTING HOOKS"))
+			lines = append(lines, "")
+			for _, h := range repo.Inspection.UnmanagedHooks {
+				lines = append(lines, labelStyle.Render("  "+h))
+			}
+			lines = append(lines, "")
+		}
+
+		// Show guidance
+		guidance := hooks.GetGuidance(repo.Inspection)
+		lines = append(lines, headerStyle.Render("HOW TO FIX"))
+		lines = append(lines, "")
+		for _, line := range strings.Split(guidance, "\n") {
+			if line == "" {
+				lines = append(lines, "")
+				continue
+			}
+			wrapped := wrapTextSimple(line, width-2)
+			for _, wl := range strings.Split(wrapped, "\n") {
+				lines = append(lines, labelStyle.Render(wl))
+			}
 		}
 	}
 
-	lines = append(lines, "")
-	lines = append(lines, hintStyle.Render("Press any key to close"))
+	// Calculate visible area and clamp scroll
+	visibleLines := height - 4
+	if visibleLines < 1 {
+		visibleLines = 1
+	}
+	totalLines := len(lines)
+	maxScroll := totalLines - visibleLines
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if m.drawerScroll > maxScroll {
+		m.drawerScroll = maxScroll
+	}
+	if m.drawerScroll < 0 {
+		m.drawerScroll = 0
+	}
 
-	content := strings.Join(lines, "\n")
+	// Slice lines to visible portion
+	startLine := m.drawerScroll
+	endLine := startLine + visibleLines
+	if endLine > totalLines {
+		endLine = totalLines
+	}
+	visibleContent := lines[startLine:endLine]
 
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(colors.Info)).
-		Padding(1, 2).
-		Width(m.width - 4).
-		Height(m.height - 2)
+	return splitpanel.Panel{
+		Lines:      visibleContent,
+		ScrollPos:  m.drawerScroll,
+		TotalItems: totalLines,
+	}
+}
 
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, boxStyle.Render(content))
+// wrapTextSimple wraps text to the specified width.
+func wrapTextSimple(text string, width int) string {
+	if width <= 0 || len(text) <= width {
+		return text
+	}
+
+	var result strings.Builder
+	words := strings.Fields(text)
+	lineLen := 0
+
+	for i, word := range words {
+		wordLen := len(word)
+		if lineLen+wordLen+1 > width && lineLen > 0 {
+			result.WriteString("\n")
+			lineLen = 0
+		}
+		if lineLen > 0 {
+			result.WriteString(" ")
+			lineLen++
+		}
+		result.WriteString(word)
+		lineLen += wordLen
+		_ = i
+	}
+
+	return result.String()
 }
 
 func (m reposModel) renderHeader() string {
@@ -581,61 +742,65 @@ func (m *reposModel) buildStatsPanel(layout *splitpanel.Layout, height int) spli
 	mutedColor := lipgloss.Color(colors.Muted)
 	successColor := lipgloss.Color(colors.Success)
 	warnColor := lipgloss.Color(colors.Warning)
-	errorColor := lipgloss.Color(colors.Error)
 
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(headerColor)
 	labelStyle := lipgloss.NewStyle().Foreground(mutedColor)
 	valueStyle := lipgloss.NewStyle().Foreground(infoColor)
 	successStyle := lipgloss.NewStyle().Foreground(successColor)
 	warnStyle := lipgloss.NewStyle().Foreground(warnColor)
-	errorStyle := lipgloss.NewStyle().Foreground(errorColor)
 
 	var lines []string
 
-	// Stats header
-	lines = append(lines, headerStyle.Render("SUMMARY"))
-	lines = append(lines, "")
-
-	// Counts
+	// Counts - simplified
 	withHooks := m.countWithHooks()
 	clean, blocked := m.countByInstallability()
+	ready := clean - withHooks
+	selected := m.countSelected()
 
-	lines = append(lines, labelStyle.Render("Total: ")+valueStyle.Render(fmt.Sprintf("%d", len(m.repos))))
-	lines = append(lines, labelStyle.Render("Installed: ")+successStyle.Render(fmt.Sprintf("%d", withHooks)))
-	lines = append(lines, labelStyle.Render("Clean: ")+warnStyle.Render(fmt.Sprintf("%d", clean-withHooks)))
+	// Overview with non-color identifiers
+	lines = append(lines, headerStyle.Render("REPOS"))
+	lines = append(lines, "")
+	lines = append(lines, successStyle.Render(fmt.Sprintf("%d ✓", withHooks))+labelStyle.Render(" tracking"))
+	lines = append(lines, valueStyle.Render(fmt.Sprintf("%d", ready))+labelStyle.Render(" ready"))
 	if blocked > 0 {
-		lines = append(lines, labelStyle.Render("Blocked: ")+errorStyle.Render(fmt.Sprintf("%d", blocked)))
+		lines = append(lines, warnStyle.Render(fmt.Sprintf("%d !", blocked))+labelStyle.Render(" need setup"))
 	}
 	lines = append(lines, "")
 
-	// Session changes
-	if m.installed > 0 || m.uninstalled > 0 {
-		lines = append(lines, headerStyle.Render("SESSION"))
+	// Selection - only show when relevant
+	if selected > 0 {
+		lines = append(lines, headerStyle.Render("SELECTED"))
+		lines = append(lines, valueStyle.Render(fmt.Sprintf("%d repos", selected)))
 		lines = append(lines, "")
+	}
+
+	// Session changes - only show when there are changes
+	if m.installed > 0 || m.uninstalled > 0 {
+		lines = append(lines, headerStyle.Render("CHANGES"))
 		if m.installed > 0 {
-			lines = append(lines, labelStyle.Render("Installed: ")+successStyle.Render(fmt.Sprintf("+%d", m.installed)))
+			lines = append(lines, successStyle.Render(fmt.Sprintf("+%d", m.installed))+labelStyle.Render(" added"))
 		}
 		if m.uninstalled > 0 {
-			lines = append(lines, labelStyle.Render("Removed: ")+warnStyle.Render(fmt.Sprintf("-%d", m.uninstalled)))
+			lines = append(lines, warnStyle.Render(fmt.Sprintf("-%d", m.uninstalled))+labelStyle.Render(" removed"))
 		}
 		lines = append(lines, "")
 	}
-
-	// Keys section
-	lines = append(lines, headerStyle.Render("KEYS"))
-	lines = append(lines, "")
-	lines = append(lines, labelStyle.Render("space ")+"toggle")
-	lines = append(lines, labelStyle.Render("i ")+"install")
-	lines = append(lines, labelStyle.Render("u ")+"uninstall")
-	lines = append(lines, labelStyle.Render("a ")+"install all")
-	lines = append(lines, labelStyle.Render("A ")+"remove all")
-	lines = append(lines, labelStyle.Render("? ")+"show help")
 
 	return splitpanel.Panel{
 		Lines:      lines,
 		ScrollPos:  0,
 		TotalItems: len(lines),
 	}
+}
+
+func (m *reposModel) countSelected() int {
+	count := 0
+	for _, r := range m.repos {
+		if r.Selected {
+			count++
+		}
+	}
+	return count
 }
 
 func (m *reposModel) countByInstallability() (clean, blocked int) {
@@ -651,19 +816,20 @@ func (m *reposModel) countByInstallability() (clean, blocked int) {
 
 func (m *reposModel) buildReposPanel(layout *splitpanel.Layout, height int) splitpanel.Panel {
 	colors := m.colors
-	infoColor := lipgloss.Color(colors.Info)
 	mutedColor := lipgloss.Color(colors.Muted)
 	successColor := lipgloss.Color(colors.Success)
 	warnColor := lipgloss.Color(colors.Warning)
-	errorColor := lipgloss.Color(colors.Error)
+	uiActiveColor := lipgloss.Color(colors.UIActive)
 
-	cursorStyle := lipgloss.NewStyle().Bold(true).Foreground(infoColor)
-	installedStyle := lipgloss.NewStyle().Foreground(successColor)
-	notInstalledStyle := lipgloss.NewStyle().Foreground(mutedColor)
-	blockedStyle := lipgloss.NewStyle().Foreground(errorColor)
+	// Simplified styling - state shown through color, not icons
+	installedNameStyle := lipgloss.NewStyle().Foreground(successColor)
+	readyNameStyle := lipgloss.NewStyle() // Default terminal color for "ready" repos
+	blockedNameStyle := lipgloss.NewStyle().Foreground(warnColor)
 	changedStyle := lipgloss.NewStyle().Foreground(warnColor)
 	pathStyle := lipgloss.NewStyle().Foreground(mutedColor)
-	statusStyle := lipgloss.NewStyle().Foreground(warnColor).Italic(true)
+
+	// Style for selected rows - background highlight
+	selectedBg := lipgloss.NewStyle().Background(uiActiveColor).Foreground(lipgloss.Color("0"))
 
 	visibleHeight := height - 2
 	if visibleHeight < 1 {
@@ -692,67 +858,83 @@ func (m *reposModel) buildReposPanel(layout *splitpanel.Layout, height int) spli
 	for i := m.scroll; i < len(m.repos) && lineCount < visibleHeight; i++ {
 		repo := m.repos[i]
 
-		// Cursor indicator
-		prefix := "  "
-		if i == m.cursor {
-			prefix = "> "
-		}
-
-		// Status indicator based on inspection
-		var status string
-		canInstall := repo.Inspection.Status.CanInstall()
-		if repo.HasHooks {
-			status = installedStyle.Render("[✓]")
-		} else if canInstall {
-			status = notInstalledStyle.Render("[ ]")
+		// Build prefix: selected items are less indented to stand out
+		var prefix string
+		if repo.Selected {
+			prefix = "* "
 		} else {
-			status = blockedStyle.Render("[×]")
+			prefix = "    "
 		}
 
-		// Name
-		name := repo.Name
+		canInstall := repo.Inspection.Status.CanInstall()
+
+		// Name styling based on state - color + non-color identifier
+		var name string
+		var marker string
+		if repo.HasHooks {
+			// Installed: green with checkmark
+			name = installedNameStyle.Render(repo.Name)
+			marker = installedNameStyle.Render(" ✓")
+		} else if canInstall {
+			// Ready to install: normal, no marker
+			name = readyNameStyle.Render(repo.Name)
+			marker = ""
+		} else {
+			// Blocked: yellow with "!" indicator
+			name = blockedNameStyle.Render(repo.Name)
+			marker = blockedNameStyle.Render(" !")
+		}
+
+		// Add cursor indicator without changing color
+		cursorIndicator := "  "
 		if i == m.cursor {
-			name = cursorStyle.Render(name)
+			cursorIndicator = "> "
 		}
 
-		// Changed indicator
+		// Changed indicator (this session)
 		changed := ""
 		if repo.HooksChanged {
-			changed = changedStyle.Render(" *")
+			changed = changedStyle.Render(" ~")
 		}
 
-		line := fmt.Sprintf("%s%s %s%s", prefix, status, name, changed)
+		line := fmt.Sprintf("%s%s%s%s%s", cursorIndicator, prefix, name, marker, changed)
 
-		// Truncate if needed
-		if lipgloss.Width(line) > contentWidth {
+		// Pad line to full width for selection background
+		lineWidth := lipgloss.Width(line)
+		if lineWidth < contentWidth {
+			line = line + strings.Repeat(" ", contentWidth-lineWidth)
+		} else if lineWidth > contentWidth {
 			line = line[:contentWidth-3] + "..."
+		}
+
+		// Apply selection background to entire line width
+		if repo.Selected {
+			line = selectedBg.Render(line)
 		}
 
 		lines = append(lines, line)
 		lineCount++
 
-		// Show details when cursor is here
+		// Show path when cursor is here
 		if i == m.cursor && lineCount < visibleHeight {
-			// Path line
 			displayPath := repo.Path
 			if home != "" {
 				if rel, err := filepath.Rel(home, repo.Path); err == nil && !strings.HasPrefix(rel, "..") {
 					displayPath = "~/" + rel
 				}
 			}
-			pathLine := "     " + pathStyle.Render(displayPath)
-			if lipgloss.Width(pathLine) > contentWidth {
+			// Indent to align with name (cursor 2 + prefix 2-4)
+			indent := "      "
+			if repo.Selected {
+				indent = "    "
+			}
+			pathLine := indent + pathStyle.Render(displayPath)
+			pathLineWidth := lipgloss.Width(pathLine)
+			if pathLineWidth > contentWidth {
 				pathLine = pathLine[:contentWidth-3] + "..."
 			}
 			lines = append(lines, pathLine)
 			lineCount++
-
-			// Status line for non-clean repos
-			if !canInstall && lineCount < visibleHeight {
-				statusLine := "     " + statusStyle.Render(repo.Inspection.Status.String())
-				lines = append(lines, statusLine)
-				lineCount++
-			}
 		}
 	}
 
@@ -768,21 +950,27 @@ func (m reposModel) renderFooter() string {
 	infoColor := lipgloss.Color(colors.Info)
 	mutedColor := lipgloss.Color(colors.Muted)
 
-	keyStyle := lipgloss.NewStyle().
-		Background(infoColor).
-		Foreground(lipgloss.Color("0")).
-		Padding(0, 1)
-
+	keyStyle := lipgloss.NewStyle().Bold(true).Foreground(infoColor)
 	labelStyle := lipgloss.NewStyle().Foreground(mutedColor)
-	sepStyle := lipgloss.NewStyle().Foreground(mutedColor)
 
-	sep := sepStyle.Render(" | ")
-
-	footer := keyStyle.Render("Tab") + labelStyle.Render(" switch") + sep +
-		keyStyle.Render("jk") + labelStyle.Render(" nav") + sep +
-		keyStyle.Render("space") + labelStyle.Render(" toggle") + sep +
-		keyStyle.Render("a") + labelStyle.Render(" all") + sep +
-		keyStyle.Render("q") + labelStyle.Render(" quit")
+	var footer string
+	if m.drawerOpen {
+		footer = keyStyle.Render("j/k") + labelStyle.Render(" scroll  ") +
+			keyStyle.Render("esc") + labelStyle.Render(" close")
+	} else {
+		selected := m.countSelected()
+		if selected > 0 {
+			footer = keyStyle.Render("i") + labelStyle.Render(" install  ") +
+				keyStyle.Render("u") + labelStyle.Render(" remove  ") +
+				keyStyle.Render("A") + labelStyle.Render(" clear  ") +
+				keyStyle.Render("q") + labelStyle.Render(" quit")
+		} else {
+			footer = keyStyle.Render("space") + labelStyle.Render(" select  ") +
+				keyStyle.Render("a") + labelStyle.Render(" all  ") +
+				keyStyle.Render("d") + labelStyle.Render(" details  ") +
+				keyStyle.Render("q") + labelStyle.Render(" quit")
+		}
+	}
 
 	footerStyle := lipgloss.NewStyle().
 		Width(m.width).

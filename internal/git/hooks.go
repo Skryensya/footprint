@@ -14,7 +14,15 @@ func RepoHooksPath(repoRoot string) (string, error) {
 		return "", err
 	}
 
-	return filepath.Clean(strings.TrimSpace(string(out))), nil
+	hooksPath := filepath.Clean(strings.TrimSpace(string(out)))
+
+	// If the path is relative, join it with repoRoot
+	if !filepath.IsAbs(hooksPath) {
+		hooksPath = filepath.Join(repoRoot, hooksPath)
+	}
+
+	// Ensure the path is absolute
+	return filepath.Abs(hooksPath)
 }
 
 func GlobalHooksPath() (string, error) {

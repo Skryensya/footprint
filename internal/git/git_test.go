@@ -528,6 +528,8 @@ func TestRepoHooksPath(t *testing.T) {
 	require.NotEmpty(t, hooksPath)
 	require.True(t, strings.HasSuffix(hooksPath, "hooks"),
 		"hooks path should end with 'hooks': %s", hooksPath)
+	require.True(t, filepath.IsAbs(hooksPath),
+		"hooks path should be absolute: %s", hooksPath)
 }
 
 func TestRepoHooksPath_InvalidRepo(t *testing.T) {

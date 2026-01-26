@@ -1,8 +1,10 @@
 package tracking
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/csv"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,6 +20,7 @@ import (
 	"github.com/footprint-tools/footprint-cli/internal/git"
 	"github.com/footprint-tools/footprint-cli/internal/log"
 	"github.com/footprint-tools/footprint-cli/internal/store"
+	"github.com/google/uuid"
 )
 
 const (
@@ -30,24 +33,24 @@ const (
 	maxBackoff     = 10 * time.Second
 )
 
-// CSV header for enriched export (ordered by importance)
+// CSV header matching semantic API schema v1
 var csvHeader = []string{
-	"authored_at",
-	"repo",
-	"branch",
-	"commit",
-	"subject",
-	"author",
+	"event_id",
+	"event_type",
+	"timestamp",
+	"repo_id",
+	"repo_name",
+	"author_id",
+	"author_name",
 	"author_email",
-	"files",
-	"additions",
+	"branch",
+	"commit_hash",
+	"parent_hashes",
+	"message",
+	"files_changed",
+	"insertions",
 	"deletions",
-	"parents",
-	"committer",
-	"committer_email",
-	"committed_at",
-	"source",
-	"machine",
+	"device",
 }
 
 // Export handles the manual `fp export` command.
@@ -289,15 +292,15 @@ func getCSVPath(exportRepo string, eventTime time.Time, currentYear int) string 
 	return filepath.Join(exportRepo, csvName)
 }
 
-// findColumnIndices returns the indices of "repo" and "commit" columns from the header.
+// findColumnIndices returns the indices of repo_id and commit_hash columns from the header.
 // Returns -1 for either if not found.
 func findColumnIndices(header []string) (repoIdx, commitIdx int) {
 	repoIdx, commitIdx = -1, -1
 	for i, col := range header {
 		switch col {
-		case "repo":
+		case "repo_id":
 			repoIdx = i
-		case "commit":
+		case "commit_hash":
 			commitIdx = i
 		}
 	}
@@ -327,8 +330,8 @@ func loadCSVRecords(csvPath string) map[string][]string {
 	// Parse header to find column indices
 	repoIdx, commitIdx := findColumnIndices(lines[0])
 	if repoIdx < 0 || commitIdx < 0 {
-		log.Warn("export: CSV header missing 'repo' or 'commit' column, using legacy indices")
-		repoIdx, commitIdx = 1, 3 // Fallback to legacy indices
+		log.Warn("export: CSV header missing repo/commit columns, using default indices")
+		repoIdx, commitIdx = 3, 9 // Default: repo_id=3, commit_hash=9
 	}
 
 	// Parse records (skip header)
@@ -351,49 +354,80 @@ func loadCSVRecords(csvPath string) map[string][]string {
 
 // buildRecord creates a CSV record from an event and its metadata.
 func buildRecord(e store.RepoEvent, meta git.CommitMetadata) []string {
-	subject := strings.ReplaceAll(meta.Subject, "\n", " ")
-	subject = strings.ReplaceAll(subject, "\r", "")
-	subject = strings.TrimSpace(subject)
+	message := strings.ReplaceAll(meta.Subject, "\n", " ")
+	message = strings.ReplaceAll(message, "\r", "")
+	message = strings.TrimSpace(message)
 
 	// Use event timestamp as fallback if git metadata not available
-	authoredAt := meta.AuthoredAt
-	if authoredAt == "" {
-		authoredAt = e.Timestamp.UTC().Format(time.RFC3339)
+	timestamp := meta.AuthoredAt
+	if timestamp == "" {
+		timestamp = e.Timestamp.UTC().Format(time.RFC3339)
 	}
 
+	// Derive event_type from parent count (>1 parent = merge)
+	eventType := "commit"
+	if strings.Contains(meta.ParentCommits, " ") {
+		eventType = "merge"
+	}
+
+	// Derive repo_name from path
+	repoName := filepath.Base(e.RepoPath)
+	if repoName == "" || repoName == "." {
+		repoName = e.RepoID
+	}
+
+	// Convert space-separated parents to comma-separated
+	parentHashes := strings.ReplaceAll(meta.ParentCommits, " ", ",")
+
 	return []string{
-		authoredAt,
+		generateEventID(),
+		eventType,
+		timestamp,
 		e.RepoID,
-		e.Branch,
-		e.Commit,
-		subject,
+		repoName,
+		generateAuthorID(meta.AuthorEmail),
 		meta.AuthorName,
 		meta.AuthorEmail,
+		e.Branch,
+		e.Commit,
+		parentHashes,
+		message,
 		strconv.Itoa(meta.FilesChanged),
 		strconv.Itoa(meta.Insertions),
 		strconv.Itoa(meta.Deletions),
-		meta.ParentCommits,
-		meta.CommitterName,
-		meta.CommitterEmail,
-		e.Timestamp.UTC().Format(time.RFC3339),
-		e.Source.String(),
 		getHostname(),
 	}
 }
 
-// writeCSVSorted writes all records to CSV, sorted by authored_at (column 0).
+// generateEventID creates a unique UUID for each event.
+func generateEventID() string {
+	return uuid.New().String()
+}
+
+// generateAuthorID creates a stable hash from author email.
+func generateAuthorID(email string) string {
+	if email == "" {
+		return ""
+	}
+	hash := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
+	return hex.EncodeToString(hash[:8]) // 16 hex chars
+}
+
+// writeCSVSorted writes all records to CSV, sorted by timestamp (column 2).
 func writeCSVSorted(csvPath string, records map[string][]string) error {
-	// Collect and sort records by authored_at
+	const timestampCol = 2 // Index of timestamp column in schema
+
+	// Collect and sort records by timestamp
 	var lines [][]string
 	for _, record := range records {
 		lines = append(lines, record)
 	}
 	sort.Slice(lines, func(i, j int) bool {
-		// Bounds check: ensure both lines have at least one element
-		if len(lines[i]) == 0 || len(lines[j]) == 0 {
+		// Bounds check: ensure both lines have enough columns
+		if len(lines[i]) <= timestampCol || len(lines[j]) <= timestampCol {
 			return len(lines[i]) > len(lines[j])
 		}
-		return lines[i][0] < lines[j][0] // authored_at is RFC3339, sorts correctly
+		return lines[i][timestampCol] < lines[j][timestampCol] // timestamp is RFC3339, sorts correctly
 	})
 
 	// Write file
@@ -786,8 +820,8 @@ func parseCSVIntoMap(content string, records map[string][]string) {
 	// Parse header to find column indices
 	repoIdx, commitIdx := findColumnIndices(lines[0])
 	if repoIdx < 0 || commitIdx < 0 {
-		log.Warn("export: CSV header missing 'repo' or 'commit' column, using legacy indices")
-		repoIdx, commitIdx = 1, 3 // Fallback to legacy indices
+		log.Warn("export: CSV header missing repo/commit columns, using default indices")
+		repoIdx, commitIdx = 3, 9 // Default: repo_id=3, commit_hash=9
 	}
 
 	maxIdx := repoIdx

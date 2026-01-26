@@ -290,6 +290,329 @@ func TestDefaultDeps(t *testing.T) {
 	require.NotEmpty(t, path)
 }
 
+// =========== PARSE LINE TESTS ===========
+
+func TestParseLine_NewFormat(t *testing.T) {
+	// Parser splits at first colon after level, so caller is file only
+	input := "[2024-01-15 10:30:45] ERROR store.go:123: something failed"
+	line := parseLine(input)
+
+	require.Equal(t, input, line.Raw)
+	require.Equal(t, "2024-01-15 10:30:45", line.Timestamp)
+	require.Equal(t, "ERROR", line.Level)
+	require.Equal(t, "store.go", line.Caller) // First colon splits here
+	require.Equal(t, "123: something failed", line.Message)
+	require.False(t, line.ParsedTime.IsZero())
+}
+
+func TestParseLine_OldFormat(t *testing.T) {
+	input := "[2024-01-15 10:30:45] WARN: this is a warning"
+	line := parseLine(input)
+
+	require.Equal(t, input, line.Raw)
+	require.Equal(t, "2024-01-15 10:30:45", line.Timestamp)
+	require.Equal(t, "WARN", line.Level)
+	require.Equal(t, "", line.Caller)
+	require.Equal(t, "this is a warning", line.Message)
+}
+
+func TestParseLine_AllLevels(t *testing.T) {
+	tests := []struct {
+		level string
+	}{
+		{"ERROR"},
+		{"WARN"},
+		{"INFO"},
+		{"DEBUG"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.level, func(t *testing.T) {
+			input := "[2024-01-15 10:30:45] " + tc.level + ": message"
+			line := parseLine(input)
+			require.Equal(t, tc.level, line.Level)
+		})
+	}
+}
+
+func TestParseLine_NoLevel(t *testing.T) {
+	input := "[2024-01-15 10:30:45] just a plain message"
+	line := parseLine(input)
+
+	require.Equal(t, "2024-01-15 10:30:45", line.Timestamp)
+	require.Equal(t, "", line.Level)
+	require.Equal(t, "just a plain message", line.Message)
+}
+
+func TestParseLine_NoBracket(t *testing.T) {
+	input := "some random text without timestamp"
+	line := parseLine(input)
+
+	require.Equal(t, input, line.Raw)
+	require.Equal(t, "", line.Timestamp)
+	require.Equal(t, "", line.Level)
+}
+
+func TestParseLine_ShortLine(t *testing.T) {
+	input := "short"
+	line := parseLine(input)
+
+	require.Equal(t, input, line.Raw)
+	require.Equal(t, "", line.Level)
+}
+
+// =========== WRAP TEXT TESTS ===========
+
+func TestWrapText_NoWrapNeeded(t *testing.T) {
+	input := "short text"
+	output := wrapText(input, 50)
+	require.Equal(t, input, output)
+}
+
+func TestWrapText_SingleWrap(t *testing.T) {
+	input := "this is a longer text that needs wrapping"
+	output := wrapText(input, 20)
+	require.Contains(t, output, "\n")
+}
+
+func TestWrapText_ZeroWidth(t *testing.T) {
+	input := "some text"
+	output := wrapText(input, 0)
+	require.Equal(t, input, output)
+}
+
+func TestWrapText_NegativeWidth(t *testing.T) {
+	input := "some text"
+	output := wrapText(input, -10)
+	require.Equal(t, input, output)
+}
+
+func TestWrapText_ExactWidth(t *testing.T) {
+	input := "hello"
+	output := wrapText(input, 5)
+	require.Equal(t, input, output)
+}
+
+// =========== MODEL TESTS ===========
+
+func TestNewLogsModel(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+
+	require.Equal(t, "/tmp/test.log", m.logPath)
+	require.NotNil(t, m.lines)
+	require.NotNil(t, m.byLevel)
+	require.NotNil(t, m.byLevelTotal)
+	require.True(t, m.autoScroll)
+	require.False(t, m.paused)
+	require.False(t, m.drawerOpen)
+}
+
+func TestLogsModel_FilteredLines_NoFilter(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.lines = []LogLine{
+		{Raw: "line1", Level: "ERROR"},
+		{Raw: "line2", Level: "INFO"},
+		{Raw: "line3", Level: "DEBUG"},
+	}
+
+	filtered := m.filteredLines()
+	require.Len(t, filtered, 3)
+}
+
+func TestLogsModel_FilteredLines_ByLevel(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.lines = []LogLine{
+		{Raw: "line1", Level: "ERROR"},
+		{Raw: "line2", Level: "INFO"},
+		{Raw: "line3", Level: "ERROR"},
+	}
+	m.filterLevel = "ERROR"
+
+	filtered := m.filteredLines()
+	require.Len(t, filtered, 2)
+}
+
+func TestLogsModel_FilteredLines_ByQuery(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.lines = []LogLine{
+		{Raw: "error in database"},
+		{Raw: "info message"},
+		{Raw: "another database error"},
+	}
+	m.filterQuery = "database"
+
+	filtered := m.filteredLines()
+	require.Len(t, filtered, 2)
+}
+
+func TestLogsModel_FilteredLines_ByLevelAndQuery(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.lines = []LogLine{
+		{Raw: "error in database", Level: "ERROR"},
+		{Raw: "info database message", Level: "INFO"},
+		{Raw: "another database error", Level: "ERROR"},
+	}
+	m.filterLevel = "ERROR"
+	m.filterQuery = "database"
+
+	filtered := m.filteredLines()
+	require.Len(t, filtered, 2)
+}
+
+func TestLogsModel_FilteredLines_CaseInsensitive(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.lines = []LogLine{
+		{Raw: "ERROR in Database"},
+		{Raw: "info message"},
+	}
+	m.filterQuery = "database"
+
+	filtered := m.filteredLines()
+	require.Len(t, filtered, 1)
+}
+
+func TestLogsModel_AddInitialLines(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+
+	lines := []LogLine{
+		{Raw: "line1", Level: "ERROR"},
+		{Raw: "line2", Level: "INFO"},
+	}
+
+	m.addInitialLines(lines)
+
+	require.Len(t, m.lines, 2)
+	require.Equal(t, 2, m.totalEver)
+	require.Equal(t, 0, m.sessionLines) // Initial lines don't count as session
+	require.Equal(t, 1, m.byLevelTotal["ERROR"])
+	require.Equal(t, 1, m.byLevelTotal["INFO"])
+	require.Equal(t, 0, m.byLevel["ERROR"]) // Session counts are 0
+}
+
+func TestLogsModel_AddSessionLines(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+
+	lines := []LogLine{
+		{Raw: "line1", Level: "ERROR"},
+		{Raw: "line2", Level: "INFO"},
+	}
+
+	m.addSessionLines(lines)
+
+	require.Len(t, m.lines, 2)
+	require.Equal(t, 2, m.totalEver)
+	require.Equal(t, 2, m.sessionLines)
+	require.Equal(t, 1, m.byLevelTotal["ERROR"])
+	require.Equal(t, 1, m.byLevel["ERROR"]) // Session counts
+}
+
+func TestLogsModel_AddLines_TrimBuffer(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+
+	// Add more than maxLogLines
+	var lines []LogLine
+	for i := 0; i < maxLogLines+100; i++ {
+		lines = append(lines, LogLine{Raw: "line"})
+	}
+
+	m.addInitialLines(lines)
+
+	require.LessOrEqual(t, len(m.lines), maxLogLines)
+}
+
+func TestLogsModel_MoveCursor(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.lines = []LogLine{
+		{Raw: "line1"},
+		{Raw: "line2"},
+		{Raw: "line3"},
+	}
+
+	// Move down
+	m.moveCursor(1)
+	require.Equal(t, 1, m.cursor)
+
+	// Move up
+	m.moveCursor(-1)
+	require.Equal(t, 0, m.cursor)
+
+	// Move past beginning
+	m.moveCursor(-10)
+	require.Equal(t, 0, m.cursor)
+
+	// Move past end
+	m.moveCursor(100)
+	require.Equal(t, 2, m.cursor)
+}
+
+func TestLogsModel_MoveCursor_EmptyLines(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	// No lines
+
+	m.moveCursor(1) // Should not panic
+	require.Equal(t, 0, m.cursor)
+}
+
+func TestLogsModel_SessionDuration(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.sessionStart = time.Now().Add(-5 * time.Second)
+
+	duration := m.sessionDuration()
+	require.GreaterOrEqual(t, duration.Seconds(), float64(5))
+}
+
+func TestLogsModel_CalculateStatsWidth(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+
+	// Zero width
+	m.width = 0
+	require.Equal(t, 20, m.calculateStatsWidth())
+
+	// Normal width
+	m.width = 100
+	width := m.calculateStatsWidth()
+	require.GreaterOrEqual(t, width, 18)
+	require.LessOrEqual(t, width, 24)
+
+	// Very small width
+	m.width = 50
+	width = m.calculateStatsWidth()
+	require.GreaterOrEqual(t, width, 18)
+}
+
+func TestLogsModel_CalculateLogsWidth(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.width = 100
+
+	// Without drawer
+	m.drawerOpen = false
+	width := m.calculateLogsWidth()
+	require.Greater(t, width, 0)
+
+	// With drawer
+	m.drawerOpen = true
+	widthWithDrawer := m.calculateLogsWidth()
+	require.Less(t, widthWithDrawer, width)
+}
+
+func TestLogsModel_UpdateDrawerDetail(t *testing.T) {
+	m := newLogsModel("/tmp/test.log")
+	m.lines = []LogLine{
+		{Raw: "line1", Level: "ERROR"},
+		{Raw: "line2", Level: "INFO"},
+	}
+	m.cursor = 0
+
+	m.updateDrawerDetail()
+	require.NotNil(t, m.drawerDetail)
+	require.Equal(t, "line1", m.drawerDetail.Raw)
+
+	// Invalid cursor
+	m.cursor = 100
+	m.updateDrawerDetail()
+	require.Nil(t, m.drawerDetail)
+}
+
 // =========== HELPERS ===========
 
 type mockFileInfo struct {

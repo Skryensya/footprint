@@ -110,6 +110,11 @@ func CurrentBranch() (string, error) {
 	return runGit("rev-parse", "--abbrev-ref", "HEAD")
 }
 
+// GetCurrentBranch returns the name of the current branch for a specific repo.
+func GetCurrentBranch(repoPath string) (string, error) {
+	return runGit("-C", repoPath, "branch", "--show-current")
+}
+
 func CommitAuthor() (string, error) {
 	return runGit("show", "-s", "--format=%an <%ae>", "HEAD")
 }

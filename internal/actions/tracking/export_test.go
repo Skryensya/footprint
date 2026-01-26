@@ -14,6 +14,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// CSV column indices for the semantic API schema
+const (
+	colEventID      = 0
+	colEventType    = 1
+	colTimestamp    = 2
+	colRepoID       = 3
+	colRepoName     = 4
+	colAuthorID     = 5
+	colAuthorName   = 6
+	colAuthorEmail  = 7
+	colBranch       = 8
+	colCommitHash   = 9
+	colParentHashes = 10
+	colMessage      = 11
+	colFilesChanged = 12
+	colInsertions   = 13
+	colDeletions    = 14
+	colDevice       = 15
+)
+
 func TestGetCSVPath_CurrentYear(t *testing.T) {
 	dir := t.TempDir()
 	currentYear := 2025
@@ -57,9 +77,9 @@ func TestLoadCSVRecords_ExistingFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.csv")
 
-	// Create CSV file with header and data
-	content := `authored_at,repo,branch,commit,subject,author,author_email,files,additions,deletions,parents,committer,committer_email,committed_at,source,machine
-2024-01-15T10:30:00Z,github.com/user/repo,main,abc123,Fix bug,John,john@example.com,3,10,5,parent1,John,john@example.com,2024-01-15T10:30:00Z,post-commit,machine1
+	// Create CSV file with new schema header and data
+	content := `event_id,event_type,timestamp,repo_id,repo_name,author_id,author_name,author_email,branch,commit_hash,parent_hashes,message,files_changed,insertions,deletions,device
+uuid1,commit,2024-01-15T10:30:00Z,github.com/user/repo,repo,auth1,John,john@example.com,main,abc123,parent1,Fix bug,3,10,5,machine1
 `
 	err := os.WriteFile(path, []byte(content), 0600)
 	require.NoError(t, err)
@@ -73,6 +93,7 @@ func TestLoadCSVRecords_ExistingFile(t *testing.T) {
 func TestBuildRecord_CreatesCorrectFormat(t *testing.T) {
 	event := store.RepoEvent{
 		RepoID:    "github.com/user/repo",
+		RepoPath:  "/path/to/repo",
 		Commit:    "abc123def456",
 		Branch:    "main",
 		Timestamp: time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
@@ -95,11 +116,14 @@ func TestBuildRecord_CreatesCorrectFormat(t *testing.T) {
 	record := buildRecord(event, meta)
 
 	require.Len(t, record, 16)
-	require.Equal(t, "2024-01-15T10:30:00Z", record[0]) // authored_at
-	require.Equal(t, "github.com/user/repo", record[1]) // repo
-	require.Equal(t, "main", record[2])                 // branch
-	require.Equal(t, "abc123def456", record[3])         // commit
-	require.Equal(t, "Fix bug", record[4])              // subject
+	require.NotEmpty(t, record[colEventID])                       // UUID generated
+	require.Equal(t, "commit", record[colEventType])              // event_type
+	require.Equal(t, "2024-01-15T10:30:00Z", record[colTimestamp]) // timestamp
+	require.Equal(t, "github.com/user/repo", record[colRepoID])   // repo_id
+	require.Equal(t, "repo", record[colRepoName])                 // repo_name (basename of path)
+	require.Equal(t, "main", record[colBranch])                   // branch
+	require.Equal(t, "abc123def456", record[colCommitHash])       // commit_hash
+	require.Equal(t, "Fix bug", record[colMessage])               // message
 }
 
 func TestBuildRecord_SanitizesNewlines(t *testing.T) {
@@ -114,15 +138,16 @@ func TestBuildRecord_SanitizesNewlines(t *testing.T) {
 	record := buildRecord(event, meta)
 
 	// \n becomes space, \r is removed
-	require.Equal(t, "Line 1 Line 2Line 3", record[4])
+	require.Equal(t, "Line 1 Line 2Line 3", record[colMessage])
 }
 
 func TestWriteCSVSorted_CreatesFileWithHeader(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.csv")
 
+	// New schema: event_id,event_type,timestamp,repo_id,repo_name,author_id,author_name,author_email,branch,commit_hash,parent_hashes,message,files_changed,insertions,deletions,device
 	records := map[string][]string{
-		"repo1:commit1": {"2024-01-15T10:30:00Z", "repo1", "main", "commit1", "msg", "", "", "0", "0", "0", "", "", "", "", "", ""},
+		"repo1:commit1": {"uuid1", "commit", "2024-01-15T10:30:00Z", "repo1", "repo1", "auth1", "", "", "main", "commit1", "", "msg", "0", "0", "0", "device1"},
 	}
 
 	err := writeCSVSorted(path, records)
@@ -137,24 +162,25 @@ func TestWriteCSVSorted_CreatesFileWithHeader(t *testing.T) {
 	header, err := reader.Read()
 	require.NoError(t, err)
 
-	require.Equal(t, "authored_at", header[0])
-	require.Equal(t, "repo", header[1])
+	require.Equal(t, "event_id", header[colEventID])
+	require.Equal(t, "repo_id", header[colRepoID])
 }
 
-func TestWriteCSVSorted_SortsByAuthoredAt(t *testing.T) {
+func TestWriteCSVSorted_SortsByTimestamp(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.csv")
 
+	// New schema: timestamp is at index 2, commit_hash at index 9
 	records := map[string][]string{
-		"repo:commit3": {"2024-01-20T10:00:00Z", "repo", "main", "commit3", "third", "", "", "0", "0", "0", "", "", "", "", "", ""},
-		"repo:commit1": {"2024-01-10T10:00:00Z", "repo", "main", "commit1", "first", "", "", "0", "0", "0", "", "", "", "", "", ""},
-		"repo:commit2": {"2024-01-15T10:00:00Z", "repo", "main", "commit2", "second", "", "", "0", "0", "0", "", "", "", "", "", ""},
+		"repo:commit3": {"uuid3", "commit", "2024-01-20T10:00:00Z", "repo", "repo", "auth", "", "", "main", "commit3", "", "third", "0", "0", "0", "device"},
+		"repo:commit1": {"uuid1", "commit", "2024-01-10T10:00:00Z", "repo", "repo", "auth", "", "", "main", "commit1", "", "first", "0", "0", "0", "device"},
+		"repo:commit2": {"uuid2", "commit", "2024-01-15T10:00:00Z", "repo", "repo", "auth", "", "", "main", "commit2", "", "second", "0", "0", "0", "device"},
 	}
 
 	err := writeCSVSorted(path, records)
 	require.NoError(t, err)
 
-	// Read and verify order
+	// Read and verify order (sorted by timestamp)
 	file, err := os.Open(path)
 	require.NoError(t, err)
 	defer func() { _ = file.Close() }()
@@ -164,9 +190,9 @@ func TestWriteCSVSorted_SortsByAuthoredAt(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, all, 4) // header + 3 records
-	require.Equal(t, "commit1", all[1][3])
-	require.Equal(t, "commit2", all[2][3])
-	require.Equal(t, "commit3", all[3][3])
+	require.Equal(t, "commit1", all[1][colCommitHash])
+	require.Equal(t, "commit2", all[2][colCommitHash])
+	require.Equal(t, "commit3", all[3][colCommitHash])
 }
 
 func TestWriteCSVSorted_HasRestrictivePermissions(t *testing.T) {
@@ -322,7 +348,7 @@ func TestExportAllEvents_MultipleReposInSameFile(t *testing.T) {
 
 	repos := make(map[string]bool)
 	for _, row := range records[1:] {
-		repos[row[1]] = true
+		repos[row[colRepoID]] = true
 	}
 	require.True(t, repos["github.com/user/repo1"])
 	require.True(t, repos["github.com/user/repo2"])
@@ -379,9 +405,9 @@ func TestExportAllEvents_EventsAreSortedByAuthoredAt(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, records, 4)
-	require.Equal(t, "first", records[1][3])
-	require.Equal(t, "second", records[2][3])
-	require.Equal(t, "third", records[3][3])
+	require.Equal(t, "first", records[1][colCommitHash])
+	require.Equal(t, "second", records[2][colCommitHash])
+	require.Equal(t, "third", records[3][colCommitHash])
 }
 
 func TestExportAllEvents_EmptyEvents(t *testing.T) {
@@ -448,7 +474,7 @@ func TestExportAllEvents_YearBoundary(t *testing.T) {
 	records2024, err := reader2024.ReadAll()
 	require.NoError(t, err)
 	require.Len(t, records2024, 2)
-	require.Equal(t, "last_of_2024", records2024[1][3])
+	require.Equal(t, "last_of_2024", records2024[1][colCommitHash])
 
 	file2025, err := os.Open(filepath.Join(exportDir, "commits.csv"))
 	require.NoError(t, err)
@@ -458,7 +484,7 @@ func TestExportAllEvents_YearBoundary(t *testing.T) {
 	records2025, err := reader2025.ReadAll()
 	require.NoError(t, err)
 	require.Len(t, records2025, 2)
-	require.Equal(t, "first_of_2025", records2025[1][3])
+	require.Equal(t, "first_of_2025", records2025[1][colCommitHash])
 }
 
 func TestExportAllEvents_PreservesExistingRecords(t *testing.T) {
@@ -516,7 +542,7 @@ func TestExportAllEvents_PreservesExistingRecords(t *testing.T) {
 
 	commits := make(map[string]bool)
 	for _, row := range records[1:] {
-		commits[row[3]] = true
+		commits[row[colCommitHash]] = true
 	}
 	require.True(t, commits["commit1"])
 	require.True(t, commits["commit2"])
@@ -574,28 +600,27 @@ func TestExportAllEvents_ReplacesDuplicates(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, records, 2) // header + 1 record (not 2)
-	require.Equal(t, "feature", records[1][2])        // branch from second export
-	require.Equal(t, "BACKFILL", records[1][14])      // source from second export (uppercase)
+	require.Equal(t, "feature", records[1][colBranch]) // branch from second export
 }
 
 func TestParseCSVIntoMap_LastWriteWins(t *testing.T) {
 	records := make(map[string][]string)
 
-	// First version
-	content1 := `authored_at,repo,branch,commit,subject,author,author_email,files,additions,deletions,parents,committer,committer_email,committed_at,source,machine
-2024-01-15T10:30:00Z,myrepo,main,abc123,First version,,,0,0,0,,,,,post-commit,machine1
+	// First version (using new semantic API schema)
+	content1 := `event_id,event_type,timestamp,repo_id,repo_name,author_id,author_name,author_email,branch,commit_hash,parent_hashes,message,files_changed,insertions,deletions,device
+uuid1,commit,2024-01-15T10:30:00Z,myrepo,myrepo,author1,,,main,abc123,,First version,0,0,0,machine1
 `
 	parseCSVIntoMap(content1, records)
 
 	// Second version (same key, different data)
-	content2 := `authored_at,repo,branch,commit,subject,author,author_email,files,additions,deletions,parents,committer,committer_email,committed_at,source,machine
-2024-01-15T10:30:00Z,myrepo,feature,abc123,Second version,,,0,0,0,,,,,backfill,machine2
+	content2 := `event_id,event_type,timestamp,repo_id,repo_name,author_id,author_name,author_email,branch,commit_hash,parent_hashes,message,files_changed,insertions,deletions,device
+uuid2,commit,2024-01-15T10:30:00Z,myrepo,myrepo,author1,,,feature,abc123,,Second version,0,0,0,machine2
 `
 	parseCSVIntoMap(content2, records)
 
 	require.Len(t, records, 1)
-	require.Equal(t, "feature", records["myrepo:abc123"][2])      // branch from second
-	require.Equal(t, "Second version", records["myrepo:abc123"][4]) // subject from second
+	require.Equal(t, "feature", records["myrepo:abc123"][colBranch])  // branch from second
+	require.Equal(t, "Second version", records["myrepo:abc123"][colMessage]) // message from second
 }
 
 func TestDoExportWork_OfflineMode_ContinuesWhenPullFails(t *testing.T) {
@@ -831,7 +856,7 @@ func TestWriteCSVSorted_InvalidPath(t *testing.T) {
 	// Try to write to an invalid path
 	path := "/nonexistent/directory/test.csv"
 	records := map[string][]string{
-		"repo:commit": {"2024-01-15T10:30:00Z", "repo", "main", "commit", "msg", "", "", "0", "0", "0", "", "", "", "", "", ""},
+		"repo:commit": {"uuid", "commit", "2024-01-15T10:30:00Z", "repo", "repo", "auth", "", "", "main", "commit", "", "msg", "0", "0", "0", "device"},
 	}
 
 	err := writeCSVSorted(path, records)

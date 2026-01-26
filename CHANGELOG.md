@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+- Updated README to reflect current commands and features
+- Improved test coverage for logs package (7.5% → 22.8%)
+
+### Fixed
+- Fixed lint issue in help interactive (De Morgan's law)
+
+---
+
 ## [0.0.11] - 2026-01-26
 
 ### Added

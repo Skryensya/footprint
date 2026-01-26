@@ -226,8 +226,15 @@ func isFpHook(hookPath string) bool {
 		return false
 	}
 	content := string(data)
-	// fp hooks contain this marker
-	return strings.Contains(content, "fp record") || strings.Contains(content, "footprint")
+	// Check for current format: FP_SOURCE='hook-name' '/path/to/fp' record
+	if strings.Contains(content, "FP_SOURCE=") && strings.Contains(content, " record") {
+		return true
+	}
+	// Check for legacy/simple format: fp record <hook-name>
+	if strings.Contains(content, "fp record") {
+		return true
+	}
+	return false
 }
 
 // Guidance messages for manual integration
