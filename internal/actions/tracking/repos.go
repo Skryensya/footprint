@@ -1,16 +1,29 @@
 package tracking
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
+	"github.com/footprint-tools/footprint-cli/internal/hooks"
 	"github.com/footprint-tools/footprint-cli/internal/store"
+	"github.com/footprint-tools/footprint-cli/internal/ui/style"
 )
 
-// Repos lists tracked repositories, or launches interactive mode.
+// Repos is the group handler - launches interactive mode if -i flag is set.
 func Repos(args []string, flags *dispatchers.ParsedFlags) error {
 	if flags.Has("-i") || flags.Has("--interactive") {
 		return ReposInteractive(args, flags)
 	}
-	return reposList(reposDeps{
+	// Default to list subcommand
+	return ReposList(args, flags)
+}
+
+// ReposList lists repositories with recorded activity.
+func ReposList(_ []string, _ *dispatchers.ParsedFlags) error {
+	return reposListImpl(reposDeps{
 		DBPath:    store.DBPath,
 		OpenStore: store.New,
 		Println:   defaultPrintln,
@@ -23,7 +36,7 @@ type reposDeps struct {
 	Println   func(...any) (int, error)
 }
 
-func reposList(deps reposDeps) error {
+func reposListImpl(deps reposDeps) error {
 	s, err := deps.OpenStore(deps.DBPath())
 	if err != nil {
 		return err
@@ -46,6 +59,89 @@ func reposList(deps reposDeps) error {
 	}
 
 	return nil
+}
+
+// ReposScan scans directories for git repositories and shows their hook status.
+func ReposScan(_ []string, flags *dispatchers.ParsedFlags) error {
+	root := flags.String("--root", ".")
+
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("invalid path %s: %w", root, err)
+	}
+	root = absRoot
+
+	maxDepth := flags.Int("--depth", 25)
+
+	fmt.Printf("Scanning for git repositories in %s...\n", root)
+	repos, err := scanForRepos(root, maxDepth)
+	if err != nil {
+		return err
+	}
+
+	if len(repos) == 0 {
+		fmt.Println("No git repositories found")
+		return nil
+	}
+
+	fmt.Printf("Found %d repositories\n\n", len(repos))
+
+	// Get home for path shortening
+	home, _ := os.UserHomeDir()
+
+	// Print repos with status
+	for _, repo := range repos {
+		displayPath := repo.Path
+		if home != "" {
+			if rel, err := filepath.Rel(home, repo.Path); err == nil && !strings.HasPrefix(rel, "..") {
+				displayPath = "~/" + rel
+			}
+		}
+
+		var status string
+		if repo.HasHooks {
+			status = style.Success("[✓]")
+		} else if repo.Inspection.Status.CanInstall() {
+			status = style.Muted("[ ]")
+		} else {
+			status = style.Error("[×]") + " " + style.Warning(repo.Inspection.Status.String())
+		}
+
+		fmt.Printf("%s %s\n", status, displayPath)
+	}
+
+	// Summary
+	fmt.Println()
+	installed := 0
+	canInstall := 0
+	blocked := 0
+	for _, r := range repos {
+		if r.HasHooks {
+			installed++
+		} else if r.Inspection.Status.CanInstall() {
+			canInstall++
+		} else {
+			blocked++
+		}
+	}
+
+	fmt.Printf("Installed: %d, Available: %d", installed, canInstall)
+	if blocked > 0 {
+		fmt.Printf(", Blocked: %d", blocked)
+	}
+	fmt.Println()
+
+	if canInstall > 0 {
+		fmt.Printf("\nUse 'fp repos -i' to install hooks interactively, or 'fp setup <path>' for individual repos.\n")
+	}
+
+	return nil
+}
+
+// CheckRepoHooks checks if fp hooks are installed in a given repo path.
+func CheckRepoHooks(repoPath string) bool {
+	inspection := hooks.InspectRepo(repoPath)
+	return inspection.FpInstalled
 }
 
 func defaultPrintln(args ...any) (int, error) {

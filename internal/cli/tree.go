@@ -178,26 +178,50 @@ Cancel:   q or Esc`,
 }
 
 func addTrackingCommands(root *dispatchers.DispatchNode) {
-	dispatchers.Command(dispatchers.CommandSpec{
+	repos := dispatchers.Group(dispatchers.GroupSpec{
 		Name:    "repos",
 		Parent:  root,
-		Summary: "List tracked repositories",
-		Description: `Shows repositories with recorded activity.
+		Summary: "List and scan repositories",
+		Description: `List tracked repositories and scan for new ones.
 
-Use -i for an interactive view where you can:
-  - See all git repos under current directory
-  - Check which ones have hooks installed
-  - Install or remove hooks easily
-
-Example:
+Examples:
   fp repos              # List repos with activity
+  fp repos scan         # Scan and show hook status
   fp repos -i           # Interactive hook manager
-  fp repos -i --root ~  # Scan from home directory`,
-		Usage:    "fp repos [-i] [--root <path>] [--depth <n>]",
-		Flags:    ReposFlags,
-		Action:   trackingactions.Repos,
+
+To install/remove hooks, use 'fp setup' and 'fp teardown'.`,
+		Usage: "fp repos <command>",
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:        "list",
+		Parent:      repos,
+		Summary:     "List tracked repositories",
+		Description: `Shows repositories that have recorded activity in the database.`,
+		Usage:       "fp repos list",
+		Action:      trackingactions.ReposList,
+		Category:    dispatchers.CategoryInspectActivity,
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:    "scan",
+		Parent:  repos,
+		Summary: "Scan for repositories and show status",
+		Description: `Finds git repositories and shows their hook installation status.
+
+Examples:
+  fp repos scan              # Scan current directory
+  fp repos scan --root ~/dev # Scan from specific path
+  fp repos scan --depth 3    # Limit scan depth`,
+		Usage:    "fp repos scan [--root <path>] [--depth <n>]",
+		Flags:    ReposScanFlags,
+		Action:   trackingactions.ReposScan,
 		Category: dispatchers.CategoryInspectActivity,
 	})
+
+	// Interactive mode at group level
+	repos.Flags = ReposFlags
+	repos.Action = trackingactions.Repos
 
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "record",
@@ -296,7 +320,7 @@ func addSetupCommands(root *dispatchers.DispatchNode) {
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "setup",
 		Parent:  root,
-		Summary: "Start tracking this repository",
+		Summary: "Start tracking a repository",
 		Description: `Installs git hooks to record your activity automatically.
 
 After setup, every commit, merge, checkout, rebase, and push in this
@@ -304,10 +328,17 @@ repo will be tracked. Run this once per repository.
 
 Existing hooks are backed up before installation.
 
-Example:
-  cd /path/to/repo
-  fp setup`,
-		Usage:    "fp setup [--force]",
+Examples:
+  fp setup                     # Install in current repo
+  fp setup ~/projects/myapp    # Install in specific repo
+  fp setup --core-hooks-path   # Set global hooks (see note below)
+
+The --core-hooks-path flag sets git's global core.hooksPath. This works
+for repos WITHOUT their own core.hooksPath setting. Repos with local
+core.hooksPath (like Husky) will ignore the global setting - for those,
+integrate manually by adding 'fp record <hook>' to their hooks.`,
+		Usage:    "fp setup [path] [--core-hooks-path] [--force]",
+		Args:     OptionalRepoPathArg,
 		Flags:    SetupFlags,
 		Action:   setupactions.Setup,
 		Category: dispatchers.CategoryGetStarted,
@@ -316,11 +347,17 @@ Example:
 	dispatchers.Command(dispatchers.CommandSpec{
 		Name:    "teardown",
 		Parent:  root,
-		Summary: "Stop tracking this repository",
-		Description: `Removes fp hooks from the current repository.
+		Summary: "Stop tracking a repository",
+		Description: `Removes fp hooks from a repository.
 
-If you had hooks before fp, they will be restored from backup.`,
-		Usage:    "fp teardown [--force]",
+If you had hooks before fp, they will be restored from backup.
+
+Examples:
+  fp teardown                     # Remove from current repo
+  fp teardown ~/projects/myapp    # Remove from specific repo
+  fp teardown --core-hooks-path   # Remove global hooks, unset core.hooksPath`,
+		Usage:    "fp teardown [path] [--core-hooks-path] [--force]",
+		Args:     OptionalRepoPathArg,
 		Flags:    TeardownFlags,
 		Action:   setupactions.Teardown,
 		Category: dispatchers.CategoryManageRepos,

@@ -6,39 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
----
-
-## [0.0.11] - 2026-01-26
-
 ### Added
-- Interactive logs viewer with `fp logs -i` for filtering and navigation
-- Interactive repos manager with `fp repos -i` to manage hooks across repositories
-- Hook inspection utility for checking hook status
-- Configurable date/time display formats (`display_date`, `display_time` config options)
-- Comprehensive test coverage improvements:
-  - `format` package: 0% → 92%
-  - `repo` package: 67% → 100%
-  - `git` package: 66% → 83%
-  - `actions/update` package: 45% → 93%
-  - New tests for export, backfill, and tracking functions
+- `fp repos scan` subcommand to find repos and show hook installation status
+- `fp setup [path]` and `fp teardown [path]` now accept optional path argument
+- `fp setup --core-hooks-path` for global hooks (with clear limitation warnings)
+- `fp teardown --core-hooks-path` to remove global hooks
+- Interactive logs viewer (`fp logs -i`) with filtering and navigation
+- Interactive repos manager (`fp repos -i`) to manage hooks visually
+- Hook inspection for detecting hook managers (pre-commit, husky, lefthook)
+- Configurable date/time display (`display_date`, `display_time` config options)
+- Color customization docs in configuration topic (ANSI 256-color codes)
+- Test coverage improvements (format 92%, repo 100%, git 83%, update 93%)
 
 ### Changed
-- Simplified and clarified all help text:
-  - Removed references to non-existent commands
-  - Made summaries shorter and action-oriented
-  - Added practical examples to command descriptions
-  - Marked internal commands clearly (`record`, `export`)
-- Updated all help topics (overview, workflow, hooks, data, configuration, troubleshooting)
-- Improved command summaries for scannability
+- `repos` is now a command group with `list` and `scan` subcommands
+- Hook status "Global hooks active" renamed to "core.hooksPath set" (clearer)
+- Documentation clarifies that `--core-hooks-path` doesn't override local settings
+- Simplified all help text with practical examples
+- Interactive help colorizes content (headers, commands, config keys)
+- Logs viewer respects user's date/time format settings
 
 ### Removed
 - Removed unused commands: `track`, `untrack`, `status`, `sync-remote`
-- Removed `--repo` flag from `setup` (was never implemented)
-- Cleaned up dead code and unused interfaces
+- Removed `--repo` flag from `setup` (never implemented)
 
 ### Fixed
-- Help documentation now matches actual available commands
-- Consistent terminology across all help text
+- Flag parsing now works with space syntax (`--root ..` instead of `--root=..`)
+- Help documentation matches actual available commands
 
 ---
 

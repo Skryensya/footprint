@@ -17,11 +17,12 @@ const (
 
 // LogLine represents a parsed log line
 type LogLine struct {
-	Raw       string
-	Timestamp string
-	Level     string // ERROR, WARN, INFO, DEBUG
-	Caller    string // file:line
-	Message   string
+	Raw        string
+	Timestamp  string    // raw timestamp string from log
+	ParsedTime time.Time // parsed time for formatting
+	Level      string    // ERROR, WARN, INFO, DEBUG
+	Caller     string    // file:line
+	Message    string
 }
 
 // Messages
@@ -595,6 +596,10 @@ func parseLine(raw string) LogLine {
 		closeBracket := strings.Index(raw, "]")
 		if closeBracket > 0 {
 			line.Timestamp = raw[1:closeBracket]
+			// Parse timestamp for configurable formatting
+			if parsed, err := time.Parse("2006-01-02 15:04:05", line.Timestamp); err == nil {
+				line.ParsedTime = parsed
+			}
 			rest := strings.TrimSpace(raw[closeBracket+1:])
 
 			// Check for level (with or without caller)

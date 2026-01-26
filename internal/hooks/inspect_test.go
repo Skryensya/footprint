@@ -132,7 +132,7 @@ func TestInspectRepo_StatusStrings(t *testing.T) {
 		{StatusManagedHusky, "Managed: husky"},
 		{StatusManagedLefthook, "Managed: lefthook"},
 		{StatusUnmanagedHooks, "Unmanaged hooks"},
-		{StatusGlobalHooksActive, "Global hooks active"},
+		{StatusHooksPathOverride, "core.hooksPath set"},
 	}
 
 	for _, tt := range tests {
@@ -152,7 +152,7 @@ func TestInspectRepo_CanInstall(t *testing.T) {
 		{StatusManagedHusky, false},
 		{StatusManagedLefthook, false},
 		{StatusUnmanagedHooks, false},
-		{StatusGlobalHooksActive, false},
+		{StatusHooksPathOverride, false},
 	}
 
 	for _, tt := range tests {
@@ -171,7 +171,7 @@ func TestGetGuidance(t *testing.T) {
 		{StatusManagedHusky, ".husky/post-commit"},
 		{StatusManagedLefthook, "lefthook.yml"},
 		{StatusUnmanagedHooks, ".git/hooks"},
-		{StatusGlobalHooksActive, "core.hooksPath"},
+		{StatusHooksPathOverride, "core.hooksPath"},
 	}
 
 	for _, tt := range tests {

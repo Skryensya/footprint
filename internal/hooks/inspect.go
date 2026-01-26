@@ -17,7 +17,7 @@ const (
 	StatusManagedHusky
 	StatusManagedLefthook
 	StatusUnmanagedHooks
-	StatusGlobalHooksActive
+	StatusHooksPathOverride // core.hooksPath is set (local or global)
 )
 
 func (s RepoHookStatus) String() string {
@@ -32,8 +32,8 @@ func (s RepoHookStatus) String() string {
 		return "Managed: lefthook"
 	case StatusUnmanagedHooks:
 		return "Unmanaged hooks"
-	case StatusGlobalHooksActive:
-		return "Global hooks active"
+	case StatusHooksPathOverride:
+		return "core.hooksPath set"
 	default:
 		return "Unknown"
 	}
@@ -64,7 +64,7 @@ func InspectRepo(repoPath string) RepoInspection {
 	// 1. Check for global hooks override first (highest priority)
 	globalPath := getGlobalHooksPath(repoPath)
 	if globalPath != "" {
-		inspection.Status = StatusGlobalHooksActive
+		inspection.Status = StatusHooksPathOverride
 		inspection.GlobalHooksPath = globalPath
 		return inspection
 	}
@@ -322,7 +322,7 @@ func GetGuidance(inspection RepoInspection) string {
 		return GuidanceLefthook
 	case StatusUnmanagedHooks:
 		return GuidanceUnmanagedHooks
-	case StatusGlobalHooksActive:
+	case StatusHooksPathOverride:
 		return strings.Replace(GuidanceGlobalHooks, "%s", inspection.GlobalHooksPath, 1)
 	default:
 		return ""

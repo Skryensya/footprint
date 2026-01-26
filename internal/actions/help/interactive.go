@@ -684,17 +684,6 @@ func (m *model) buildSidebarPanel(layout *splitpanel.Layout, height int) splitpa
 	mutedColor := lipgloss.Color(colors.Muted)
 	warnColor := lipgloss.Color(colors.Warning)
 
-	// Topic colors from theme
-	topicColors := []lipgloss.Color{
-		lipgloss.Color(colors.Color1),
-		lipgloss.Color(colors.Color2),
-		lipgloss.Color(colors.Color3),
-		lipgloss.Color(colors.Color4),
-		lipgloss.Color(colors.Color5),
-		lipgloss.Color(colors.Color6),
-		lipgloss.Color(colors.Color7),
-	}
-
 	visibleHeight := height - 2 // Account for panel border
 
 	// Calculate scroll offset to keep cursor visible
@@ -714,16 +703,10 @@ func (m *model) buildSidebarPanel(layout *splitpanel.Layout, height int) splitpa
 		lines = append(lines, emptyStyle.Render("No matches found"))
 	}
 
-	// Track topic index for coloring
-	topicIndex := 0
-
 	// Build visible lines - one line per item, no extra spacing
 	for i, item := range m.items {
 		// Skip items before scroll offset
 		if i < scrollOffset {
-			if item.IsTopic {
-				topicIndex++
-			}
 			continue
 		}
 		// Stop when we've filled visible area
@@ -767,20 +750,9 @@ func (m *model) buildSidebarPanel(layout *splitpanel.Layout, height int) splitpa
 						Bold(true).
 						Foreground(warnColor)
 				}
-				line = prefix + nameStyle.Render(item.DisplayName)
-			} else if item.IsTopic {
-				// Topic items with theme colors
-				colorIdx := topicIndex % len(topicColors)
-				nameStyle = nameStyle.Foreground(topicColors[colorIdx])
-				line = prefix + nameStyle.Render(item.DisplayName)
-			} else {
-				// Regular command
-				line = prefix + nameStyle.Render(item.DisplayName)
 			}
-
-			if item.IsTopic {
-				topicIndex++
-			}
+			// All items (commands and topics) use same plain style when not selected
+			line = prefix + nameStyle.Render(item.DisplayName)
 		}
 
 		lines = append(lines, line)
@@ -897,7 +869,8 @@ func (m model) renderCommandContent(node *dispatchers.DispatchNode, width int) s
 	if node.Description != "" {
 		b.WriteString(headerStyle.Render("DESCRIPTION"))
 		b.WriteString("\n")
-		b.WriteString(wrapText(node.Description, width-6))
+		coloredDesc := m.colorizeDescription(node.Description, width-6)
+		b.WriteString(coloredDesc)
 		b.WriteString("\n\n")
 	}
 
@@ -952,11 +925,10 @@ func (m model) renderTopicContent(topic *help.Topic, width int) string {
 	colors := m.colors
 	infoColor := lipgloss.Color(colors.Info)
 	mutedColor := lipgloss.Color(colors.Muted)
-	successColor := lipgloss.Color(colors.Success)
 
 	var b strings.Builder
 
-	// Title with topic color
+	// Title
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(infoColor)
@@ -969,22 +941,162 @@ func (m model) renderTopicContent(topic *help.Topic, width int) string {
 	b.WriteString(summaryStyle.Render(topic.Summary))
 	b.WriteString("\n\n")
 
-	// Section header style (same as commands for consistency)
-	headerStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(successColor)
-
-	b.WriteString(headerStyle.Render("CONTENT"))
-	b.WriteString("\n\n")
-
-	// Wrap content to width
+	// Render content with colors
 	content := topic.Content()
-	if width > 0 {
-		content = wrapText(content, width-4)
-	}
-	b.WriteString(content)
+	coloredContent := m.colorizeTopicContent(content, width)
+	b.WriteString(coloredContent)
 
 	return b.String()
+}
+
+// colorizeTopicContent adds colors to topic content based on structure
+func (m model) colorizeTopicContent(content string, _ int) string {
+	colors := m.colors
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colors.Success))
+	commandStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colors.Info))
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colors.Warning))
+	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colors.Muted))
+
+	var result strings.Builder
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Detect section headers (ALL CAPS lines)
+		if len(trimmed) > 0 && trimmed == strings.ToUpper(trimmed) && !strings.HasPrefix(trimmed, "$") && !strings.HasPrefix(trimmed, "-") {
+			// Check if it's truly a header (letters only, no special chars except spaces)
+			isHeader := true
+			for _, r := range trimmed {
+				if !((r >= 'A' && r <= 'Z') || r == ' ' || r == '(' || r == ')') {
+					isHeader = false
+					break
+				}
+			}
+			if isHeader && len(trimmed) > 1 {
+				result.WriteString(headerStyle.Render(line))
+				result.WriteString("\n")
+				continue
+			}
+		}
+
+		// Detect command examples (lines starting with $ or fp)
+		if strings.HasPrefix(trimmed, "$ ") || strings.HasPrefix(trimmed, "fp ") {
+			result.WriteString(commandStyle.Render(line))
+			result.WriteString("\n")
+			continue
+		}
+
+		// Detect key=value or key: value patterns (config keys, settings)
+		if strings.Contains(line, "    ") && len(trimmed) > 0 {
+			// Check for setting name patterns (indented key followed by description)
+			parts := strings.SplitN(trimmed, " ", 2)
+			if len(parts) >= 1 {
+				firstWord := parts[0]
+				// Check if it looks like a config key (lowercase with underscores, or flag)
+				if (strings.Contains(firstWord, "_") || strings.HasPrefix(firstWord, "--") || strings.HasPrefix(firstWord, "FP_")) && !strings.HasSuffix(firstWord, ":") {
+					// It's a key/setting - color the key
+					indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					if len(parts) == 2 {
+						result.WriteString(indent)
+						result.WriteString(keyStyle.Render(firstWord))
+						result.WriteString(mutedStyle.Render(" " + parts[1]))
+					} else {
+						result.WriteString(indent)
+						result.WriteString(keyStyle.Render(firstWord))
+					}
+					result.WriteString("\n")
+					continue
+				}
+			}
+		}
+
+		// Detect URLs
+		if strings.Contains(line, "https://") || strings.Contains(line, "http://") {
+			result.WriteString(commandStyle.Render(line))
+			result.WriteString("\n")
+			continue
+		}
+
+		// Default - regular text
+		result.WriteString(line)
+		result.WriteString("\n")
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+// colorizeDescription adds colors to command descriptions
+func (m model) colorizeDescription(desc string, width int) string {
+	colors := m.colors
+	commandStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colors.Info))
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colors.Warning))
+
+	var result strings.Builder
+	lines := strings.Split(desc, "\n")
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Detect command examples (lines starting with fp or $)
+		if strings.HasPrefix(trimmed, "fp ") || strings.HasPrefix(trimmed, "$ ") {
+			result.WriteString(commandStyle.Render(line))
+			result.WriteString("\n")
+			continue
+		}
+
+		// Detect Examples: header or similar
+		if trimmed == "Examples:" || trimmed == "Example:" {
+			result.WriteString(keyStyle.Render(line))
+			result.WriteString("\n")
+			continue
+		}
+
+		// Detect flag references in text (--something)
+		if strings.Contains(line, "--") {
+			colored := m.colorizeFlags(line)
+			result.WriteString(colored)
+			result.WriteString("\n")
+			continue
+		}
+
+		// Default - regular text, wrap if needed
+		if len(line) > width && width > 0 {
+			result.WriteString(wrapText(line, width))
+			result.WriteString("\n")
+		} else {
+			result.WriteString(line)
+			result.WriteString("\n")
+		}
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+// colorizeFlags highlights --flag patterns in a line
+func (m model) colorizeFlags(line string) string {
+	colors := m.colors
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(colors.Warning))
+
+	var result strings.Builder
+	i := 0
+	for i < len(line) {
+		// Look for -- pattern
+		if i < len(line)-2 && line[i:i+2] == "--" {
+			// Find the end of the flag (space, comma, or end of string)
+			j := i + 2
+			for j < len(line) && line[j] != ' ' && line[j] != ',' && line[j] != ')' && line[j] != '.' {
+				j++
+			}
+			flag := line[i:j]
+			result.WriteString(keyStyle.Render(flag))
+			i = j
+		} else {
+			result.WriteByte(line[i])
+			i++
+		}
+	}
+	return result.String()
 }
 
 func wrapText(text string, width int) string {

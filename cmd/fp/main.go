@@ -106,7 +106,7 @@ func extractFlagsAndCommands(args []string) ([]string, []string) {
 	}
 
 	// Flags that require a value (long form prefix)
-	valueFlagsLong := []string{"--limit", "--pager", "--status", "--source", "--since", "--until", "--repo"}
+	valueFlagsLong := []string{"--limit", "--pager", "--status", "--source", "--since", "--until", "--repo", "--root", "--depth", "--branch", "--tag"}
 
 	i := 0
 	for i < len(args) {

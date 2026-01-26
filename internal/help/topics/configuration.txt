@@ -25,7 +25,7 @@ APPEARANCE
 
     theme                  Color theme to use
                            Options: default, neon, aurora, mono, ocean, sunset, candy, contrast
-                           Add -dark or -light suffix
+                           Add -dark or -light suffix (auto-detected if omitted)
                            Example: fp config set theme neon-dark
 
     display_date           Date format
@@ -46,8 +46,63 @@ ENVIRONMENT VARIABLES
 Override settings without changing the config file:
 
     FP_NO_COLOR         Disable colors (set to any value)
-    FP_COLOR_THEME      Override theme
+    FP_COLOR_THEME      Override theme (e.g., neon-dark, ocean-light)
     FP_LOG_ENABLED      Override enable_log
+
+COLOR CUSTOMIZATION
+
+You can override individual colors from any theme. Colors use ANSI 256-color
+codes (0-255) or "bold" for bold text. Set them in ~/.fprc or via environment
+variables (prefix with FP_ and uppercase, e.g., FP_COLOR_SUCCESS).
+
+Priority: environment variable > config file > theme > default
+
+SEMANTIC COLORS (UI meaning)
+
+    color_success      Success messages, confirmations       (default: green)
+    color_warning      Warnings, cautions                    (default: yellow)
+    color_error        Errors, failures                      (default: red)
+    color_info         Information, highlights               (default: cyan)
+    color_muted        Secondary text, less important        (default: gray)
+    color_header       Titles, section headers               (default: bold)
+
+INTERFACE COLORS (Interactive elements)
+
+    color_border       Borders, dividers, scrollbar track    (default: gray)
+    color_ui_active    Focused/active elements               (default: cyan)
+    color_ui_dim       Unfocused/inactive elements           (default: dark gray)
+
+EVENT TYPE COLORS (Activity display)
+
+    color_1            POST-COMMIT events                    (default: green)
+    color_2            POST-REWRITE events (rebase, amend)   (default: magenta)
+    color_3            POST-CHECKOUT events                  (default: blue)
+    color_4            POST-MERGE events                     (default: cyan)
+    color_5            PRE-PUSH events                       (default: yellow)
+    color_6            BACKFILL events (imported history)    (default: gray)
+    color_7            MANUAL events (fp record)             (default: white)
+
+EXAMPLES
+
+Override a single color:
+    fp config set color_error 196         # Bright red
+    fp config set color_success 46        # Bright green
+
+Use environment variable:
+    export FP_COLOR_WARNING=208           # Orange warnings
+
+Common ANSI 256 colors:
+    Red:     196 (bright), 124 (dark)
+    Green:   46 (bright), 28 (dark)
+    Blue:    21 (bright), 27 (dark)
+    Yellow:  226 (bright), 136 (dark)
+    Cyan:    51 (bright), 30 (dark)
+    Magenta: 201 (bright), 90 (dark)
+    Gray:    245 (medium), 240 (dark), 250 (light)
+    White:   231, 255
+    Black:   232, 16
+
+Full 256-color chart: https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
 
 CONFIG FILE LOCATION
 

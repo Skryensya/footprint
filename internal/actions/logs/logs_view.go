@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/footprint-tools/footprint-cli/internal/format"
 	"github.com/footprint-tools/footprint-cli/internal/ui/splitpanel"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -235,9 +236,13 @@ func (m logsModel) formatLogLine(logLine LogLine, width int, selected bool) stri
 	// Build plain text version for selected (inverted) display
 	var plainParts []string
 
-	// Time (just HH:MM:SS)
+	// Time (formatted according to user config)
 	ts := ""
-	if logLine.Timestamp != "" {
+	if !logLine.ParsedTime.IsZero() {
+		ts = format.TimeFull(logLine.ParsedTime)
+		plainParts = append(plainParts, ts)
+	} else if logLine.Timestamp != "" {
+		// Fallback to raw timestamp if parsing failed
 		ts = logLine.Timestamp
 		if len(ts) > 11 {
 			ts = ts[11:] // Skip date, keep time
@@ -338,7 +343,12 @@ func (m *logsModel) buildDrawerPanel(layout *splitpanel.Layout, height int) spli
 		}
 
 		// Timestamp
-		if logLine.Timestamp != "" {
+		if !logLine.ParsedTime.IsZero() {
+			lines = append(lines, labelStyle.Render("Timestamp:"))
+			lines = append(lines, valueStyle.Render("  "+format.Full(logLine.ParsedTime)))
+			lines = append(lines, "")
+		} else if logLine.Timestamp != "" {
+			// Fallback to raw timestamp if parsing failed
 			lines = append(lines, labelStyle.Render("Timestamp:"))
 			lines = append(lines, valueStyle.Render("  "+logLine.Timestamp))
 			lines = append(lines, "")

@@ -104,6 +104,11 @@ var (
 
 	SetupFlags = []dispatchers.FlagDescriptor{
 		{
+			Names:       []string{"--core-hooks-path"},
+			Description: "Set git core.hooksPath globally (affects ALL repos on this machine)",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
 			Names:       []string{"--force"},
 			Description: "Overwrite existing hooks without prompting",
 			Scope:       dispatchers.FlagScopeLocal,
@@ -111,6 +116,11 @@ var (
 	}
 
 	TeardownFlags = []dispatchers.FlagDescriptor{
+		{
+			Names:       []string{"--core-hooks-path"},
+			Description: "Unset git core.hooksPath and remove global hooks",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
 		{
 			Names:       []string{"--force"},
 			Description: "Remove hooks without prompting",
@@ -124,6 +134,21 @@ var (
 			Description: "Interactive mode to manage hooks across repositories",
 			Scope:       dispatchers.FlagScopeLocal,
 		},
+		{
+			Names:       []string{"--root"},
+			ValueHint:   "<path>",
+			Description: "Root directory to scan (default: current directory)",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+		{
+			Names:       []string{"--depth"},
+			ValueHint:   "<n>",
+			Description: "Maximum depth to scan (default: 25)",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+	}
+
+	ReposScanFlags = []dispatchers.FlagDescriptor{
 		{
 			Names:       []string{"--root"},
 			ValueHint:   "<path>",

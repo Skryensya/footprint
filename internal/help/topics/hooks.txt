@@ -11,12 +11,42 @@ WHAT HOOKS DO
     post-rewrite    Records rebases and amended commits
     pre-push        Records push attempts
 
-HOW TO INSTALL
+INSTALLATION OPTIONS
 
-Run this in each repository you want to track:
+Option 1: Per-repository (recommended for most users)
 
-    $ cd /path/to/repo
-    $ fp setup
+    $ fp setup                    # Current repo
+    $ fp setup ~/projects/myapp   # Specific repo
+
+Option 2: Global via core.hooksPath
+
+    $ fp setup --core-hooks-path
+
+    This sets git's global core.hooksPath. Works for repos WITHOUT
+    their own local core.hooksPath setting.
+
+    LIMITATION: Repos with Husky, lefthook, or any local core.hooksPath
+    will NOT use the global hooks. Local config always wins.
+
+Option 3: Integration with hook managers (Husky, pre-commit, lefthook)
+
+    If a repo uses Husky, pre-commit, or lefthook, add fp to their hooks:
+
+    Husky (.husky/post-commit):
+        fp record post-commit
+
+    pre-commit (.pre-commit-config.yaml):
+        - repo: local
+          hooks:
+            - id: footprint
+              entry: fp record post-commit
+              stages: [post-commit]
+
+    lefthook (lefthook.yml):
+        post-commit:
+          commands:
+            footprint:
+              run: fp record post-commit
 
 WHAT HAPPENS DURING SETUP
 
@@ -35,21 +65,22 @@ When you make a commit (or merge, checkout, etc.):
 
 CHECKING HOOK STATUS
 
-    $ fp check
-
-This shows which hooks are installed and if any backups exist.
+    $ fp check              # Current repo
+    $ fp repos scan         # Scan multiple repos
 
 REMOVING HOOKS
 
-    $ fp teardown
+    $ fp teardown                     # Current repo
+    $ fp teardown ~/projects/myapp    # Specific repo
+    $ fp teardown --core-hooks-path   # Remove global hooks
 
-This removes fp hooks. If original hooks were backed up, they're restored.
+GIT CONFIG PRIORITY
 
-EXISTING HOOKS
+Git configuration priority (highest to lowest):
 
-If you already have hooks (like pre-commit linters):
+    1. Local   (.git/config)      - always wins
+    2. Global  (~/.gitconfig)
+    3. System  (/etc/gitconfig)
 
-    - fp detects them during setup
-    - Your hooks are backed up to .git/hooks/*.backup
-    - Use 'fp check' to see backup status
-    - Use 'fp teardown' to restore your original hooks
+This is why --core-hooks-path doesn't affect repos with local
+core.hooksPath settings.
