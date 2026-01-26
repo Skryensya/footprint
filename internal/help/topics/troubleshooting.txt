@@ -1,67 +1,69 @@
 TROUBLESHOOTING
 
-Common issues and how to resolve them.
+Common issues and how to fix them.
 
 HOOKS NOT RUNNING
 
 If fp doesn't record events after commits:
 
-    1. Check hooks are installed:
+    1. Check if hooks are installed:
        $ fp check
 
-    2. Verify the repo is tracked:
-       $ fp status
-
-    3. Re-install hooks if needed:
+    2. Re-install hooks if needed:
        $ fp setup
 
-REPOSITORY NOT TRACKING
+    3. Make sure you're in the right directory (the repo root).
 
-If 'fp status' shows the repo is not tracked:
+NO EVENTS SHOWING UP
 
-    1. Track the repository:
-       $ fp track
+If 'fp activity' shows nothing:
 
-    2. If it was tracked before but changed remotes:
-       $ fp sync-remote
+    1. Verify hooks are installed:
+       $ fp check
 
-MISSING EVENTS
+    2. Make a test commit and check again:
+       $ git commit --allow-empty -m "test"
+       $ fp activity
 
-If some events are missing:
-
-    1. Check if the repo was tracked at the time
-    2. Use backfill to import historical commits:
+    3. If the repo existed before fp, import old commits:
        $ fp backfill
 
-    Note: backfill only imports commits, not other event types.
+MISSING HISTORICAL EVENTS
+
+To import commits made before fp was installed:
+
+    $ fp backfill                    # Import all past commits
+    $ fp backfill --since 2024-01-01 # Import from specific date
+    $ fp backfill --limit 100        # Import last 100 commits
+
+Note: backfill only imports commits, not merges or checkouts.
 
 VIEWING LOGS
 
 Enable logging to debug issues:
 
     $ fp config set enable_log true
-    $ fp config set log_level debug
-    $ fp logs --tail
+    $ fp logs --tail                 # Watch logs in real time
 
-Logs are stored at:
-    $XDG_CONFIG_HOME/Footprint/fp.log
+Log location:
+    Linux:  ~/.config/Footprint/fp.log
+    macOS:  ~/Library/Application Support/Footprint/fp.log
 
 RESETTING DATA
 
-To completely reset fp data:
+To start fresh:
 
     1. Remove the database:
-       $ rm ~/.config/Footprint/store.db    # Linux
-       $ rm ~/Library/Application\ Support/Footprint/store.db  # macOS
+       Linux:  rm ~/.config/Footprint/store.db
+       macOS:  rm ~/Library/Application\ Support/Footprint/store.db
 
-    2. Or clear logs only:
+    2. Or just clear logs:
        $ fp logs --clear
 
 HOOKS CONFLICT WITH EXISTING HOOKS
 
-If you have existing git hooks:
+If you already have git hooks:
 
     1. fp backs them up automatically during setup
-    2. Check backup status:
-       $ fp check
-    3. Restore manually from .git/hooks/*.backup if needed
+    2. Check backup status with: fp check
+    3. Backups are saved as .git/hooks/*.backup

@@ -1,21 +1,37 @@
 OVERVIEW
 
-fp (footprint) is a local activity tracking tool for Git repositories.
+fp (footprint) tracks your git activity locally and privately.
 
 WHAT FP DOES
 
-    - Records git events (commits, merges, checkouts, rebases, pushes)
-      via lightweight git hooks
-    - Stores events locally in a SQLite database
-    - Provides commands to view your activity across all tracked repos
-    - Identifies repositories by their remote URL (or local path if no remote)
+    - Records commits, merges, checkouts, rebases, and pushes
+    - Stores everything in a local database on your machine
+    - Lets you view activity across all your repositories
+    - Exports data to CSV for backup or analysis
 
 WHAT FP DOES NOT DO
 
-    - Does not sync data to any server or cloud service
-    - Does not modify your git history or repository contents
-    - Does not require network access
-    - Does not track file contents, only event metadata
-    - Does not run continuously (only triggered by git hooks)
+    - Does not send data anywhere (no cloud, no servers)
+    - Does not modify your git history or code
+    - Does not need internet access
+    - Does not store file contents (only event metadata)
+    - Does not run in the background (only triggered by git)
 
-All data stays on your machine under $XDG_CONFIG_HOME/Footprint/.
+HOW IT WORKS
+
+    1. You run 'fp setup' in a repository
+    2. fp installs git hooks that call 'fp record' automatically
+    3. Every commit/merge/etc. gets saved to a local database
+    4. You view your activity with 'fp activity' or 'fp watch'
+
+WHERE DATA LIVES
+
+    Linux:  ~/.config/Footprint/
+    macOS:  ~/Library/Application Support/Footprint/
+
+GETTING STARTED
+
+    $ cd /path/to/your/repo
+    $ fp setup
+    $ git commit -m "test"
+    $ fp activity

@@ -30,7 +30,7 @@ func Browser(args []string, flags *dispatchers.ParsedFlags) error {
 
 func browser(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 	if !term.IsTerminal(int(os.Stdin.Fd())) || !term.IsTerminal(int(os.Stdout.Fd())) {
-		return errors.New("interactive-help requires an interactive terminal")
+		return errors.New("interactive help requires an interactive terminal")
 	}
 
 	root := deps.BuildTree()

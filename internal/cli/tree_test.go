@@ -20,12 +20,7 @@ func TestBuildTree_HasExpectedTopLevelCommands(t *testing.T) {
 		"version",
 		"config",
 		"theme",
-		"track",
-		"untrack",
 		"repos",
-		"list",
-		"status",
-		"sync-remote",
 		"record",
 		"activity",
 		"watch",
@@ -76,12 +71,7 @@ func TestBuildTree_CommandsHaveActions(t *testing.T) {
 	// Commands that should have actions
 	commandsWithActions := []string{
 		"version",
-		"track",
-		"untrack",
 		"repos",
-		"list",
-		"status",
-		"sync-remote",
 		"record",
 		"activity",
 		"watch",
@@ -179,32 +169,13 @@ func TestBuildTree_HelpHasNoAction(t *testing.T) {
 	require.Nil(t, help.Action, "help should not have an action (handled specially)")
 }
 
-func TestBuildTree_TrackHasFlags(t *testing.T) {
-	root := BuildTree()
-
-	track := root.Children["track"]
-	require.NotEmpty(t, track.Flags, "track should have flags")
-
-	// Check for --remote flag
-	hasRemote := false
-	for _, flag := range track.Flags {
-		for _, name := range flag.Names {
-			if name == "--remote" {
-				hasRemote = true
-				break
-			}
-		}
-	}
-	require.True(t, hasRemote, "track should have --remote flag")
-}
-
 func TestBuildTree_SetupHasFlags(t *testing.T) {
 	root := BuildTree()
 
 	setup := root.Children["setup"]
 	require.NotEmpty(t, setup.Flags, "setup should have flags")
 
-	// Check for --repo and --force flags
+	// Check for --force flag
 	flagNames := make(map[string]bool)
 	for _, flag := range setup.Flags {
 		for _, name := range flag.Names {
@@ -212,7 +183,6 @@ func TestBuildTree_SetupHasFlags(t *testing.T) {
 		}
 	}
 
-	require.True(t, flagNames["--repo"], "setup should have --repo flag")
 	require.True(t, flagNames["--force"], "setup should have --force flag")
 }
 

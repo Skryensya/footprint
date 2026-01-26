@@ -1,54 +1,53 @@
 CONFIGURATION
 
-fp stores configuration in ~/.fprc as simple key=value pairs.
-Use 'fp config' commands to manage settings.
+Settings are stored in ~/.fprc as key=value pairs.
 
-EXPORT OPTIONS
+QUICK COMMANDS
 
-    export_interval_sec   Seconds between automatic exports (default: 3600 = 1 hour).
-                          Example: fp config set export_interval_sec 1800
+    $ fp config list          # See all settings
+    $ fp config get <key>     # Get one value
+    $ fp config set <key> <value>   # Change a setting
+    $ fp config unset <key>   # Remove a setting
 
-    export_path           Path to local export repository.
-                          Default: ~/.config/Footprint/exports (Linux)
-                                   ~/Library/Application Support/Footprint/exports (macOS)
+EXPORT SETTINGS
 
-    export_remote         Remote URL for syncing exports to a git repository.
-                          When set, fp will push exported CSV files to this remote.
-                          Example: fp config set export_remote git@github.com:user/exports.git
+    export_interval_sec    How often to export (in seconds)
+                           Default: 3600 (1 hour)
+                           Example: fp config set export_interval_sec 1800
 
-APPEARANCE OPTIONS
+    export_remote          Git remote to sync exports to
+                           Example: fp config set export_remote git@github.com:you/exports.git
 
-    theme     Color theme name (default, neon, aurora, mono, ocean,
-                    sunset, candy, contrast). Add -dark or -light suffix.
-                    Example: fp config set theme neon-dark
+    export_path            Where to store exports locally
+                           Default: ~/.config/Footprint/exports
 
-LOGGING OPTIONS
+APPEARANCE
 
-    enable_log     Enable application logging (true/false).
-                    Example: fp config set enable_log false
+    theme                  Color theme to use
+                           Options: default, neon, aurora, mono, ocean, sunset, candy, contrast
+                           Add -dark or -light suffix
+                           Example: fp config set theme neon-dark
+
+    display_date           Date format
+                           Options: dd/mm/yyyy, mm/dd/yyyy, yyyy-mm-dd, or custom Go format
+                           Example: fp config set display_date mm/dd/yyyy
+
+    display_time           Time format
+                           Options: 12h, 24h
+                           Example: fp config set display_time 12h
+
+LOGGING
+
+    enable_log             Turn logging on/off (true/false)
+                           Example: fp config set enable_log true
 
 ENVIRONMENT VARIABLES
 
-Environment variables override config file values:
+Override settings without changing the config file:
 
+    FP_NO_COLOR         Disable colors (set to any value)
     FP_COLOR_THEME      Override theme
     FP_LOG_ENABLED      Override enable_log
-    FP_NO_COLOR         Disable all colors (set to any value)
-
-Individual colors can also be overridden:
-
-    FP_COLOR_SUCCESS    Override success color
-    FP_COLOR_ERROR      Override error color
-    FP_COLOR_INFO       Override info color
-    FP_COLOR_MUTED      Override muted color
-    FP_COLOR_1          Override POST-COMMIT color
-    FP_COLOR_2          Override POST-REWRITE color
-    ... (and so on for colors 3-7)
-
-VIEWING CONFIG
-
-    $ fp config list    # Show all settings
-    $ fp config get X   # Get specific value
 
 CONFIG FILE LOCATION
 

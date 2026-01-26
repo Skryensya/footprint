@@ -1,38 +1,55 @@
 HOOKS
 
-fp uses git hooks to automatically record events. This is how fp
-captures your activity without requiring manual commands.
+fp uses git hooks to record events automatically. Once installed,
+you don't need to run any commands - fp captures activity silently.
 
-SUPPORTED HOOKS
+WHAT HOOKS DO
 
-    post-commit     After each commit
-    post-merge      After merges (including pulls)
-    post-checkout   After switching branches
-    post-rewrite    After rebase or amend
-    pre-push        Before pushes (records push intent)
+    post-commit     Records each commit you make
+    post-merge      Records merges (including git pull)
+    post-checkout   Records when you switch branches
+    post-rewrite    Records rebases and amended commits
+    pre-push        Records push attempts
 
-INSTALLATION MODES
+HOW TO INSTALL
 
-Global (recommended):
+Run this in each repository you want to track:
+
+    $ cd /path/to/repo
     $ fp setup
 
-    Installs hooks in git's global hooks directory. All repositories
-    will automatically use fp hooks.
+WHAT HAPPENS DURING SETUP
 
-Per-repository:
-    $ fp setup --repo
+    1. fp creates hook scripts in .git/hooks/
+    2. If you have existing hooks, they're backed up first
+    3. The hooks call 'fp record' which saves events to the database
 
-    Installs hooks only in the current repository's .git/hooks/.
-    Use this if you prefer fine-grained control.
+HOW HOOKS WORK
 
-HOOK BEHAVIOR
+When you make a commit (or merge, checkout, etc.):
 
-Each hook calls 'fp record' with appropriate flags. The record command:
-    - Checks if the repository is tracked
-    - If tracked, writes the event to the local database
-    - If not tracked, exits silently (no error)
+    1. Git runs the appropriate hook
+    2. The hook calls 'fp record'
+    3. fp saves the event to your local database
+    4. That's it - no network calls, no delays
+
+CHECKING HOOK STATUS
+
+    $ fp check
+
+This shows which hooks are installed and if any backups exist.
+
+REMOVING HOOKS
+
+    $ fp teardown
+
+This removes fp hooks. If original hooks were backed up, they're restored.
 
 EXISTING HOOKS
 
-If you have existing hooks, fp will detect them and offer to back
-them up before installation. Use 'fp check' to see hook status.
+If you already have hooks (like pre-commit linters):
+
+    - fp detects them during setup
+    - Your hooks are backed up to .git/hooks/*.backup
+    - Use 'fp check' to see backup status
+    - Use 'fp teardown' to restore your original hooks

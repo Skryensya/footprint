@@ -14,22 +14,18 @@ import (
 // commandDisplayOrder defines explicit ordering within categories.
 // Commands not listed appear alphabetically after listed ones.
 var commandDisplayOrder = map[string]int{
-	// get started: setup first (install hooks), then track
+	// get started
 	"setup": 1,
-	"track": 2,
 	// inspect activity and state
-	"activity":     1,
-	"watch":        2,
-	"status":       3,
-	"repos":        4,
-	"list":         5,
-	"check":        6,
-	"version":      7,
-	"logs":         8,
+	"activity": 1,
+	"watch":    2,
+	"repos":    3,
+	"list":     4,
+	"check":    5,
+	"version":  6,
+	"logs":     7,
 	// manage tracked repositories
-	"untrack":     1,
-	"sync-remote": 2,
-	"teardown":    3,
+	"teardown": 1,
 	// config commands
 	"config get":   1,
 	"config set":   2,
