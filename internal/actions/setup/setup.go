@@ -5,6 +5,7 @@ import (
 
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 	"github.com/footprint-tools/footprint-cli/internal/hooks"
+	"github.com/footprint-tools/footprint-cli/internal/store"
 	"github.com/footprint-tools/footprint-cli/internal/usage"
 )
 
@@ -14,30 +15,13 @@ func Setup(args []string, flags *dispatchers.ParsedFlags) error {
 
 func setup(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	force := flags.Has("--force")
-	repo := flags.Has("--repo")
 
-	var (
-		hooksPath string
-		err       error
-	)
-
-	// Default to global behavior unless --repo is explicitly passed
-	if repo {
-		root, err := deps.RepoRoot(".")
-		if err != nil {
-			return usage.NotInGitRepo()
-		}
-		hooksPath, err = deps.RepoHooksPath(root)
-		if err != nil {
-			return err
-		}
-	} else {
-		hooksPath, err = deps.GlobalHooksPath()
-		if err != nil {
-			return err
-		}
+	root, err := deps.RepoRoot(".")
+	if err != nil {
+		return usage.NotInGitRepo()
 	}
 
+	hooksPath, err := deps.RepoHooksPath(root)
 	if err != nil {
 		return err
 	}
@@ -67,21 +51,24 @@ func setup(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		return err
 	}
 
-	// Output summary
-	location := "global"
-	if repo {
-		location = "repository"
-	}
+	// Register the repo in the store
+	addRepoToStore(root)
 
 	if backedUp > 0 {
-		_, _ = deps.Printf("Installed %d %s hooks (%d backed up)\n", len(hooks.ManagedHooks), location, backedUp)
+		_, _ = deps.Printf("installed %d hooks (%d backed up)\n", len(hooks.ManagedHooks), backedUp)
 	} else {
-		_, _ = deps.Printf("Installed %d %s hooks\n", len(hooks.ManagedHooks), location)
+		_, _ = deps.Printf("installed %d hooks\n", len(hooks.ManagedHooks))
 	}
 	_, _ = deps.Printf("  %s\n", strings.Join(hooks.ManagedHooks, ", "))
 
-	_, _ = deps.Println("")
-	_, _ = deps.Println("Run 'fp track' in a repo to start recording activity")
-
 	return nil
+}
+
+func addRepoToStore(repoPath string) {
+	s, err := store.New(store.DBPath())
+	if err != nil {
+		return
+	}
+	defer func() { _ = s.Close() }()
+	_ = s.AddRepo(repoPath)
 }

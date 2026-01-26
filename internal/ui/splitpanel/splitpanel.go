@@ -31,6 +31,7 @@ type Layout struct {
 	ContentWidth int
 	DrawerWidth  int
 	FocusSidebar bool
+	FocusedPanel int // 0=content, 1=sidebar, 2=drawer
 	DrawerOpen   bool
 	Colors       style.ColorConfig
 	config       Config
@@ -56,9 +57,20 @@ func NewLayout(width int, cfg Config, colors style.ColorConfig) *Layout {
 	}
 }
 
-// SetFocus sets which panel is focused
+// SetFocus sets which panel is focused (deprecated, use SetFocusedPanel)
 func (l *Layout) SetFocus(focusSidebar bool) {
 	l.FocusSidebar = focusSidebar
+	if focusSidebar {
+		l.FocusedPanel = 1
+	} else {
+		l.FocusedPanel = 0
+	}
+}
+
+// SetFocusedPanel sets which panel is focused: 0=content, 1=sidebar, 2=drawer
+func (l *Layout) SetFocusedPanel(panel int) {
+	l.FocusedPanel = panel
+	l.FocusSidebar = panel == 1
 }
 
 // SetDrawerOpen sets drawer state and recalculates widths
@@ -86,15 +98,17 @@ func (l *Layout) RenderWithDrawer(sidebar, content Panel, drawer *Panel, height 
 	uiActiveColor := lipgloss.Color(colors.UIActive)
 	uiDimColor := lipgloss.Color(colors.UIDim)
 
-	// Build each panel as simple bordered box
-	sidebarStr := l.buildPanel(sidebar, l.SidebarWidth, height, l.FocusSidebar, uiActiveColor, uiDimColor)
+	// Build each panel with focus based on FocusedPanel
+	sidebarFocused := l.FocusedPanel == 1
+	contentFocused := l.FocusedPanel == 0
+	drawerFocused := l.FocusedPanel == 2
 
-	contentFocused := !l.FocusSidebar && !l.DrawerOpen
+	sidebarStr := l.buildPanel(sidebar, l.SidebarWidth, height, sidebarFocused, uiActiveColor, uiDimColor)
 	contentStr := l.buildPanel(content, l.ContentWidth, height, contentFocused, uiActiveColor, uiDimColor)
 
 	// Join panels directly
 	if drawer != nil && l.DrawerOpen && l.DrawerWidth > 0 {
-		drawerStr := l.buildPanel(*drawer, l.DrawerWidth, height, true, uiActiveColor, uiDimColor)
+		drawerStr := l.buildPanel(*drawer, l.DrawerWidth, height, drawerFocused, uiActiveColor, uiDimColor)
 		return lipgloss.JoinHorizontal(lipgloss.Top, sidebarStr, contentStr, drawerStr)
 	}
 

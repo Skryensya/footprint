@@ -272,7 +272,7 @@ func TestModel_View(t *testing.T) {
 
 	output := m.View()
 
-	require.Contains(t, output, "fp theme pick")
+	require.Contains(t, output, "footprint themes")
 	require.Contains(t, output, "default-dark")
 }
 

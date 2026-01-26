@@ -1,9 +1,9 @@
 package theme
 
 import (
+	"github.com/charmbracelet/lipgloss"
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 	"github.com/footprint-tools/footprint-cli/internal/ui/style"
-	"github.com/charmbracelet/lipgloss"
 )
 
 func List(args []string, flags *dispatchers.ParsedFlags) error {

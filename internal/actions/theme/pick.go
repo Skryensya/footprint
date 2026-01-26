@@ -319,7 +319,7 @@ func (m model) renderHeader() string {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(infoColor)
 	mutedStyle := lipgloss.NewStyle().Foreground(mutedColor)
 
-	title := titleStyle.Render("fp theme pick")
+	title := titleStyle.Render("footprint themes")
 	count := mutedStyle.Render(fmt.Sprintf(" (%d themes)", len(m.themes)))
 
 	headerContent := title + count
