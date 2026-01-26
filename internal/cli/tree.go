@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/footprint-tools/footprint-cli/internal/actions"
+	completionsactions "github.com/footprint-tools/footprint-cli/internal/actions/completions"
 	configactions "github.com/footprint-tools/footprint-cli/internal/actions/config"
 	logsactions "github.com/footprint-tools/footprint-cli/internal/actions/logs"
 	setupactions "github.com/footprint-tools/footprint-cli/internal/actions/setup"
@@ -27,6 +28,22 @@ func BuildTree() *dispatchers.DispatchNode {
 		Usage:       "fp version",
 		Action:      actions.ShowVersion,
 		Category:    dispatchers.CategoryInspectActivity,
+	})
+
+	dispatchers.Command(dispatchers.CommandSpec{
+		Name:        "completions",
+		Parent:      root,
+		Summary:     "Install shell completions",
+		Description: `Installs tab-completion for fp commands.
+
+Auto-detects your shell if not specified. For Fish and Bash (with
+bash-completion), installs directly. For Zsh, prompts to add an
+eval line to your ~/.zshrc.`,
+		Usage:    "fp completions [bash|zsh|fish]",
+		Args:     []dispatchers.ArgSpec{{Name: "shell", Description: "Shell type (bash, zsh, fish). Auto-detected if omitted."}},
+		Flags:    CompletionsFlags,
+		Action:   completionsactions.Completions,
+		Category: dispatchers.CategoryPlumbing,
 	})
 
 	addConfigCommands(root)

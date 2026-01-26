@@ -285,4 +285,12 @@ var (
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 	}
+
+	CompletionsFlags = []dispatchers.FlagDescriptor{
+		{
+			Names:       []string{"--script"},
+			Description: "Print completion script to stdout (for eval)",
+			Scope:       dispatchers.FlagScopeLocal,
+		},
+	}
 )

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/footprint-tools/footprint-cli/internal/completions"
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 	"github.com/footprint-tools/footprint-cli/internal/hooks"
 	"github.com/footprint-tools/footprint-cli/internal/store"
@@ -74,6 +75,15 @@ func setupLocal(args []string, flags *dispatchers.ParsedFlags, deps Deps) error 
 		_, _ = deps.Printf("installed %d hooks\n", len(hooks.ManagedHooks))
 	}
 	_, _ = deps.Printf("  %s\n", strings.Join(hooks.ManagedHooks, ", "))
+
+	// Install shell completions
+	if result := completions.InstallSilently(); result != nil {
+		if result.Installed {
+			_, _ = deps.Printf("\nshell completions installed to %s\n", result.Path)
+		} else if result.NeedsManual {
+			_, _ = deps.Printf("\n%s\n", result.Instructions)
+		}
+	}
 
 	return nil
 }

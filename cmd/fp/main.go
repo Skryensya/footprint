@@ -9,6 +9,7 @@ import (
 	helpactions "github.com/footprint-tools/footprint-cli/internal/actions/help"
 	updateactions "github.com/footprint-tools/footprint-cli/internal/actions/update"
 	"github.com/footprint-tools/footprint-cli/internal/cli"
+	"github.com/footprint-tools/footprint-cli/internal/completions"
 	"github.com/footprint-tools/footprint-cli/internal/config"
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 	"github.com/footprint-tools/footprint-cli/internal/log"
@@ -51,6 +52,9 @@ func main() {
 	dispatchers.SetInteractiveBrowserFunc(helpactions.Browser)
 
 	root := cli.BuildTree()
+
+	// Register command tree for completions
+	completions.RegisterCommandTree(root)
 
 	res, err := dispatchers.Dispatch(root, commands, flags)
 

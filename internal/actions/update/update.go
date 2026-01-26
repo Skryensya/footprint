@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/footprint-tools/footprint-cli/internal/app"
+	"github.com/footprint-tools/footprint-cli/internal/completions"
 	"github.com/footprint-tools/footprint-cli/internal/dispatchers"
 )
 
@@ -95,6 +96,10 @@ func installFromRelease(deps Dependencies, targetVersion string) error {
 	}
 
 	_, _ = fmt.Fprintf(deps.Stdout, "Updated to %s\n", release.TagName)
+
+	// Update shell completions silently
+	completions.InstallSilently()
+
 	return nil
 }
 
@@ -280,5 +285,9 @@ func installFromSource(deps Dependencies, version string) error {
 
 	_, _ = fmt.Fprintf(deps.Stdout, "Installed %s (via go install)\n", version)
 	_, _ = fmt.Fprintf(deps.Stdout, "Note: binary is in $GOPATH/bin or $HOME/go/bin\n")
+
+	// Update shell completions silently
+	completions.InstallSilently()
+
 	return nil
 }

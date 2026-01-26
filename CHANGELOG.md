@@ -6,9 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `fp completions` command to install shell completions interactively
+  - Auto-detects running shell via `$BASH_VERSION`, `$ZSH_VERSION`, `$FISH_VERSION`
+  - Fish: writes to `~/.config/fish/completions/fp.fish` (auto-loads)
+  - Bash: writes to `~/.local/share/bash-completion/completions/fp` if bash-completion installed
+  - Zsh: prompts to add eval line to `~/.zshrc`
+  - `--script` flag outputs completion script to stdout (for manual eval)
+- Shell completions auto-install during `fp setup` and `fp update`
+
 ### Changed
 - Updated README to reflect current commands and features
 - Improved test coverage for logs package (7.5% → 22.8%)
+- Renamed Makefile target `demo` to `simulate-activity` for clarity
+- Improved `makeStyle` tests with realistic ANSI code verification (extended colors, bold vs color differentiation)
 
 ### Fixed
 - Fixed lint issue in help interactive (De Morgan's law)
