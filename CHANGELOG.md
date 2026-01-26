@@ -8,6 +8,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.0.11] - 2026-01-26
+
+### Added
+- Interactive logs viewer with `fp logs -i` for filtering and navigation
+- Interactive repos manager with `fp repos -i` to manage hooks across repositories
+- Hook inspection utility for checking hook status
+- Configurable date/time display formats (`display_date`, `display_time` config options)
+- Comprehensive test coverage improvements:
+  - `format` package: 0% → 92%
+  - `repo` package: 67% → 100%
+  - `git` package: 66% → 83%
+  - `actions/update` package: 45% → 93%
+  - New tests for export, backfill, and tracking functions
+
+### Changed
+- Simplified and clarified all help text:
+  - Removed references to non-existent commands
+  - Made summaries shorter and action-oriented
+  - Added practical examples to command descriptions
+  - Marked internal commands clearly (`record`, `export`)
+- Updated all help topics (overview, workflow, hooks, data, configuration, troubleshooting)
+- Improved command summaries for scannability
+
+### Removed
+- Removed unused commands: `track`, `untrack`, `status`, `sync-remote`
+- Removed `--repo` flag from `setup` (was never implemented)
+- Cleaned up dead code and unused interfaces
+
+### Fixed
+- Help documentation now matches actual available commands
+- Consistent terminology across all help text
+
+---
+
 ## [0.0.10] - 2026-01-23
 
 ### Fixed
@@ -147,7 +181,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `config` subcommands: `get`, `set`, `unset --all`, `list`
 - `version` command with build-time injection
 
-[Unreleased]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.10...HEAD
+[Unreleased]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.11...HEAD
+[0.0.11]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.10...v0.0.11
 [0.0.10]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.9...v0.0.10
 [0.0.9]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.8...v0.0.9
 [0.0.8]: https://github.com/footprint-tools/footprint-cli/compare/v0.0.7...v0.0.8
