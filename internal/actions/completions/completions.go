@@ -64,8 +64,8 @@ func Completions(args []string, flags *dispatchers.ParsedFlags) error {
 	resp = strings.TrimSpace(strings.ToLower(resp))
 
 	if resp != "y" && resp != "yes" {
-		fmt.Println("\nTo install manually, add to your rc file:")
-		fmt.Printf("  %s\n", evalLine)
+		fmt.Println("\nTo install manually:")
+		fmt.Printf("  echo '%s' >> %s\n", evalLine, rcFile)
 		return nil
 	}
 

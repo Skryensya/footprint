@@ -118,8 +118,7 @@ func manualInstructions(shell Shell) string {
 	rcFile := RcFile(shell)
 	sourceLine := SourceInstructions(shell)
 
-	return fmt.Sprintf("Add to %s:\n  %s\n\nOr run:\n  echo '%s' >> %s",
-		rcFile, sourceLine, sourceLine, rcFile)
+	return fmt.Sprintf("To enable completions, add to %s:\n  %s", rcFile, sourceLine)
 }
 
 func writeCompletionFile(path, content string) error {
@@ -164,6 +163,12 @@ func AppendToRcFile(shell Shell, line string) error {
 	}
 	if len(rcPath) > 0 && rcPath[0] == '~' {
 		rcPath = filepath.Join(home, rcPath[1:])
+	}
+
+	// Create parent directory if needed (e.g., ~/.config/fish/)
+	dir := filepath.Dir(rcPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
 	}
 
 	// Check if line already exists
