@@ -33,7 +33,7 @@ NC='\033[0m'
 cleanup() {
     echo -e "\n${YELLOW}Cleaning up...${NC}"
     for repo in "${REPOS[@]}"; do
-        "$FP_BIN" untrack "$repo" 2>/dev/null || true
+        "$FP_BIN" teardown "$repo" 2>/dev/null || true
     done
     rm -rf "$BASE_DIR"
     echo -e "${GREEN}Done.${NC}"
@@ -299,7 +299,7 @@ main() {
         local name=${repo_names[$((i-1)) % ${#repo_names[@]}]}
         local path=$(create_repo "$name")
         REPOS+=("$path")
-        "$FP_BIN" track "$path" 2>/dev/null
+        "$FP_BIN" setup "$path" --force 2>/dev/null
         echo -e "${GREEN}✓${NC} Created and tracked: $name"
     done
 
