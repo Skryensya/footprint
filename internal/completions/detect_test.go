@@ -1,7 +1,6 @@
 package completions
 
 import (
-	"os"
 	"testing"
 )
 
@@ -25,10 +24,6 @@ func TestDetectShells(t *testing.T) {
 }
 
 func TestCurrentShell(t *testing.T) {
-	// Save and restore original SHELL
-	origShell := os.Getenv("SHELL")
-	defer os.Setenv("SHELL", origShell)
-
 	tests := []struct {
 		shellEnv string
 		want     Shell
@@ -44,7 +39,7 @@ func TestCurrentShell(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		os.Setenv("SHELL", tc.shellEnv)
+		t.Setenv("SHELL", tc.shellEnv)
 		got := CurrentShell()
 		if got != tc.want {
 			t.Errorf("CurrentShell() with SHELL=%q: got %q, want %q", tc.shellEnv, got, tc.want)
