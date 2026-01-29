@@ -428,10 +428,7 @@ func loadCSVRecords(csvPath string) map[string][]string {
 	}
 
 	// Parse records (skip header)
-	maxIdx := repoIdx
-	if commitIdx > maxIdx {
-		maxIdx = commitIdx
-	}
+	maxIdx := max(repoIdx, commitIdx)
 
 	for i, line := range lines[1:] {
 		if len(line) <= maxIdx {
@@ -447,9 +444,17 @@ func loadCSVRecords(csvPath string) map[string][]string {
 
 // buildRecord creates a CSV record from an event and its metadata.
 func buildRecord(e store.RepoEvent, meta git.CommitMetadata) []string {
-	message := strings.ReplaceAll(meta.Subject, "\n", " ")
-	message = strings.ReplaceAll(message, "\r", "")
-	message = strings.TrimSpace(message)
+	// Normalize message: replace newlines with spaces, remove carriage returns
+	message := strings.TrimSpace(strings.Map(func(r rune) rune {
+		switch r {
+		case '\n':
+			return ' '
+		case '\r':
+			return -1 // delete
+		default:
+			return r
+		}
+	}, meta.Subject))
 
 	// Use event timestamp as fallback if git metadata not available
 	timestamp := meta.AuthoredAt
@@ -924,10 +929,7 @@ func parseCSVIntoMap(content string, records map[string][]string) {
 		repoIdx, commitIdx = getDefaultColumnIndices()
 	}
 
-	maxIdx := repoIdx
-	if commitIdx > maxIdx {
-		maxIdx = commitIdx
-	}
+	maxIdx := max(repoIdx, commitIdx)
 
 	for _, line := range lines[1:] {
 		if len(line) <= maxIdx {

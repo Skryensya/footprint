@@ -570,18 +570,8 @@ func (m watchModel) filteredEvents() []store.RepoEvent {
 		}
 
 		// Filter by text query
-		if query != "" {
-			repoName := strings.ToLower(filepath.Base(e.RepoPath))
-			branch := strings.ToLower(e.Branch)
-			commit := strings.ToLower(e.Commit)
-			message := strings.ToLower(m.getCommitMessage(e.Commit))
-
-			if !strings.Contains(repoName, query) &&
-				!strings.Contains(branch, query) &&
-				!strings.Contains(commit, query) &&
-				!strings.Contains(message, query) {
-				continue
-			}
+		if query != "" && !m.matchesQuery(e, query) {
+			continue
 		}
 
 		filtered = append(filtered, e)
@@ -596,13 +586,8 @@ func (m watchModel) calculateWidths() (stats, events, drawer int) {
 	}
 
 	// Match splitpanel.Config values from View()
-	stats = int(float64(m.width) * 0.20)
-	if stats < 18 {
-		stats = 18
-	}
-	if stats > 26 {
-		stats = 26
-	}
+	// Clamp stats width between 18 and 26
+	stats = max(18, min(26, int(float64(m.width)*0.20)))
 
 	if m.drawerOpen {
 		drawer = int(float64(m.width) * 0.35)
@@ -623,6 +608,15 @@ func (m watchModel) getCommitMessage(commit string) string {
 		return meta.Subject
 	}
 	return ""
+}
+
+// matchesQuery checks if an event matches the search query.
+func (m watchModel) matchesQuery(e store.RepoEvent, query string) bool {
+	repoName := strings.ToLower(filepath.Base(e.RepoPath))
+	return strings.Contains(repoName, query) ||
+		strings.Contains(strings.ToLower(e.Branch), query) ||
+		strings.Contains(strings.ToLower(e.Commit), query) ||
+		strings.Contains(strings.ToLower(m.getCommitMessage(e.Commit)), query)
 }
 
 func (m watchModel) getCommitMeta(repoPath, commit string) git.CommitMetadata {

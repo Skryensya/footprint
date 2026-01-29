@@ -181,10 +181,7 @@ func validFlagsForNode(node *DispatchNode, root *DispatchNode) map[string]bool {
 func validateFlags(flags *ParsedFlags, valid map[string]bool) error {
 	for _, f := range flags.Raw() {
 		// Extract the flag name (strip value after =)
-		name := f
-		if idx := strings.Index(f, "="); idx != -1 {
-			name = f[:idx]
-		}
+		name, _, _ := strings.Cut(f, "=")
 		if !valid[name] {
 			return usage.InvalidFlag(f)
 		}
