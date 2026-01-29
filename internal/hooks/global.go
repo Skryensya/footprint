@@ -113,7 +113,10 @@ func CheckGlobalHooksStatus() GlobalHooksStatus {
 
 	// Check if directory exists
 	info, err := os.Stat(path)
-	if err != nil || !info.IsDir() {
+	if err != nil {
+		return status
+	}
+	if !info.IsDir() {
 		return status
 	}
 
