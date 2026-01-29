@@ -518,14 +518,5 @@ func setColorField(c *ColorConfig, field, value string) {
 
 // toUpperSnake converts "color_success" to "COLOR_SUCCESS".
 func toUpperSnake(s string) string {
-	result := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= 'a' && c <= 'z' {
-			result[i] = c - 'a' + 'A'
-		} else {
-			result[i] = c
-		}
-	}
-	return string(result)
+	return strings.ToUpper(s)
 }

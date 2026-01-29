@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -62,34 +63,14 @@ func NewCheckDependencies() CheckDependencies {
 	}
 }
 
+// gitDescribeSuffix matches the suffix added by git describe: -{commits}-g{hash}
+var gitDescribeSuffix = regexp.MustCompile(`-\d+-g[a-f0-9]+$`)
+
 // cleanVersion extracts the base semver from a git describe version.
 // For example: "v0.0.10-1-ge69cbeb-dirty" -> "v0.0.10"
-// The format from git describe is: v{semver}[-{commits}-g{hash}][-dirty]
 func cleanVersion(v string) string {
-	// Remove -dirty suffix (uncommitted changes)
 	v = strings.TrimSuffix(v, "-dirty")
-
-	// Remove git describe suffix: -{commits}-g{hash}
-	// Look for pattern like "-1-g" followed by hex chars
-	if idx := strings.LastIndex(v, "-g"); idx > 0 {
-		// Find the commit count part before -g
-		prefix := v[:idx]
-		if dashIdx := strings.LastIndex(prefix, "-"); dashIdx > 0 {
-			// Check if the part between dashes is a number (commit count)
-			commitPart := prefix[dashIdx+1:]
-			isNumber := true
-			for _, c := range commitPart {
-				if c < '0' || c > '9' {
-					isNumber = false
-					break
-				}
-			}
-			if isNumber && len(commitPart) > 0 {
-				v = prefix[:dashIdx]
-			}
-		}
-	}
-	return v
+	return gitDescribeSuffix.ReplaceAllString(v, "")
 }
 
 // CheckForUpdate checks if a newer version is available.

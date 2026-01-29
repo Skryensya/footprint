@@ -3,8 +3,16 @@ package splitpanel
 import (
 	"strings"
 
-	"github.com/footprint-tools/cli/internal/ui/style"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/footprint-tools/cli/internal/ui/style"
+)
+
+const (
+	// panelChrome is the horizontal space used by panel decoration:
+	// border (2) + padding (2) + scrollbar (2)
+	panelChrome = 6
+	// borderHeight is the vertical space used by panel borders
+	borderHeight = 2
 )
 
 // Panel represents content for one side of the split
@@ -117,11 +125,9 @@ func (l *Layout) RenderWithDrawer(sidebar, content Panel, drawer *Panel, height 
 
 // buildPanel creates a single panel with border and scrollbar
 func (l *Layout) buildPanel(panel Panel, width, height int, focused bool, activeColor, dimColor lipgloss.Color) string {
-	// Content width = panel width - border(2) - padding(2) - scrollbar(2)
-	contentWidth := max(width-6, 1)
+	contentWidth := max(width-panelChrome, 1)
 
-	// Visible height = panel height - border(2)
-	visibleHeight := max(height-2, 1)
+	visibleHeight := max(height-borderHeight, 1)
 
 	// Get lines and pad/truncate to visible height
 	lines := panel.Lines
@@ -192,12 +198,12 @@ func truncateString(s string, maxWidth int) string {
 
 // SidebarContentWidth returns usable width for sidebar content
 func (l *Layout) SidebarContentWidth() int {
-	return l.SidebarWidth - 6 // border(2) + padding(2) + scrollbar(2)
+	return l.SidebarWidth - panelChrome
 }
 
 // MainContentWidth returns usable width for main content
 func (l *Layout) MainContentWidth() int {
-	return l.ContentWidth - 6
+	return l.ContentWidth - panelChrome
 }
 
 // DrawerContentWidth returns usable width for drawer content
@@ -205,10 +211,10 @@ func (l *Layout) DrawerContentWidth() int {
 	if l.DrawerWidth == 0 {
 		return 0
 	}
-	return l.DrawerWidth - 6
+	return l.DrawerWidth - panelChrome
 }
 
 // VisibleHeight returns visible lines in a panel
 func (l *Layout) VisibleHeight() int {
-	return l.Height - 2 // inner border(2)
+	return l.Height - borderHeight
 }

@@ -102,110 +102,40 @@ func Enabled() bool {
 	return enabled
 }
 
-// Success styles text for successful operations.
-func Success(text string) string {
+// render applies a style if styling is enabled, otherwise returns text unchanged.
+func render(style lipgloss.Style, text string) string {
 	if !enabled {
 		return text
 	}
-	return successStyle.Render(text)
+	return style.Render(text)
 }
+
+// Success styles text for successful operations.
+func Success(text string) string { return render(successStyle, text) }
 
 // Warning styles text for warning messages.
-func Warning(text string) string {
-	if !enabled {
-		return text
-	}
-	return warningStyle.Render(text)
-}
+func Warning(text string) string { return render(warningStyle, text) }
 
 // Error styles text for error messages.
-func Error(text string) string {
-	if !enabled {
-		return text
-	}
-	return errorStyle.Render(text)
-}
+func Error(text string) string { return render(errorStyle, text) }
 
 // Info styles text for informational messages.
-func Info(text string) string {
-	if !enabled {
-		return text
-	}
-	return infoStyle.Render(text)
-}
+func Info(text string) string { return render(infoStyle, text) }
 
 // Header styles text for section headers or titles.
-func Header(text string) string {
-	if !enabled {
-		return text
-	}
-	return headerStyle.Render(text)
-}
+func Header(text string) string { return render(headerStyle, text) }
 
 // Muted styles text for less important or secondary information.
-func Muted(text string) string {
-	if !enabled {
-		return text
-	}
-	return mutedStyle.Render(text)
-}
+func Muted(text string) string { return render(mutedStyle, text) }
 
 // Border styles text for interactive delimiters (scrollbars, card borders, etc.).
-func Border(text string) string {
-	if !enabled {
-		return text
-	}
-	return borderStyle.Render(text)
-}
+func Border(text string) string { return render(borderStyle, text) }
 
 // Color1 through Color7 are neutral colors for visual distinction only.
-// They have no semantic meaning.
-
-func Color1(text string) string {
-	if !enabled {
-		return text
-	}
-	return color1Style.Render(text)
-}
-
-func Color2(text string) string {
-	if !enabled {
-		return text
-	}
-	return color2Style.Render(text)
-}
-
-func Color3(text string) string {
-	if !enabled {
-		return text
-	}
-	return color3Style.Render(text)
-}
-
-func Color4(text string) string {
-	if !enabled {
-		return text
-	}
-	return color4Style.Render(text)
-}
-
-func Color5(text string) string {
-	if !enabled {
-		return text
-	}
-	return color5Style.Render(text)
-}
-
-func Color6(text string) string {
-	if !enabled {
-		return text
-	}
-	return color6Style.Render(text)
-}
-
-func Color7(text string) string {
-	if !enabled {
-		return text
-	}
-	return color7Style.Render(text)
-}
+func Color1(text string) string { return render(color1Style, text) }
+func Color2(text string) string { return render(color2Style, text) }
+func Color3(text string) string { return render(color3Style, text) }
+func Color4(text string) string { return render(color4Style, text) }
+func Color5(text string) string { return render(color5Style, text) }
+func Color6(text string) string { return render(color6Style, text) }
+func Color7(text string) string { return render(color7Style, text) }
