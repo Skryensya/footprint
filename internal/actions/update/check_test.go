@@ -39,10 +39,10 @@ func TestCleanVersion(t *testing.T) {
 		{"v0.0.10-0-ge69cbeb", "v0.0.10"},    // Zero commits after tag
 
 		// More edge cases for full coverage
-		{"", ""},                             // Empty string
-		{"v1", "v1"},                         // Simple version
-		{"-dirty", ""},                       // Just dirty
-		{"v1.0.0-g", "v1.0.0-g"},             // Incomplete git describe
+		{"", ""},                 // Empty string
+		{"v1", "v1"},             // Simple version
+		{"-dirty", ""},           // Just dirty
+		{"v1.0.0-g", "v1.0.0-g"}, // Incomplete git describe
 		{"v1.0.0-alpha-gabc123", "v1.0.0-alpha-gabc123"}, // Non-numeric before -g
 		{"v1.0.0-rc-g1234567", "v1.0.0-rc-g1234567"},     // Pre-release with -g pattern
 	}

@@ -20,6 +20,8 @@ const (
 	CheckInterval = 24 * time.Hour
 	// updateNoticeWidth is the width of the update notice border
 	updateNoticeWidth = 50
+	// httpTimeout is the timeout for GitHub API requests
+	httpTimeout = 10 * time.Second
 )
 
 // CheckResult contains the result of an update check
@@ -31,19 +33,19 @@ type CheckResult struct {
 
 // CheckDependencies contains injectable dependencies for update checking
 type CheckDependencies struct {
-	CurrentVersion   string
-	HTTPClient       HTTPClient
-	GetUpdateCache   func() (store.UpdateCache, error)
-	SetUpdateCache   func(lastCheck, latestVersion string) error
-	Now              func() time.Time
-	Stderr           io.Writer
+	CurrentVersion string
+	HTTPClient     HTTPClient
+	GetUpdateCache func() (store.UpdateCache, error)
+	SetUpdateCache func(lastCheck, latestVersion string) error
+	Now            func() time.Time
+	Stderr         io.Writer
 }
 
 // NewCheckDependencies creates CheckDependencies with default implementations
 func NewCheckDependencies() CheckDependencies {
 	return CheckDependencies{
 		CurrentVersion: app.Version,
-		HTTPClient:     &http.Client{Timeout: 3 * time.Second},
+		HTTPClient:     &http.Client{Timeout: httpTimeout},
 		GetUpdateCache: func() (store.UpdateCache, error) {
 			s, err := store.New(store.DBPath())
 			if err != nil {
@@ -157,7 +159,6 @@ func fetchLatestVersionQuick(client HTTPClient) (string, error) {
 
 	return release.TagName, nil
 }
-
 
 // PrintUpdateNotice prints an update notice if one is available.
 // This is meant to be called before executing a command.
