@@ -175,7 +175,7 @@ var (
 			Scope:       dispatchers.FlagScopeLocal,
 		},
 		{
-			Names:       []string{"--interactive", "-i"},
+			Names:       []string{"-i", "--interactive"},
 			Description: "Run in interactive TUI mode with stats and detail view",
 			Scope:       dispatchers.FlagScopeLocal,
 		},
