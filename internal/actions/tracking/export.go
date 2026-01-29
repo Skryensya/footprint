@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -62,6 +63,7 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	force := flags.Has("--now")
 	dryRun := flags.Has("--dry-run")
 	openDir := flags.Has("--open")
+	jsonOutput := flags.Has("--json")
 
 	exportRepo := getExportRepo()
 
@@ -70,9 +72,10 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		return openInFileManager(exportRepo)
 	}
 
-	db, err := deps.OpenDB(deps.DBPath())
+	dbPath := deps.DBPath()
+	db, err := deps.OpenDB(dbPath)
 	if err != nil {
-		return fmt.Errorf("could not open database: %w", err)
+		return fmt.Errorf("could not open database at %s: %w\nHint: Run 'fp setup' to initialize tracking in this repository", dbPath, err)
 	}
 	defer store.CloseDB(db)
 
@@ -84,11 +87,22 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 
 	if len(events) == 0 {
-		_, _ = deps.Println("No pending events to export")
+		if jsonOutput {
+			if dryRun {
+				_, _ = deps.Println(`{"events_to_export":[],"count":0}`)
+			} else {
+				_, _ = deps.Println(`{"events_exported":0,"export_path":"","files_modified":[],"pushed":false}`)
+			}
+		} else {
+			_, _ = deps.Println("No pending events to export")
+		}
 		return nil
 	}
 
 	if dryRun {
+		if jsonOutput {
+			return exportDryRunJSON(events, deps)
+		}
 		_, _ = deps.Printf("Would export %d events:\n", len(events))
 		for _, e := range events {
 			_, _ = deps.Printf("  %.7s %s (%s)\n", e.Commit, e.Branch, e.RepoID)
@@ -102,9 +116,17 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 			return err
 		}
 		if !shouldExp {
-			_, _ = deps.Println("Export interval not reached. Use --now to export anyway.")
+			if jsonOutput {
+				_, _ = deps.Println(`{"error":"export_interval_not_reached","message":"Use --now to export anyway"}`)
+			} else {
+				_, _ = deps.Println("Export interval not reached. Use --now to export anyway.")
+			}
 			return nil
 		}
+	}
+
+	if !jsonOutput {
+		_, _ = deps.Printf("Processing %d events...\n", len(events))
 	}
 
 	count, pushed, err := doExportWork(db, events, deps)
@@ -112,16 +134,81 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		return err
 	}
 
+	if jsonOutput {
+		return exportResultJSON(count, exportRepo, pushed, deps)
+	}
+
 	if count == 0 {
 		_, _ = deps.Println("No events were exported")
 		return nil
 	}
 
-	_, _ = deps.Printf("Exported %d events\n", count)
+	_, _ = deps.Printf("Exported %d events to %s\n", count, exportRepo)
 	if pushed {
 		_, _ = deps.Println("Pushed to remote")
 	}
+	_, _ = deps.Println("View with: fp export --open")
 
+	return nil
+}
+
+func exportDryRunJSON(events []store.RepoEvent, deps Deps) error {
+	type eventJSON struct {
+		Commit    string `json:"commit"`
+		Branch    string `json:"branch"`
+		RepoID    string `json:"repo_id"`
+		RepoPath  string `json:"repo_path"`
+		Timestamp string `json:"timestamp"`
+		Source    string `json:"source"`
+	}
+
+	type dryRunResult struct {
+		EventsToExport []eventJSON `json:"events_to_export"`
+		Count          int         `json:"count"`
+	}
+
+	result := dryRunResult{
+		EventsToExport: make([]eventJSON, 0, len(events)),
+		Count:          len(events),
+	}
+
+	for _, e := range events {
+		result.EventsToExport = append(result.EventsToExport, eventJSON{
+			Commit:    e.Commit,
+			Branch:    e.Branch,
+			RepoID:    e.RepoID,
+			RepoPath:  e.RepoPath,
+			Timestamp: e.Timestamp.Format(time.RFC3339),
+			Source:    e.Source.String(),
+		})
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, _ = deps.Println(string(data))
+	return nil
+}
+
+func exportResultJSON(count int, exportPath string, pushed bool, deps Deps) error {
+	type exportResult struct {
+		EventsExported int    `json:"events_exported"`
+		ExportPath     string `json:"export_path"`
+		Pushed         bool   `json:"pushed"`
+	}
+
+	result := exportResult{
+		EventsExported: count,
+		ExportPath:     exportPath,
+		Pushed:         pushed,
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, _ = deps.Println(string(data))
 	return nil
 }
 
@@ -307,6 +394,12 @@ func findColumnIndices(header []string) (repoIdx, commitIdx int) {
 	return repoIdx, commitIdx
 }
 
+// getDefaultColumnIndices returns the indices of repo_id and commit_hash from the canonical csvHeader.
+// This ensures fallback indices are always in sync with the schema definition.
+func getDefaultColumnIndices() (repoIdx, commitIdx int) {
+	return findColumnIndices(csvHeader)
+}
+
 // loadCSVRecords loads existing CSV into a map keyed by repo:commit.
 func loadCSVRecords(csvPath string) map[string][]string {
 	records := make(map[string][]string)
@@ -331,7 +424,7 @@ func loadCSVRecords(csvPath string) map[string][]string {
 	repoIdx, commitIdx := findColumnIndices(lines[0])
 	if repoIdx < 0 || commitIdx < 0 {
 		log.Warn("export: CSV header missing repo/commit columns, using default indices")
-		repoIdx, commitIdx = 3, 9 // Default: repo_id=3, commit_hash=9
+		repoIdx, commitIdx = getDefaultColumnIndices()
 	}
 
 	// Parse records (skip header)
@@ -575,7 +668,14 @@ func saveExportLast(timestamp int64) error {
 func runGitInDir(dir string, args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	return cmd.Run()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("git %s: %w\n%s", args[0], err, strings.TrimSpace(string(output)))
+		}
+		return fmt.Errorf("git %s: %w", args[0], err)
+	}
+	return nil
 }
 
 // openInFileManager opens a directory in the system's file manager.
@@ -821,7 +921,7 @@ func parseCSVIntoMap(content string, records map[string][]string) {
 	repoIdx, commitIdx := findColumnIndices(lines[0])
 	if repoIdx < 0 || commitIdx < 0 {
 		log.Warn("export: CSV header missing repo/commit columns, using default indices")
-		repoIdx, commitIdx = 3, 9 // Default: repo_id=3, commit_hash=9
+		repoIdx, commitIdx = getDefaultColumnIndices()
 	}
 
 	maxIdx := repoIdx
