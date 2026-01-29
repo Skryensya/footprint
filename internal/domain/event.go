@@ -122,11 +122,11 @@ type RepoEvent struct {
 
 // EventFilter specifies criteria for querying events.
 type EventFilter struct {
-	RepoID   RepoID
-	Status   *EventStatus
-	Source   *EventSource
-	Since    *time.Time
-	Until    *time.Time
-	Limit    int
-	SinceID  int64
+	RepoID  RepoID
+	Status  *EventStatus
+	Source  *EventSource
+	Since   *time.Time
+	Until   *time.Time
+	Limit   int
+	SinceID int64
 }

@@ -161,19 +161,19 @@ type HooksManager interface {
 
 // HooksStatus represents the installation status of hooks.
 type HooksStatus struct {
-	Installed   bool
-	HooksPath   string
+	Installed    bool
+	HooksPath    string
 	ManagedHooks []string
 }
 
 // Application represents the main application context with all dependencies.
 type Application struct {
-	Git     GitProvider
-	Repo    RepoIDDeriver
-	Store   EventStore
-	Config  ConfigProvider
-	Logger  Logger
-	Output  OutputWriter
-	Styler  Styler
-	Hooks   HooksManager
+	Git    GitProvider
+	Repo   RepoIDDeriver
+	Store  EventStore
+	Config ConfigProvider
+	Logger Logger
+	Output OutputWriter
+	Styler Styler
+	Hooks  HooksManager
 }
