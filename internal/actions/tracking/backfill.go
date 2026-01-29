@@ -1,12 +1,12 @@
 package tracking
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/footprint-tools/cli/internal/dispatchers"
 	"github.com/footprint-tools/cli/internal/git"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/store"
 	"github.com/footprint-tools/cli/internal/usage"
 )
@@ -232,12 +232,7 @@ func doBackfillDryRunJSON(args []string, flags *dispatchers.ParsedFlags, deps De
 		})
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, result)
 }
 
 // doBackfillJSON runs backfill synchronously and outputs JSON result.
@@ -273,12 +268,7 @@ func doBackfillJSON(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 	}
 
 	if len(commits) == 0 {
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return err
-		}
-		_, _ = deps.Println(string(data))
-		return nil
+		return output.JSON(deps.Println, result)
 	}
 
 	// Open database
@@ -324,10 +314,5 @@ func doBackfillJSON(args []string, flags *dispatchers.ParsedFlags, deps Deps) er
 		}
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, result)
 }

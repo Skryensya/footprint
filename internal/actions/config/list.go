@@ -1,10 +1,9 @@
 package config
 
 import (
-	"encoding/json"
-
 	"github.com/footprint-tools/cli/internal/dispatchers"
 	"github.com/footprint-tools/cli/internal/domain"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/ui/style"
 )
 
@@ -34,11 +33,12 @@ func list(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 			continue
 		}
 
-		if hasValue {
+		switch {
+		case hasValue:
 			_, _ = deps.Printf("%s=%s\n", style.Info(key.Name), value)
-		} else if key.Default != "" {
+		case key.Default != "":
 			_, _ = deps.Printf("%s=%s %s\n", style.Info(key.Name), key.Default, style.Muted("(default)"))
-		} else {
+		default:
 			_, _ = deps.Printf("%s= %s\n", style.Info(key.Name), style.Muted("(not set)"))
 		}
 	}
@@ -48,10 +48,10 @@ func list(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 func listJSON(configMap map[string]string, deps Deps) error {
 	type configEntry struct {
-		Key      string `json:"key"`
-		Value    string `json:"value"`
-		Default  string `json:"default,omitempty"`
-		IsSet    bool   `json:"is_set"`
+		Key     string `json:"key"`
+		Value   string `json:"value"`
+		Default string `json:"default,omitempty"`
+		IsSet   bool   `json:"is_set"`
 	}
 
 	keys := domain.VisibleConfigKeys()
@@ -78,10 +78,5 @@ func listJSON(configMap map[string]string, deps Deps) error {
 		entries = append(entries, entry)
 	}
 
-	data, err := json.MarshalIndent(entries, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, entries)
 }

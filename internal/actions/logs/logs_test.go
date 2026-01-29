@@ -22,7 +22,7 @@ func TestView_FileNotExists(t *testing.T) {
 		},
 		Println: func(a ...any) (int, error) {
 			if len(a) > 0 {
-				printed = a[0].(string)
+				printed, _ = a[0].(string)
 			}
 			return 0, nil
 		},
@@ -59,7 +59,7 @@ func TestView_EmptyFile(t *testing.T) {
 		},
 		Println: func(a ...any) (int, error) {
 			if len(a) > 0 {
-				printed = a[0].(string)
+				printed, _ = a[0].(string)
 			}
 			return 0, nil
 		},
@@ -104,7 +104,9 @@ func TestView_Success(t *testing.T) {
 		},
 		Println: func(a ...any) (int, error) {
 			if len(a) > 0 {
-				printedLines = append(printedLines, a[0].(string))
+				if s, ok := a[0].(string); ok {
+					printedLines = append(printedLines, s)
+				}
 			}
 			return 0, nil
 		},
@@ -131,7 +133,9 @@ func TestView_WithLimit(t *testing.T) {
 		},
 		Println: func(a ...any) (int, error) {
 			if len(a) > 0 {
-				printedLines = append(printedLines, a[0].(string))
+				if s, ok := a[0].(string); ok {
+					printedLines = append(printedLines, s)
+				}
 			}
 			return 0, nil
 		},
@@ -191,7 +195,7 @@ func TestClear_Success(t *testing.T) {
 		},
 		Println: func(a ...any) (int, error) {
 			if len(a) > 0 {
-				printed = a[0].(string)
+				printed, _ = a[0].(string)
 			}
 			return 0, nil
 		},

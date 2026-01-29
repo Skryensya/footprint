@@ -1,35 +1,24 @@
 package tracking
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/footprint-tools/cli/internal/dispatchers"
-	"github.com/footprint-tools/cli/internal/hooks"
-	"github.com/footprint-tools/cli/internal/store"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/ui/style"
 )
 
 // ReposList lists repositories with recorded activity.
-func ReposList(_ []string, flags *dispatchers.ParsedFlags) error {
+func ReposList(args []string, flags *dispatchers.ParsedFlags) error {
+	return reposList(args, flags, DefaultDeps())
+}
+
+func reposList(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	jsonOutput := flags.Has("--json")
-	return reposListImpl(jsonOutput, reposDeps{
-		DBPath:    store.DBPath,
-		OpenStore: store.New,
-		Println:   defaultPrintln,
-	})
-}
 
-type reposDeps struct {
-	DBPath    func() string
-	OpenStore func(string) (*store.Store, error)
-	Println   func(...any) (int, error)
-}
-
-func reposListImpl(jsonOutput bool, deps reposDeps) error {
 	s, err := deps.OpenStore(deps.DBPath())
 	if err != nil {
 		return err
@@ -43,7 +32,7 @@ func reposListImpl(jsonOutput bool, deps reposDeps) error {
 
 	if len(repos) == 0 {
 		if jsonOutput {
-			_, _ = deps.Println("[]")
+			output.JSONEmpty(deps.Println)
 		} else {
 			_, _ = deps.Println("no tracked repositories")
 			_, _ = deps.Println("run 'fp setup' in a repo to install hooks")
@@ -61,9 +50,7 @@ func reposListImpl(jsonOutput bool, deps reposDeps) error {
 		for _, r := range repos {
 			out = append(out, repoJSON{Path: r.Path, AddedAt: r.AddedAt, LastSeen: r.LastSeen})
 		}
-		data, _ := json.MarshalIndent(out, "", "  ")
-		_, _ = deps.Println(string(data))
-		return nil
+		return output.JSON(deps.Println, out)
 	}
 
 	for _, r := range repos {
@@ -74,7 +61,11 @@ func reposListImpl(jsonOutput bool, deps reposDeps) error {
 }
 
 // ReposScan scans directories for git repositories and shows their hook status.
-func ReposScan(_ []string, flags *dispatchers.ParsedFlags) error {
+func ReposScan(args []string, flags *dispatchers.ParsedFlags) error {
+	return reposScan(args, flags, DefaultDeps())
+}
+
+func reposScan(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	jsonOutput := flags.Has("--json")
 	root := flags.String("--root", ".")
 
@@ -87,7 +78,7 @@ func ReposScan(_ []string, flags *dispatchers.ParsedFlags) error {
 	maxDepth := flags.Int("--depth", 25)
 
 	if !jsonOutput {
-		fmt.Printf("Scanning for git repositories in %s...\n", root)
+		_, _ = deps.Printf("Scanning for git repositories in %s...\n", root)
 	}
 	repos, err := scanForRepos(root, maxDepth)
 	if err != nil {
@@ -96,18 +87,18 @@ func ReposScan(_ []string, flags *dispatchers.ParsedFlags) error {
 
 	if len(repos) == 0 {
 		if jsonOutput {
-			fmt.Println("[]")
+			output.JSONEmpty(deps.Println)
 		} else {
-			fmt.Println("No git repositories found")
+			_, _ = deps.Println("No git repositories found")
 		}
 		return nil
 	}
 
 	if jsonOutput {
-		return reposScanJSON(repos)
+		return reposScanJSON(repos, deps)
 	}
 
-	fmt.Printf("Found %d repositories\n\n", len(repos))
+	_, _ = deps.Printf("Found %d repositories\n\n", len(repos))
 
 	// Get home for path shortening
 	home, _ := os.UserHomeDir()
@@ -122,52 +113,54 @@ func ReposScan(_ []string, flags *dispatchers.ParsedFlags) error {
 		}
 
 		var status string
-		if repo.HasHooks {
+		switch {
+		case repo.HasHooks:
 			status = style.Success("[✓]")
-		} else if repo.Inspection.Status.CanInstall() {
+		case repo.Inspection.Status.CanInstall():
 			status = style.Muted("[ ]")
-		} else {
+		default:
 			status = style.Error("[×]") + " " + style.Warning(repo.Inspection.Status.String())
 		}
 
-		fmt.Printf("%s %s\n", status, displayPath)
+		_, _ = deps.Printf("%s %s\n", status, displayPath)
 	}
 
 	// Summary
-	fmt.Println()
+	_, _ = deps.Println()
 	installed := 0
 	canInstall := 0
 	blocked := 0
 	for _, r := range repos {
-		if r.HasHooks {
+		switch {
+		case r.HasHooks:
 			installed++
-		} else if r.Inspection.Status.CanInstall() {
+		case r.Inspection.Status.CanInstall():
 			canInstall++
-		} else {
+		default:
 			blocked++
 		}
 	}
 
-	fmt.Printf("Installed: %d, Available: %d", installed, canInstall)
+	_, _ = deps.Printf("Installed: %d, Available: %d", installed, canInstall)
 	if blocked > 0 {
-		fmt.Printf(", Blocked: %d", blocked)
+		_, _ = deps.Printf(", Blocked: %d", blocked)
 	}
-	fmt.Println()
+	_, _ = deps.Println()
 
 	if canInstall > 0 {
-		fmt.Printf("\nUse 'fp repos -i' to install hooks interactively, or 'fp setup <path>' for individual repos.\n")
+		_, _ = deps.Printf("\nUse 'fp repos -i' to install hooks interactively, or 'fp setup <path>' for individual repos.\n")
 	}
 
 	return nil
 }
 
-func reposScanJSON(repos []RepoEntry) error {
+func reposScanJSON(repos []RepoEntry, deps Deps) error {
 	type repoJSON struct {
-		Path         string `json:"path"`
-		Name         string `json:"name"`
-		HasHooks     bool   `json:"has_hooks"`
-		CanInstall   bool   `json:"can_install"`
-		Status       string `json:"status,omitempty"`
+		Path       string `json:"path"`
+		Name       string `json:"name"`
+		HasHooks   bool   `json:"has_hooks"`
+		CanInstall bool   `json:"can_install"`
+		Status     string `json:"status,omitempty"`
 	}
 
 	out := make([]repoJSON, 0, len(repos))
@@ -184,20 +177,5 @@ func reposScanJSON(repos []RepoEntry) error {
 		out = append(out, entry)
 	}
 
-	data, err := json.MarshalIndent(out, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(data))
-	return nil
-}
-
-// CheckRepoHooks checks if fp hooks are installed in a given repo path.
-func CheckRepoHooks(repoPath string) bool {
-	inspection := hooks.InspectRepo(repoPath)
-	return inspection.FpInstalled
-}
-
-func defaultPrintln(args ...any) (int, error) {
-	return DefaultDeps().Println(args...)
+	return output.JSON(deps.Println, out)
 }

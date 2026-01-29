@@ -87,10 +87,10 @@ func TestActivity_LimitValidation(t *testing.T) {
 
 func TestActivity_LimitApplication(t *testing.T) {
 	tests := []struct {
-		name          string
-		flags         []string
-		wantLimit     int
-		totalEvents   int
+		name        string
+		flags       []string
+		wantLimit   int
+		totalEvents int
 	}{
 		{
 			name:        "no limit - returns all events",
@@ -315,8 +315,13 @@ func TestActivity_EmptyResults(t *testing.T) {
 		ListEvents: func(*sql.DB, store.EventFilter) ([]store.RepoEvent, error) {
 			return []store.RepoEvent{}, nil
 		},
-		Pager:   func(string) { pagerCalled = true },
-		Println: func(a ...any) (int, error) { printedMessage = a[0].(string); return 0, nil },
+		Pager: func(string) { pagerCalled = true },
+		Println: func(a ...any) (int, error) {
+			if len(a) > 0 {
+				printedMessage, _ = a[0].(string)
+			}
+			return 0, nil
+		},
 	}
 
 	flags := dispatchers.NewParsedFlags([]string{})
@@ -330,5 +335,78 @@ func TestActivity_EmptyResults(t *testing.T) {
 	}
 	if printedMessage != "no events" {
 		t.Errorf("activity() should print 'no events', got %q", printedMessage)
+	}
+}
+
+func TestActivity_JSON_Empty(t *testing.T) {
+	var printedOutput string
+	deps := Deps{
+		DBPath: func() string { return ":memory:" },
+		OpenDB: func(path string) (*sql.DB, error) {
+			return sql.Open("sqlite3", path)
+		},
+		ListEvents: func(*sql.DB, store.EventFilter) ([]store.RepoEvent, error) {
+			return []store.RepoEvent{}, nil
+		},
+		Pager: func(string) {},
+		Println: func(a ...any) (int, error) {
+			if len(a) > 0 {
+				printedOutput, _ = a[0].(string)
+			}
+			return 0, nil
+		},
+	}
+
+	flags := dispatchers.NewParsedFlags([]string{"--json"})
+	err := activity([]string{}, flags, deps)
+
+	if err != nil {
+		t.Fatalf("activity() unexpected error = %v", err)
+	}
+	if printedOutput != "[]" {
+		t.Errorf("activity() should print '[]' for empty JSON, got %q", printedOutput)
+	}
+}
+
+func TestActivity_JSON_WithEvents(t *testing.T) {
+	var printedOutput string
+	deps := Deps{
+		DBPath: func() string { return ":memory:" },
+		OpenDB: func(path string) (*sql.DB, error) {
+			return sql.Open("sqlite3", path)
+		},
+		ListEvents: func(*sql.DB, store.EventFilter) ([]store.RepoEvent, error) {
+			return []store.RepoEvent{
+				{
+					ID:       1,
+					RepoID:   "github.com/test/repo",
+					RepoPath: "/test/path",
+					Commit:   "abc1234567890",
+					Branch:   "main",
+					Source:   store.SourcePostCommit,
+					Status:   store.StatusPending,
+				},
+			}, nil
+		},
+		Pager: func(string) {},
+		Println: func(a ...any) (int, error) {
+			if len(a) > 0 {
+				printedOutput, _ = a[0].(string)
+			}
+			return 0, nil
+		},
+	}
+
+	flags := dispatchers.NewParsedFlags([]string{"--json"})
+	err := activity([]string{}, flags, deps)
+
+	if err != nil {
+		t.Fatalf("activity() unexpected error = %v", err)
+	}
+	if !strings.Contains(printedOutput, `"repo_id": "github.com/test/repo"`) {
+		t.Errorf("activity() JSON should contain repo_id, got %q", printedOutput)
+	}
+	if !strings.Contains(printedOutput, `"commit": "abc1234567890"`) {
+		t.Errorf("activity() JSON should contain commit, got %q", printedOutput)
 	}
 }

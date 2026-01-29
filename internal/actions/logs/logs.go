@@ -3,17 +3,18 @@ package logs
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/footprint-tools/cli/internal/dispatchers"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/ui/style"
 )
 
@@ -32,7 +33,7 @@ func view(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	info, err := deps.Stat(logPath)
 	if os.IsNotExist(err) {
 		if jsonOutput {
-			_, _ = deps.Println("[]")
+			output.JSONEmpty(deps.Println)
 		} else {
 			_, _ = deps.Println(style.Muted("No log file found at " + logPath))
 		}
@@ -44,7 +45,7 @@ func view(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	if info.Size() == 0 {
 		if jsonOutput {
-			_, _ = deps.Println("[]")
+			output.JSONEmpty(deps.Println)
 		} else {
 			_, _ = deps.Println(style.Muted("Log file is empty"))
 		}
@@ -108,8 +109,7 @@ func viewJSON(lines []string, deps Deps) error {
 
 		matches := logEntryRegex.FindStringSubmatch(line)
 		if matches != nil {
-			lineNum := 0
-			fmt.Sscanf(matches[4], "%d", &lineNum)
+			lineNum, _ := strconv.Atoi(matches[4])
 			entries = append(entries, logEntry{
 				Timestamp: matches[1],
 				Level:     matches[2],
@@ -126,12 +126,7 @@ func viewJSON(lines []string, deps Deps) error {
 		}
 	}
 
-	data, err := json.MarshalIndent(entries, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, entries)
 }
 
 // Tail follows the log file in real time
@@ -197,7 +192,7 @@ func tail(_ []string, _ *dispatchers.ParsedFlags, deps Deps) error {
 			}
 
 			// Print the line (without extra newline since ReadString includes it)
-			fmt.Print(colorizeLogLine(strings.TrimSuffix(line, "\n")) + "\n")
+			_, _ = deps.Printf("%s\n", colorizeLogLine(strings.TrimSuffix(line, "\n")))
 		}
 	}
 }

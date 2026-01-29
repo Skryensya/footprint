@@ -2,7 +2,6 @@ package tracking
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -12,12 +11,18 @@ import (
 
 	"github.com/footprint-tools/cli/internal/dispatchers"
 	"github.com/footprint-tools/cli/internal/git"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/store"
+	"github.com/footprint-tools/cli/internal/usage"
 )
 
 const pollInterval = 300 * time.Millisecond
 
 func Log(args []string, flags *dispatchers.ParsedFlags) error {
+	// Check for conflicting flags
+	if (flags.Has("--interactive") || flags.Has("-i")) && flags.Has("--json") {
+		return usage.ConflictingFlags("--interactive", "--json")
+	}
 	// Route to interactive mode if --interactive or -i flag is present
 	if flags.Has("--interactive") || flags.Has("-i") {
 		return WatchInteractive(args, flags)
@@ -49,7 +54,7 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if statusStr := flags.String("--status", ""); statusStr != "" {
 		status, ok := parseStatus(statusStr)
 		if !ok {
-			return fmt.Errorf("invalid status '%s': valid values are %s", statusStr, strings.Join(ValidStatuses(), ", "))
+			return fmt.Errorf("invalid status '%s': valid values are %s", statusStr, strings.Join(validStatuses(), ", "))
 		}
 		filter.Status = &status
 	}
@@ -57,7 +62,7 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if sourceStr := flags.String("--source", ""); sourceStr != "" {
 		source, ok := parseSource(sourceStr)
 		if !ok {
-			return fmt.Errorf("invalid source '%s': valid values are %s", sourceStr, strings.Join(ValidSources(), ", "))
+			return fmt.Errorf("invalid source '%s': valid values are %s", sourceStr, strings.Join(validSources(), ", "))
 		}
 		filter.Source = &source
 	}
@@ -107,13 +112,14 @@ func logCmd(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 			}
 
 			for _, event := range events {
-				if jsonOutput {
+				switch {
+				case jsonOutput:
 					outputEventJSON(event, enrich)
-				} else if enrich {
+				case enrich:
 					meta := git.GetCommitMetadata(event.RepoPath, event.Commit)
-					_, _ = fmt.Fprintln(os.Stdout, FormatEventEnriched(event, meta, oneline))
-				} else {
-					_, _ = fmt.Fprintln(os.Stdout, FormatEvent(event, oneline))
+					_, _ = fmt.Fprintln(os.Stdout, formatEventEnriched(event, meta, oneline))
+				default:
+					_, _ = fmt.Fprintln(os.Stdout, formatEvent(event, oneline))
 				}
 				// Note: int64 overflow is not a practical concern (max ~9 quintillion).
 				// A negative ID would indicate database corruption.
@@ -155,6 +161,5 @@ func outputEventJSON(e store.RepoEvent, enrich bool) {
 		je.Message = meta.Subject
 	}
 
-	data, _ := json.Marshal(je)
-	_, _ = fmt.Fprintln(os.Stdout, string(data))
+	_ = output.JSONLine(fmt.Println, je)
 }

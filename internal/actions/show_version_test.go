@@ -11,7 +11,7 @@ import (
 func TestShowVersion_PrintsVersion(t *testing.T) {
 	var printed string
 
-	deps := actionDependencies{
+	deps := Deps{
 		Printf: func(format string, a ...any) (int, error) {
 			printed = fmt.Sprintf(format, a...)
 			return len(printed), nil

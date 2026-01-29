@@ -1,9 +1,8 @@
 package setup
 
 import (
-	"encoding/json"
-
 	"github.com/footprint-tools/cli/internal/dispatchers"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/usage"
 )
 
@@ -40,11 +39,12 @@ func check(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 		}
 	}
 
-	if installed == len(status) {
+	switch {
+	case installed == len(status):
 		_, _ = deps.Println("\nall hooks installed")
-	} else if installed == 0 {
+	case installed == 0:
 		_, _ = deps.Println("\nno hooks installed - run 'fp setup' to install")
-	} else {
+	default:
 		_, _ = deps.Printf("\n%d/%d hooks installed\n", installed, len(status))
 	}
 
@@ -58,12 +58,12 @@ func checkJSON(repoRoot, hooksPath string, status map[string]bool, deps Deps) er
 	}
 
 	type checkResult struct {
-		RepoPath      string       `json:"repo_path"`
-		HooksPath     string       `json:"hooks_path"`
-		Hooks         []hookStatus `json:"hooks"`
-		InstalledCount int         `json:"installed_count"`
-		TotalCount    int          `json:"total_count"`
-		AllInstalled  bool         `json:"all_installed"`
+		RepoPath       string       `json:"repo_path"`
+		HooksPath      string       `json:"hooks_path"`
+		Hooks          []hookStatus `json:"hooks"`
+		InstalledCount int          `json:"installed_count"`
+		TotalCount     int          `json:"total_count"`
+		AllInstalled   bool         `json:"all_installed"`
 	}
 
 	hooks := make([]hookStatus, 0, len(status))
@@ -84,10 +84,5 @@ func checkJSON(repoRoot, hooksPath string, status map[string]bool, deps Deps) er
 		AllInstalled:   installed == len(status),
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, result)
 }

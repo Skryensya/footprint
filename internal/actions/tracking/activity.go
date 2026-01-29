@@ -2,13 +2,13 @@ package tracking
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/footprint-tools/cli/internal/dispatchers"
 	"github.com/footprint-tools/cli/internal/git"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/store"
 )
 
@@ -17,6 +17,11 @@ func Activity(args []string, flags *dispatchers.ParsedFlags) error {
 }
 
 func activity(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
+	// Handle interactive mode
+	if flags.Has("-i") || flags.Has("--interactive") {
+		return activityInteractive(flags, deps)
+	}
+
 	dbPath := deps.DBPath()
 	db, err := deps.OpenDB(dbPath)
 	if err != nil {
@@ -33,7 +38,7 @@ func activity(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if statusStr := flags.String("--status", ""); statusStr != "" {
 		status, ok := parseStatus(statusStr)
 		if !ok {
-			return fmt.Errorf("invalid status '%s': valid values are %s", statusStr, strings.Join(ValidStatuses(), ", "))
+			return fmt.Errorf("invalid status '%s': valid values are %s", statusStr, strings.Join(validStatuses(), ", "))
 		}
 		filter.Status = &status
 	}
@@ -41,7 +46,7 @@ func activity(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if sourceStr := flags.String("--source", ""); sourceStr != "" {
 		source, ok := parseSource(sourceStr)
 		if !ok {
-			return fmt.Errorf("invalid source '%s': valid values are %s", sourceStr, strings.Join(ValidSources(), ", "))
+			return fmt.Errorf("invalid source '%s': valid values are %s", sourceStr, strings.Join(validSources(), ", "))
 		}
 		filter.Source = &source
 	}
@@ -84,7 +89,7 @@ func activity(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 	if len(events) == 0 {
 		if jsonOutput {
-			_, _ = deps.Println("[]")
+			output.JSONEmpty(deps.Println)
 		} else {
 			_, _ = deps.Println("no events")
 		}
@@ -100,9 +105,9 @@ func activity(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	for _, event := range events {
 		if enrich {
 			meta := git.GetCommitMetadata(event.RepoPath, event.Commit)
-			output.WriteString(FormatEventEnriched(event, meta, oneline))
+			output.WriteString(formatEventEnriched(event, meta, oneline))
 		} else {
-			output.WriteString(FormatEvent(event, oneline))
+			output.WriteString(formatEvent(event, oneline))
 		}
 		output.WriteString("\n")
 	}
@@ -145,10 +150,5 @@ func outputEventsJSON(events []store.RepoEvent, enrich bool, deps Deps) error {
 		out = append(out, je)
 	}
 
-	data, err := json.MarshalIndent(out, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, out)
 }

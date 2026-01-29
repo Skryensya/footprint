@@ -1,17 +1,17 @@
 package actions
 
 import (
-	"encoding/json"
 	"runtime"
 
 	"github.com/footprint-tools/cli/internal/dispatchers"
+	"github.com/footprint-tools/cli/internal/output"
 )
 
 func ShowVersion(args []string, flags *dispatchers.ParsedFlags) error {
-	return showVersion(args, flags, defaultDeps())
+	return showVersion(args, flags, DefaultDeps())
 }
 
-func showVersion(_ []string, flags *dispatchers.ParsedFlags, deps actionDependencies) error {
+func showVersion(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if flags.Has("--json") {
 		return showVersionJSON(deps)
 	}
@@ -19,12 +19,12 @@ func showVersion(_ []string, flags *dispatchers.ParsedFlags, deps actionDependen
 	return nil
 }
 
-func showVersionJSON(deps actionDependencies) error {
+func showVersionJSON(deps Deps) error {
 	type versionInfo struct {
-		Version  string `json:"version"`
+		Version   string `json:"version"`
 		GoVersion string `json:"go_version"`
-		OS       string `json:"os"`
-		Arch     string `json:"arch"`
+		OS        string `json:"os"`
+		Arch      string `json:"arch"`
 	}
 
 	info := versionInfo{
@@ -34,10 +34,5 @@ func showVersionJSON(deps actionDependencies) error {
 		Arch:      runtime.GOARCH,
 	}
 
-	data, err := json.MarshalIndent(info, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, info)
 }
