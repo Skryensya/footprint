@@ -2,9 +2,12 @@ package setup
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/footprint-tools/cli/internal/git"
 	"github.com/footprint-tools/cli/internal/hooks"
+	"github.com/footprint-tools/cli/internal/ui"
+	"golang.org/x/term"
 )
 
 type Deps struct {
@@ -19,10 +22,11 @@ type Deps struct {
 	HooksUninstall func(string) error
 
 	// io
-	Printf  func(string, ...any) (int, error)
-	Println func(...any) (int, error)
-	Print   func(...any) (int, error)
-	Scanln  func(...any) (int, error)
+	Printf   func(string, ...any) (int, error)
+	Println  func(...any) (int, error)
+	Print    func(...any) (int, error)
+	Scanln   func(...any) (int, error)
+	IsStdinTTY func() bool
 }
 
 func DefaultDeps() Deps {
@@ -35,9 +39,12 @@ func DefaultDeps() Deps {
 		HooksInstall:   hooks.Install,
 		HooksUninstall: hooks.Uninstall,
 
-		Printf:  fmt.Printf,
-		Println: fmt.Println,
-		Print:   fmt.Print,
-		Scanln:  fmt.Scanln,
+		Printf:   ui.Printf,
+		Println:  ui.Println,
+		Print:    ui.Print,
+		Scanln:   fmt.Scanln,
+		IsStdinTTY: func() bool {
+			return term.IsTerminal(int(os.Stdin.Fd()))
+		},
 	}
 }

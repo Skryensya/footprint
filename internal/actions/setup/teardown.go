@@ -48,6 +48,11 @@ func teardownLocal(args []string, flags *dispatchers.ParsedFlags, deps Deps) err
 	}
 
 	if !force {
+		// Check if stdin is a TTY - if not, require --force flag
+		if !deps.IsStdinTTY() {
+			return fmt.Errorf("hook removal requires confirmation and stdin is not a terminal\nUse --force to remove without prompting, or run interactively")
+		}
+
 		_, _ = deps.Println("fp will remove its git hooks from this repository")
 		_, _ = deps.Println("previous hooks will be restored if available")
 		_, _ = deps.Print("continue? [y/N]: ")
@@ -112,6 +117,11 @@ func teardownGlobal(flags *dispatchers.ParsedFlags, deps Deps) error {
 	_, _ = deps.Println("")
 
 	if !force {
+		// Check if stdin is a TTY - if not, require --force flag
+		if !deps.IsStdinTTY() {
+			return fmt.Errorf("global hook removal requires confirmation and stdin is not a terminal\nUse --force to remove without prompting, or run interactively")
+		}
+
 		_, _ = deps.Print("Remove global hooks? [y/N]: ")
 
 		var resp string

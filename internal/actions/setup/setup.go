@@ -62,6 +62,11 @@ func setupLocal(args []string, flags *dispatchers.ParsedFlags, deps Deps) error 
 	}
 
 	if backedUp > 0 && !force {
+		// Check if stdin is a TTY - if not, require --force flag
+		if !deps.IsStdinTTY() {
+			return fmt.Errorf("existing hooks detected and stdin is not a terminal\nUse --force to overwrite without prompting, or run interactively")
+		}
+
 		_, _ = deps.Println("fp detected existing git hooks")
 		_, _ = deps.Println("they will be backed up and replaced")
 		_, _ = deps.Print("continue? [y/N]: ")
@@ -167,6 +172,11 @@ func setupGlobal(flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	// Require explicit confirmation unless --force
 	if !force {
+		// Check if stdin is a TTY - if not, require --force flag
+		if !deps.IsStdinTTY() {
+			return fmt.Errorf("global hooks installation requires confirmation and stdin is not a terminal\nUse --force to install without prompting, or run interactively")
+		}
+
 		_, _ = deps.Println("To proceed, type 'yes' (not just 'y'):")
 		_, _ = deps.Print("> ")
 
