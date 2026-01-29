@@ -47,7 +47,7 @@ func InstallGlobal(hooksDir string) error {
 	log.Debug("hooks: installing globally to %s", hooksDir)
 
 	// Ensure hooks directory exists with restrictive permissions
-	if err := os.MkdirAll(hooksDir, 0700); err != nil {
+	if err := os.MkdirAll(hooksDir, dirPermPrivate); err != nil {
 		log.Error("hooks: failed to create global directory %s: %v", hooksDir, err)
 		return err
 	}

@@ -16,7 +16,7 @@ func BackupHook(hooksPath, name string) error {
 	dstDir := BackupDir(hooksPath)
 
 	// Create backup directory with restrictive permissions
-	if err := os.MkdirAll(dstDir, 0700); err != nil {
+	if err := os.MkdirAll(dstDir, dirPermPrivate); err != nil {
 		log.Error("hooks: failed to create backup dir %s: %v", dstDir, err)
 		return err
 	}

@@ -11,7 +11,7 @@ func Install(hooksPath string) error {
 	log.Debug("hooks: installing to %s", hooksPath)
 
 	// Ensure hooks directory exists
-	if err := os.MkdirAll(hooksPath, 0755); err != nil {
+	if err := os.MkdirAll(hooksPath, filePermExecutable); err != nil {
 		log.Error("hooks: failed to create directory %s: %v", hooksPath, err)
 		return err
 	}
@@ -35,7 +35,7 @@ func Install(hooksPath string) error {
 
 		script := Script(fpPath, hook)
 
-		if err := os.WriteFile(target, []byte(script), 0755); err != nil {
+		if err := os.WriteFile(target, []byte(script), filePermExecutable); err != nil {
 			log.Error("hooks: failed to write %s: %v", hook, err)
 			return err
 		}

@@ -186,8 +186,8 @@ func findUnmanagedHooks(hooksPath string) []string {
 			continue
 		}
 
-		hookPath := filepath.Join(hooksPath, name)
-		info, err := os.Stat(hookPath)
+		// Use entry.Info() instead of separate os.Stat call
+		info, err := entry.Info()
 		if err != nil {
 			continue
 		}

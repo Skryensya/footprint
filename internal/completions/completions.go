@@ -1,6 +1,10 @@
 package completions
 
-import "github.com/footprint-tools/cli/internal/dispatchers"
+import (
+	"slices"
+
+	"github.com/footprint-tools/cli/internal/dispatchers"
+)
 
 // CommandInfo represents a command extracted from the dispatch tree
 type CommandInfo struct {
@@ -31,13 +35,13 @@ func extractNode(node *dispatchers.DispatchNode, commands *[]CommandInfo) {
 	}
 
 	// Extract subcommand names
-	var subcommands []string
+	subcommands := make([]string, 0, len(node.Children))
 	for name := range node.Children {
 		subcommands = append(subcommands, name)
 	}
 
 	// Extract flags
-	var flags []FlagInfo
+	flags := make([]FlagInfo, 0, len(node.Flags))
 	for _, f := range node.Flags {
 		flags = append(flags, FlagInfo{
 			Names:       f.Names,
@@ -64,21 +68,9 @@ func extractNode(node *dispatchers.DispatchNode, commands *[]CommandInfo) {
 // FindCommand finds a command by its path
 func FindCommand(commands []CommandInfo, path []string) *CommandInfo {
 	for i := range commands {
-		if pathsEqual(commands[i].Path, path) {
+		if slices.Equal(commands[i].Path, path) {
 			return &commands[i]
 		}
 	}
 	return nil
-}
-
-func pathsEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

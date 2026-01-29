@@ -6,7 +6,11 @@ import (
 	"runtime"
 )
 
-const appDirName = "footprint"
+const (
+	appDirName = "footprint"
+	// dirPermPrivate is for directories containing sensitive data (owner only).
+	dirPermPrivate os.FileMode = 0700
+)
 
 // AppDataDir returns the application data directory for config/database.
 // Uses os.UserConfigDir() which returns:
@@ -22,7 +26,7 @@ func AppDataDir() string {
 	path := filepath.Join(dir, appDirName)
 
 	// Use restrictive permissions for application data
-	_ = os.MkdirAll(path, 0700)
+	_ = os.MkdirAll(path, dirPermPrivate)
 
 	return path
 }
