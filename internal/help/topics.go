@@ -38,9 +38,21 @@ var topics = map[string]*Topic{
 		Name:    "data",
 		Summary: "What data fp records and how to interpret it",
 	},
+	"exporting": {
+		Name:    "exporting",
+		Summary: "Manual exports, CSV files, and remote sync",
+	},
+	"interactive": {
+		Name:    "interactive",
+		Summary: "Keyboard shortcuts for interactive modes (-i)",
+	},
 	"configuration": {
 		Name:    "configuration",
 		Summary: "Configuration options and environment variables",
+	},
+	"privacy": {
+		Name:    "privacy",
+		Summary: "What data is stored and how to audit it",
 	},
 	"troubleshooting": {
 		Name:    "troubleshooting",
@@ -49,7 +61,7 @@ var topics = map[string]*Topic{
 }
 
 // TopicOrder defines the display order for topic listings.
-var TopicOrder = []string{"overview", "workflow", "hooks", "data", "configuration", "troubleshooting"}
+var TopicOrder = []string{"overview", "workflow", "hooks", "data", "exporting", "interactive", "configuration", "privacy", "troubleshooting"}
 
 func init() {
 	// Load topic content from embedded files at startup.

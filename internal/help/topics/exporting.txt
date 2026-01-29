@@ -1,0 +1,108 @@
+EXPORTING
+
+fp automatically exports your activity to CSV files for backup and analysis.
+Exports run in the background - you usually don't need to do anything.
+
+AUTOMATIC EXPORTS
+
+By default, fp exports every hour. Events are saved to CSV files:
+
+    Linux:  ~/.config/Footprint/exports/
+    macOS:  ~/Library/Application Support/Footprint/exports/
+
+Files rotate by year:
+
+    commits.csv          Current year's events
+    commits-2025.csv     Previous years
+    commits-2024.csv     ...
+
+MANUAL EXPORT
+
+Force an export without waiting for the hourly interval:
+
+    $ fp export --now
+
+Preview what would be exported:
+
+    $ fp export --dry-run
+
+Open the export folder in your file manager:
+
+    $ fp export --open
+
+SYNC TO A REMOTE
+
+Back up your exports to a private git repository:
+
+    1. Create a private repo (e.g., on GitHub)
+
+    2. Configure the remote:
+       $ fp config set export_remote git@github.com:you/my-activity.git
+
+    3. That's it - fp will push after each export
+
+The export folder becomes a git repo. fp commits and pushes automatically.
+
+EXPORT INTERVAL
+
+Change how often exports run:
+
+    $ fp config set export_interval_sec 1800   # Every 30 minutes
+    $ fp config set export_interval_sec 3600   # Every hour (default)
+    $ fp config set export_interval_sec 86400  # Once a day
+
+Set to 0 to export after every recorded event (not recommended).
+
+WHAT GETS EXPORTED
+
+Each CSV row contains enriched commit data:
+
+    event_id         Unique identifier
+    event_type       commit, merge, checkout, etc.
+    timestamp        When it happened
+    repo_id          Repository identifier
+    repo_name        Repository folder name
+    author_name      Git author name
+    author_email     Git author email
+    branch           Branch name
+    commit_hash      Full commit SHA
+    parent_hashes    Parent commits (for merges)
+    message          First line of commit message
+    files_changed    Number of files modified
+    insertions       Lines added
+    deletions        Lines removed
+    device           Computer hostname
+
+TROUBLESHOOTING
+
+If exports aren't working:
+
+    1. Check pending events:
+       $ fp export --dry-run
+
+    2. Force an export:
+       $ fp export --now
+
+    3. Check logs for errors:
+       $ fp config set enable_log true
+       $ fp export --now
+       $ fp logs
+
+If remote sync fails:
+
+    1. Verify the remote URL:
+       $ fp config get export_remote
+
+    2. Test git access manually:
+       $ cd ~/.config/Footprint/exports
+       $ git push origin HEAD
+
+    3. Check for merge conflicts (fp resolves most automatically)
+
+RESET EXPORTS
+
+To start fresh with exports:
+
+    $ rm -rf ~/.config/Footprint/exports
+
+The folder will be recreated on the next export.

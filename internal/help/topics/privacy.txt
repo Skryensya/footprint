@@ -1,0 +1,120 @@
+PRIVACY
+
+fp is designed to be completely local and private. Your data never
+leaves your machine unless you explicitly configure remote sync.
+
+WHAT FP STORES
+
+    - Commit hashes (SHA identifiers)
+    - Branch names
+    - Repository paths and remote URLs
+    - Timestamps of git events
+    - Author name and email (from git config)
+    - Commit message first line (subject only)
+    - File change counts (not file names or contents)
+
+WHAT FP DOES NOT STORE
+
+    - File contents or diffs
+    - Full commit messages (only first line)
+    - Credentials or tokens
+    - File names or paths within repos
+    - Any data from untracked repositories
+
+NO NETWORK CALLS
+
+fp never contacts any server. You can verify this:
+
+    1. Run fp with network disabled:
+       $ networksetup -setairportpower en0 off  # macOS
+       $ fp activity                             # Works offline
+
+    2. Monitor network activity:
+       $ sudo lsof -i -n -P | grep fp           # Shows nothing
+
+    3. Check the source code - no http calls except:
+       - 'fp update' (downloads from GitHub, only when you run it)
+       - Export sync (only if you configure export_remote)
+
+WHERE DATA LIVES
+
+All data is stored locally:
+
+    Database:
+        Linux:  ~/.config/Footprint/store.db
+        macOS:  ~/Library/Application Support/Footprint/store.db
+
+    Exports (CSV):
+        Linux:  ~/.config/Footprint/exports/
+        macOS:  ~/Library/Application Support/Footprint/exports/
+
+    Logs:
+        Linux:  ~/.config/Footprint/fp.log
+        macOS:  ~/Library/Application Support/Footprint/fp.log
+
+    Config:
+        ~/.fprc
+
+AUDIT YOUR DATA
+
+View exactly what's stored:
+
+    $ fp activity --json | head -50    # Recent events as JSON
+    $ sqlite3 ~/.config/Footprint/store.db ".schema"  # DB structure
+    $ sqlite3 ~/.config/Footprint/store.db "SELECT * FROM repo_events LIMIT 10"
+
+View tracked repositories:
+
+    $ fp repos list
+
+COMPLETE DATA REMOVAL
+
+To remove all fp data and hooks:
+
+    1. Remove hooks from all tracked repos:
+       $ fp teardown  # Run in each tracked repo
+       # Or use: fp repos -i  # Interactive bulk removal
+
+    2. Delete all data:
+       $ rm -rf ~/.config/Footprint      # Linux
+       $ rm -rf ~/Library/Application\ Support/Footprint  # macOS
+       $ rm -f ~/.fprc
+
+    3. Or use the Makefile (if you have the source):
+       $ make wipe  # Removes everything including hooks
+
+REMOTE SYNC (OPTIONAL)
+
+If you configure export_remote, fp will push CSV exports to that repo.
+
+    - Only CSV files are pushed (activity summaries)
+    - You control the remote (use a private repo)
+    - No data goes to fp servers (there are none)
+
+To disable remote sync:
+
+    $ fp config unset export_remote
+
+GIT HOOKS
+
+fp installs hooks in .git/hooks/ that call 'fp record'. These hooks:
+
+    - Only run locally on your machine
+    - Only call the local fp binary
+    - Do not transmit any data
+
+View installed hooks:
+
+    $ fp repos check
+    $ cat .git/hooks/post-commit
+
+OPEN SOURCE
+
+fp is open source. You can audit the code:
+
+    https://github.com/footprint-tools/cli
+
+Build from source to verify the binary matches:
+
+    $ git clone https://github.com/footprint-tools/cli
+    $ cd cli && make build

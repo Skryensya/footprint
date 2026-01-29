@@ -1,0 +1,130 @@
+INTERACTIVE MODE
+
+Many fp commands have an interactive mode (-i) with keyboard navigation,
+filtering, and real-time updates. These work best in a full terminal.
+
+AVAILABLE INTERACTIVE MODES
+
+    fp activity -i     Browse and filter your activity history
+    fp watch -i        Real-time dashboard with stats
+    fp repos -i        Manage hooks across repositories
+    fp theme -i        Visual theme picker with preview
+    fp config -i       Edit settings with descriptions
+
+COMMON KEYBOARD SHORTCUTS
+
+Navigation:
+
+    j / Down       Move down
+    k / Up         Move up
+    g / Home       Jump to top
+    G / End        Jump to bottom
+    Ctrl+d         Page down
+    Ctrl+u         Page up
+
+Actions:
+
+    Enter          Select / Open details
+    Esc            Go back / Close panel
+    q              Quit
+    ?              Show help (when available)
+
+FP ACTIVITY -i
+
+Interactive activity browser with filtering and search.
+
+    /              Start search (filters by text)
+    f              Filter by event type
+    r              Filter by repository
+    c              Clear all filters
+    Enter          View commit details
+    Esc            Close detail panel
+
+The sidebar shows:
+    - Total events matching current filter
+    - Breakdown by event type
+    - Breakdown by repository
+
+FP WATCH -i
+
+Real-time dashboard showing events as they happen.
+
+    p              Pause/resume updates
+    a              Toggle auto-scroll
+    Enter          View event details
+    Esc            Close detail panel
+    /              Search/filter
+
+Stats panel shows:
+    - Events this session
+    - Events by type (commit, merge, etc.)
+    - Session duration
+
+FP REPOS -i
+
+Bulk hook management across multiple repositories.
+
+    Space          Select/deselect repository
+    a              Select all
+    n              Select none
+    i              Install hooks in selected repos
+    u              Uninstall hooks from selected repos
+    d              View repository details
+    Enter          Toggle selection
+    Tab            Switch between panels
+
+Status indicators:
+    [*]            Hooks installed
+    [ ]            No hooks
+    [!]            Partial installation
+
+FP THEME -i
+
+Visual theme picker with live preview.
+
+    j/k            Browse themes
+    Enter          Apply selected theme
+    l/h            Toggle light/dark variant
+    p              Preview theme colors
+
+The preview shows how colors look for:
+    - Event types (commit, merge, etc.)
+    - UI elements (borders, highlights)
+    - Status messages (success, error, warning)
+
+FP CONFIG -i
+
+Interactive settings editor.
+
+    j/k            Navigate settings
+    Enter          Edit selected setting
+    d              Reset to default
+    Esc            Cancel edit
+    Tab            Switch sections
+
+Shows description and current value for each setting.
+
+TERMINAL REQUIREMENTS
+
+Interactive modes work best with:
+
+    - A terminal that supports 256 colors
+    - At least 80 columns width
+    - At least 24 rows height
+
+If your terminal is too small, fp falls back to non-interactive output.
+
+DISABLING INTERACTIVE MODE
+
+If interactive mode causes issues:
+
+    1. Use the command without -i:
+       $ fp activity      # Non-interactive
+       $ fp watch         # Simple streaming
+
+    2. Pipe output (automatically disables interactive):
+       $ fp activity | less
+       $ fp activity --json | jq
+
+    3. Set NO_COLOR environment variable:
+       $ NO_COLOR=1 fp activity -i   # Reduced formatting
