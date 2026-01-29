@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/footprint-tools/cli/internal/ui/style"
+	"github.com/footprint-tools/cli/internal/ui/text"
 )
 
 const (
@@ -146,7 +147,7 @@ func (l *Layout) buildPanel(panel Panel, width, height int, focused bool, active
 	scrollbar := BuildScrollbar(visibleHeight, totalItems, panel.ScrollPos, activeColor, dimColor, focused)
 
 	// Combine lines with scrollbar
-	var result []string
+	result := make([]string, 0, len(lines))
 	for i, line := range lines {
 		// Truncate or pad line to content width
 		lineWidth := lipgloss.Width(line)
@@ -154,7 +155,7 @@ func (l *Layout) buildPanel(panel Panel, width, height int, focused bool, active
 			// Truncate with ellipsis
 			line = truncateString(line, contentWidth)
 		} else if lineWidth < contentWidth {
-			line = line + strings.Repeat(" ", contentWidth-lineWidth)
+			line += strings.Repeat(" ", contentWidth-lineWidth)
 		}
 
 		scrollChar := " "
@@ -180,20 +181,9 @@ func (l *Layout) buildPanel(panel Panel, width, height int, focused bool, active
 	return style.Render(content)
 }
 
-// truncateString truncates a string to maxWidth, accounting for ANSI codes
+// truncateString truncates a string to maxWidth, preserving ANSI codes.
 func truncateString(s string, maxWidth int) string {
-	if lipgloss.Width(s) <= maxWidth {
-		return s
-	}
-	// Simple truncation - might break ANSI codes but works for most cases
-	runes := []rune(s)
-	for i := len(runes); i > 0; i-- {
-		candidate := string(runes[:i])
-		if lipgloss.Width(candidate) <= maxWidth-3 {
-			return candidate + "..."
-		}
-	}
-	return "..."
+	return text.TruncateWithEllipsis(s, maxWidth)
 }
 
 // SidebarContentWidth returns usable width for sidebar content

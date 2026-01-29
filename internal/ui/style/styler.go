@@ -49,7 +49,7 @@ func (s *Styler) Header(text string) string {
 // Useful for testing or when styling is disabled.
 type NopStyler struct{}
 
-func (NopStyler) Enabled() bool           { return false }
+func (NopStyler) Enabled() bool              { return false }
 func (NopStyler) Success(text string) string { return text }
 func (NopStyler) Warning(text string) string { return text }
 func (NopStyler) Error(text string) string   { return text }
