@@ -24,7 +24,11 @@ func ReadLines() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = file.Close() }()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Debug("config: failed to close config file: %v", err)
+		}
+	}()
 
 	// Ensure correct permissions if file already existed
 	if err := os.Chmod(configPath, 0600); err != nil {

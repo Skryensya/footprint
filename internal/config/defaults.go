@@ -7,7 +7,7 @@ import (
 // Default configuration values (in code, not persisted)
 var Defaults = map[string]func() string{
 	"export_interval_sec": func() string { return "3600" },
-	"export_path":         func() string { return paths.ExportRepoDir() },
+	"export_path":         paths.ExportRepoDir,
 	"export_last":         func() string { return "0" },
 	"export_remote":       func() string { return "" },
 	"theme":               func() string { return "default" }, // auto-detects -dark/-light

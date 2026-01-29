@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/footprint-tools/cli/internal/log"
 )
 
 const (
@@ -61,7 +63,9 @@ func acquireLock(lockPath string) (*os.File, error) {
 			// Lock file exists - check if it's stale
 			if time.Since(info.ModTime()) > staleLockTimeout {
 				// Lock is stale, remove it
-				_ = os.Remove(lockPath)
+				if err := os.Remove(lockPath); err != nil {
+					log.Debug("config: failed to remove stale lock: %v", err)
+				}
 			}
 		}
 
@@ -86,7 +90,11 @@ func acquireLock(lockPath string) (*os.File, error) {
 // releaseLock releases the file lock.
 func releaseLock(f *os.File, lockPath string) {
 	if f != nil {
-		_ = f.Close()
+		if err := f.Close(); err != nil {
+			log.Debug("config: failed to close lock file: %v", err)
+		}
 	}
-	_ = os.Remove(lockPath)
+	if err := os.Remove(lockPath); err != nil && !os.IsNotExist(err) {
+		log.Debug("config: failed to remove lock file: %v", err)
+	}
 }

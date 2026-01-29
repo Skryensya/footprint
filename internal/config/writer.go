@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/footprint-tools/cli/internal/log"
 	"github.com/footprint-tools/cli/internal/paths"
 )
 
@@ -26,8 +27,12 @@ func WriteLines(lines []string) error {
 	success := false
 	defer func() {
 		if !success {
-			_ = tmpFile.Close()
-			_ = os.Remove(tmpPath)
+			if err := tmpFile.Close(); err != nil {
+				log.Debug("config: failed to close temp file during cleanup: %v", err)
+			}
+			if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
+				log.Debug("config: failed to remove temp file during cleanup: %v", err)
+			}
 		}
 	}()
 
