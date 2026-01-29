@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,12 +13,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/footprint-tools/cli/internal/config"
 	"github.com/footprint-tools/cli/internal/dispatchers"
 	"github.com/footprint-tools/cli/internal/git"
 	"github.com/footprint-tools/cli/internal/log"
+	"github.com/footprint-tools/cli/internal/output"
 	"github.com/footprint-tools/cli/internal/store"
 	"github.com/google/uuid"
 )
@@ -89,13 +90,20 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	if len(events) == 0 {
 		if jsonOutput {
 			if dryRun {
-				_, _ = deps.Println(`{"events_to_export":[],"count":0}`)
-			} else {
-				_, _ = deps.Println(`{"events_exported":0,"export_path":"","files_modified":[],"pushed":false}`)
+				type emptyDryRun struct {
+					EventsToExport []any `json:"events_to_export"`
+					Count          int   `json:"count"`
+				}
+				return output.JSON(deps.Println, emptyDryRun{EventsToExport: []any{}, Count: 0})
 			}
-		} else {
-			_, _ = deps.Println("No pending events to export")
+			type emptyExport struct {
+				EventsExported int    `json:"events_exported"`
+				ExportPath     string `json:"export_path"`
+				Pushed         bool   `json:"pushed"`
+			}
+			return output.JSON(deps.Println, emptyExport{})
 		}
+		_, _ = deps.Println("No pending events to export")
 		return nil
 	}
 
@@ -111,16 +119,11 @@ func export(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	}
 
 	if !force {
-		shouldExp, err := shouldExport(deps)
-		if err != nil {
-			return err
-		}
-		if !shouldExp {
+		if !shouldExport(deps) {
 			if jsonOutput {
-				_, _ = deps.Println(`{"error":"export_interval_not_reached","message":"Use --now to export anyway"}`)
-			} else {
-				_, _ = deps.Println("Export interval not reached. Use --now to export anyway.")
+				return output.JSONError(deps.Println, "export_interval_not_reached", "Use --now to export anyway")
 			}
+			_, _ = deps.Println("Export interval not reached. Use --now to export anyway.")
 			return nil
 		}
 	}
@@ -183,12 +186,7 @@ func exportDryRunJSON(events []store.RepoEvent, deps Deps) error {
 		})
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, result)
 }
 
 func exportResultJSON(count int, exportPath string, pushed bool, deps Deps) error {
@@ -204,12 +202,7 @@ func exportResultJSON(count int, exportPath string, pushed bool, deps Deps) erro
 		Pushed:         pushed,
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, _ = deps.Println(string(data))
-	return nil
+	return output.JSON(deps.Println, result)
 }
 
 // doExportWork performs the core export workflow: export events to CSV, commit, update DB.
@@ -218,6 +211,11 @@ func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, e
 
 	if err := ensureExportRepo(exportRepo); err != nil {
 		return 0, false, fmt.Errorf("could not initialize export repo: %w", err)
+	}
+
+	// Check for incomplete merge/rebase state before proceeding
+	if err := checkGitState(exportRepo); err != nil {
+		return 0, false, err
 	}
 
 	// Sync with remote before writing (offline mode: continue if pull fails)
@@ -274,14 +272,9 @@ func doExportWork(db *sql.DB, events []store.RepoEvent, deps Deps) (int, bool, e
 	return len(exportedIDs), pushed, nil
 }
 
-// MaybeExport checks if it's time to export and does so if needed.
-func MaybeExport(db *sql.DB, deps Deps) {
-	shouldExp, err := shouldExport(deps)
-	if err != nil {
-		log.Debug("export: shouldExport error: %v", err)
-		return
-	}
-	if !shouldExp {
+// maybeExport checks if it's time to export and does so if needed.
+func maybeExport(db *sql.DB, deps Deps) {
+	if !shouldExport(deps) {
 		log.Debug("export: interval not reached, skipping auto-export")
 		return
 	}
@@ -339,7 +332,10 @@ func exportAllEvents(exportRepo string, events []store.RepoEvent, deps Deps) ([]
 	// Process each CSV file
 	for csvPath, fileEvents := range eventsByFile {
 		// Load existing records into map (repo:commit -> record)
-		records := loadCSVRecords(csvPath)
+		records, err := loadCSVRecords(csvPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not load existing CSV %s: %w", csvPath, err)
+		}
 
 		// Add/replace with new events
 		for _, e := range fileEvents {
@@ -401,23 +397,27 @@ func getDefaultColumnIndices() (repoIdx, commitIdx int) {
 }
 
 // loadCSVRecords loads existing CSV into a map keyed by repo:commit.
-func loadCSVRecords(csvPath string) map[string][]string {
+// Returns an error if the file exists but cannot be parsed (to prevent data loss).
+func loadCSVRecords(csvPath string) (map[string][]string, error) {
 	records := make(map[string][]string)
 
 	file, err := os.Open(csvPath)
 	if err != nil {
-		return records // File doesn't exist yet, return empty map
+		if os.IsNotExist(err) {
+			return records, nil // File doesn't exist yet, return empty map
+		}
+		return nil, fmt.Errorf("open CSV: %w", err)
 	}
 	defer func() { _ = file.Close() }()
 
 	r := csv.NewReader(file)
 	lines, err := r.ReadAll()
 	if err != nil {
-		return records
+		return nil, fmt.Errorf("parse CSV: %w", err)
 	}
 
 	if len(lines) == 0 {
-		return records
+		return records, nil
 	}
 
 	// Parse header to find column indices
@@ -439,7 +439,7 @@ func loadCSVRecords(csvPath string) map[string][]string {
 		records[key] = line
 	}
 
-	return records
+	return records, nil
 }
 
 // buildRecord creates a CSV record from an event and its metadata.
@@ -512,11 +512,12 @@ func generateAuthorID(email string) string {
 }
 
 // writeCSVSorted writes all records to CSV, sorted by timestamp (column 2).
+// Uses atomic write pattern: write to temp file, then rename to prevent data loss.
 func writeCSVSorted(csvPath string, records map[string][]string) error {
 	const timestampCol = 2 // Index of timestamp column in schema
 
 	// Collect and sort records by timestamp
-	var lines [][]string
+	lines := make([][]string, 0, len(records))
 	for _, record := range records {
 		lines = append(lines, record)
 	}
@@ -528,8 +529,16 @@ func writeCSVSorted(csvPath string, records map[string][]string) error {
 		return lines[i][timestampCol] < lines[j][timestampCol] // timestamp is RFC3339, sorts correctly
 	})
 
-	// Write file
-	file, err := os.OpenFile(csvPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	// Check available disk space before writing
+	// Estimate ~200 bytes per record (generous estimate for CSV row)
+	estimatedSize := int64(len(lines)*200 + 1000) // +1000 for header overhead
+	if err := checkDiskSpace(filepath.Dir(csvPath), estimatedSize); err != nil {
+		return fmt.Errorf("insufficient disk space: %w", err)
+	}
+
+	// Write to a temporary file first (atomic write pattern)
+	tempPath := csvPath + ".tmp"
+	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -537,6 +546,7 @@ func writeCSVSorted(csvPath string, records map[string][]string) error {
 	w := csv.NewWriter(file)
 	if err := w.Write(csvHeader); err != nil {
 		_ = file.Close()
+		_ = os.Remove(tempPath)
 		return err
 	}
 	expectedFields := len(csvHeader)
@@ -547,24 +557,54 @@ func writeCSVSorted(csvPath string, records map[string][]string) error {
 		}
 		if err := w.Write(line); err != nil {
 			_ = file.Close()
+			_ = os.Remove(tempPath)
 			return err
 		}
 	}
 	w.Flush()
 	if err := w.Error(); err != nil {
 		_ = file.Close()
+		_ = os.Remove(tempPath)
 		return err
 	}
 
 	// Sync to ensure data is written to disk
 	if err := file.Sync(); err != nil {
 		_ = file.Close()
+		_ = os.Remove(tempPath)
 		return fmt.Errorf("sync CSV file: %w", err)
 	}
 
-	// Close and check for errors
+	// Close the temp file
 	if err := file.Close(); err != nil {
+		_ = os.Remove(tempPath)
 		return fmt.Errorf("close CSV file: %w", err)
+	}
+
+	// Atomic rename: replaces destination if it exists
+	if err := os.Rename(tempPath, csvPath); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("rename CSV file: %w", err)
+	}
+
+	return nil
+}
+
+// checkDiskSpace verifies there's enough space to write the estimated bytes.
+func checkDiskSpace(dir string, requiredBytes int64) error {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(dir, &stat); err != nil {
+		// If we can't check, proceed anyway (might be a virtual filesystem)
+		log.Debug("export: could not check disk space for %s: %v", dir, err)
+		return nil
+	}
+
+	// Available space = available blocks * block size
+	available := int64(stat.Bavail) * int64(stat.Bsize)
+
+	// Require at least 2x the estimated size for safety margin
+	if available < requiredBytes*2 {
+		return fmt.Errorf("need %d bytes, only %d available", requiredBytes*2, available)
 	}
 
 	return nil
@@ -579,7 +619,7 @@ func getHostname() string {
 	return hostname
 }
 
-func shouldExport(deps Deps) (bool, error) {
+func shouldExport(deps Deps) bool {
 	intervalStr, _ := config.Get("export_interval_sec")
 	lastExportStr, _ := config.Get("export_last")
 
@@ -606,7 +646,7 @@ func shouldExport(deps Deps) (bool, error) {
 	}
 
 	now := deps.Now().Unix()
-	return (now - lastExport) >= int64(interval), nil
+	return (now - lastExport) >= int64(interval)
 }
 
 func getExportRepo() string {
@@ -625,6 +665,32 @@ func ensureExportRepo(path string) error {
 		if err := runGitInDir(path, "init"); err != nil {
 			return fmt.Errorf("git init failed: %w", err)
 		}
+	}
+
+	return nil
+}
+
+// checkGitState verifies the export repo is in a clean state (no in-progress merge/rebase).
+// Returns an error if an operation is in progress that would interfere with export.
+func checkGitState(exportRepo string) error {
+	gitDir := filepath.Join(exportRepo, ".git")
+
+	// Check for merge in progress
+	if _, err := os.Stat(filepath.Join(gitDir, "MERGE_HEAD")); err == nil {
+		return fmt.Errorf("export repo has incomplete merge; resolve with: cd %s && git merge --abort (or complete the merge)", exportRepo)
+	}
+
+	// Check for rebase in progress
+	rebaseDirs := []string{"rebase-merge", "rebase-apply"}
+	for _, dir := range rebaseDirs {
+		if _, err := os.Stat(filepath.Join(gitDir, dir)); err == nil {
+			return fmt.Errorf("export repo has incomplete rebase; resolve with: cd %s && git rebase --abort", exportRepo)
+		}
+	}
+
+	// Check for cherry-pick in progress
+	if _, err := os.Stat(filepath.Join(gitDir, "CHERRY_PICK_HEAD")); err == nil {
+		return fmt.Errorf("export repo has incomplete cherry-pick; resolve with: cd %s && git cherry-pick --abort", exportRepo)
 	}
 
 	return nil

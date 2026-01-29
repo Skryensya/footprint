@@ -68,8 +68,9 @@ func TestLoadCSVRecords_NonExistentFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nonexistent.csv")
 
-	records := loadCSVRecords(path)
+	records, err := loadCSVRecords(path)
 
+	require.NoError(t, err)
 	require.Empty(t, records)
 }
 
@@ -84,8 +85,9 @@ uuid1,commit,2024-01-15T10:30:00Z,github.com/user/repo,repo,auth1,John,john@exam
 	err := os.WriteFile(path, []byte(content), 0600)
 	require.NoError(t, err)
 
-	records := loadCSVRecords(path)
+	records, err := loadCSVRecords(path)
 
+	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.Contains(t, records, "github.com/user/repo:abc123")
 }
@@ -116,14 +118,14 @@ func TestBuildRecord_CreatesCorrectFormat(t *testing.T) {
 	record := buildRecord(event, meta)
 
 	require.Len(t, record, 16)
-	require.NotEmpty(t, record[colEventID])                       // UUID generated
-	require.Equal(t, "commit", record[colEventType])              // event_type
+	require.NotEmpty(t, record[colEventID])                        // UUID generated
+	require.Equal(t, "commit", record[colEventType])               // event_type
 	require.Equal(t, "2024-01-15T10:30:00Z", record[colTimestamp]) // timestamp
-	require.Equal(t, "github.com/user/repo", record[colRepoID])   // repo_id
-	require.Equal(t, "repo", record[colRepoName])                 // repo_name (basename of path)
-	require.Equal(t, "main", record[colBranch])                   // branch
-	require.Equal(t, "abc123def456", record[colCommitHash])       // commit_hash
-	require.Equal(t, "Fix bug", record[colMessage])               // message
+	require.Equal(t, "github.com/user/repo", record[colRepoID])    // repo_id
+	require.Equal(t, "repo", record[colRepoName])                  // repo_name (basename of path)
+	require.Equal(t, "main", record[colBranch])                    // branch
+	require.Equal(t, "abc123def456", record[colCommitHash])        // commit_hash
+	require.Equal(t, "Fix bug", record[colMessage])                // message
 }
 
 func TestBuildRecord_SanitizesNewlines(t *testing.T) {
@@ -210,16 +212,13 @@ func TestWriteCSVSorted_HasRestrictivePermissions(t *testing.T) {
 	require.Equal(t, os.FileMode(0600), perm)
 }
 
-func TestShouldExport_ReturnsNoError(t *testing.T) {
+func TestShouldExport_ReturnsValue(t *testing.T) {
 	deps := Deps{
-		Now: func() time.Time {
-			return time.Now()
-		},
+		Now: time.Now,
 	}
 
-	_, err := shouldExport(deps)
-
-	require.NoError(t, err)
+	// Should not panic and return a boolean
+	shouldExport(deps)
 }
 
 func TestEnsureExportRepo_CreatesDirectory(t *testing.T) {
@@ -599,7 +598,7 @@ func TestExportAllEvents_ReplacesDuplicates(t *testing.T) {
 	records, err := reader.ReadAll()
 	require.NoError(t, err)
 
-	require.Len(t, records, 2) // header + 1 record (not 2)
+	require.Len(t, records, 2)                         // header + 1 record (not 2)
 	require.Equal(t, "feature", records[1][colBranch]) // branch from second export
 }
 
@@ -619,7 +618,7 @@ uuid2,commit,2024-01-15T10:30:00Z,myrepo,myrepo,author1,,,feature,abc123,,Second
 	parseCSVIntoMap(content2, records)
 
 	require.Len(t, records, 1)
-	require.Equal(t, "feature", records["myrepo:abc123"][colBranch])  // branch from second
+	require.Equal(t, "feature", records["myrepo:abc123"][colBranch])         // branch from second
 	require.Equal(t, "Second version", records["myrepo:abc123"][colMessage]) // message from second
 }
 
@@ -639,11 +638,10 @@ func TestDoExportWork_OfflineMode_ContinuesWhenPullFails(t *testing.T) {
 
 	// Create a temp database
 	dbPath := filepath.Join(dir, "test.db")
-	db, err := store.Open(dbPath) //nolint:staticcheck // Using deprecated for test compatibility
+	s, err := store.New(dbPath)
 	require.NoError(t, err)
-	defer func() { _ = db.Close() }()
-	err = store.Init(db)
-	require.NoError(t, err)
+	defer func() { _ = s.Close() }()
+	db := s.DB()
 
 	// Insert test events
 	event := store.RepoEvent{
@@ -705,7 +703,8 @@ func TestDoExportWork_OfflineMode_ContinuesWhenPullFails(t *testing.T) {
 	require.NoError(t, err, "CSV file should exist")
 
 	// Verify content
-	records := loadCSVRecords(csvPath)
+	records, err := loadCSVRecords(csvPath)
+	require.NoError(t, err)
 	require.Len(t, records, 1)
 	require.Contains(t, records, "github.com/user/repo:abc123")
 }
@@ -749,10 +748,10 @@ func TestShouldExport_WithInterval(t *testing.T) {
 				},
 			}
 
-			result, err := shouldExport(deps)
-			require.NoError(t, err)
+			result := shouldExport(deps)
 			// Note: The actual shouldExport reads from config, so this tests the basic path
-			require.NotNil(t, result)
+			// result is a bool, just verify it doesn't panic
+			_ = result
 		})
 	}
 }
@@ -761,7 +760,8 @@ func TestGetHostname(t *testing.T) {
 	hostname := getHostname()
 	// Should return either a non-empty hostname or empty string on error
 	// In most environments, this will return a valid hostname
-	require.True(t, len(hostname) >= 0)
+	// Just verify the function doesn't panic and returns a string
+	require.NotNil(t, hostname)
 }
 
 func TestCommitExportChanges_WithFiles(t *testing.T) {
@@ -830,9 +830,10 @@ func TestLoadCSVRecords_InvalidCSV(t *testing.T) {
 	err := os.WriteFile(path, []byte("col1,col2\n\"unclosed quote,data"), 0600)
 	require.NoError(t, err)
 
-	records := loadCSVRecords(path)
-	// Should return empty map on error
-	require.Empty(t, records)
+	records, err := loadCSVRecords(path)
+	// Should return error on invalid CSV
+	require.Error(t, err)
+	require.Nil(t, records)
 }
 
 func TestLoadCSVRecords_MissingColumns(t *testing.T) {
@@ -846,9 +847,10 @@ func TestLoadCSVRecords_MissingColumns(t *testing.T) {
 	err := os.WriteFile(path, []byte(content), 0600)
 	require.NoError(t, err)
 
-	records := loadCSVRecords(path)
+	records, err := loadCSVRecords(path)
 	// Should handle gracefully (either return empty or partial data)
 	// The actual behavior depends on implementation
+	require.NoError(t, err)
 	require.NotNil(t, records)
 }
 
