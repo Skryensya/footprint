@@ -38,7 +38,10 @@ func (p *Provider) Unset(key string) error {
 		return err
 	}
 
-	lines, _ = Unset(lines, key)
+	lines, removed := Unset(lines, key)
+	if !removed {
+		return nil
+	}
 	return WriteLines(lines)
 }
 
