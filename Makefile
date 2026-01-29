@@ -1,18 +1,24 @@
 VERSION := $(shell git describe --tags --dirty --always 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags "-X github.com/footprint-tools/cli/internal/app.Version=$(VERSION)"
+LDFLAGS_RELEASE := -ldflags "-s -w -X github.com/footprint-tools/cli/internal/app.Version=$(VERSION)"
 
-.PHONY: all build test lint fmt clean install wipe integration simulate-activity changelog
+.PHONY: all build test lint fmt clean install wipe integration simulate-activity changelog release
 
 # Default target
 all: build
 
-# Build binary (runs tests first)
+# Build binary with debug symbols (runs tests first)
 build: test
 	go build $(LDFLAGS) -o fp ./cmd/fp
 
 # Build without tests (for quick iteration)
 build-fast:
 	go build $(LDFLAGS) -o fp ./cmd/fp
+
+# Build optimized release binary (smaller, no debug symbols)
+release: test
+	go build $(LDFLAGS_RELEASE) -o fp ./cmd/fp
+	@echo "Built release binary: $$(ls -lh fp | awk '{print $$5}')"
 
 # Run unit tests
 test:
