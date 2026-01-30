@@ -22,10 +22,10 @@ type Deps struct {
 	HooksUninstall func(string) error
 
 	// io
-	Printf   func(string, ...any) (int, error)
-	Println  func(...any) (int, error)
-	Print    func(...any) (int, error)
-	Scanln   func(...any) (int, error)
+	Printf     func(string, ...any) (int, error)
+	Println    func(...any) (int, error)
+	Print      func(...any) (int, error)
+	Scanln     func(...any) (int, error)
 	IsStdinTTY func() bool
 }
 
@@ -39,10 +39,10 @@ func DefaultDeps() Deps {
 		HooksInstall:   hooks.Install,
 		HooksUninstall: hooks.Uninstall,
 
-		Printf:   ui.Printf,
-		Println:  ui.Println,
-		Print:    ui.Print,
-		Scanln:   fmt.Scanln,
+		Printf:  ui.Printf,
+		Println: ui.Println,
+		Print:   ui.Print,
+		Scanln:  fmt.Scanln,
 		IsStdinTTY: func() bool {
 			return term.IsTerminal(int(os.Stdin.Fd()))
 		},

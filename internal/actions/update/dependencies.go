@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+
+	"github.com/footprint-tools/cli/internal/app"
 )
 
-type Dependencies struct {
+type Deps struct {
 	Stdout         io.Writer
 	Stderr         io.Writer
 	HTTPClient     HTTPClient
@@ -20,12 +22,12 @@ type HTTPClient interface {
 	Get(url string) (*http.Response, error)
 }
 
-func NewDependencies(version string) Dependencies {
-	return Dependencies{
+func DefaultDeps() Deps {
+	return Deps{
 		Stdout:         os.Stdout,
 		Stderr:         os.Stderr,
 		HTTPClient:     http.DefaultClient,
-		CurrentVersion: version,
+		CurrentVersion: app.Version,
 		ExecutablePath: os.Executable,
 		RunCommand: func(name string, args ...string) error {
 			cmd := exec.Command(name, args...)

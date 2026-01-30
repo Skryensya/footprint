@@ -30,6 +30,7 @@ type Deps struct {
 	// store
 	DBPath       func() string
 	OpenDB       func(string) (*sql.DB, error)
+	OpenStore    func(string) (*store.Store, error)
 	InitDB       func(*sql.DB) error
 	InsertEvent  func(*sql.DB, store.RepoEvent) error
 	ListEvents   func(*sql.DB, store.EventFilter) ([]store.RepoEvent, error)
@@ -66,7 +67,8 @@ func DefaultDeps() Deps {
 		DeriveID: repodomain.DeriveID,
 
 		DBPath:       store.DBPath,
-		OpenDB:       store.Open, //nolint:staticcheck // uses deprecated singleton; see store.New()
+		OpenDB:       openDBFresh,
+		OpenStore:    store.New,
 		InitDB:       store.Init,
 		InsertEvent:  store.InsertEvent,
 		ListEvents:   store.ListEvents,
@@ -84,6 +86,18 @@ func DefaultDeps() Deps {
 		PullExportRepo: pullExportRepo,
 		PushExportRepo: pushExportRepo,
 	}
+}
+
+// openDBFresh opens a new database connection (non-singleton).
+// Returns the raw DB for backward compatibility with functions expecting *sql.DB.
+// The caller should close the DB using store.CloseDB.
+func openDBFresh(path string) (*sql.DB, error) {
+	s, err := store.New(path)
+	if err != nil {
+		return nil, err
+	}
+	// Return the underlying DB - caller is responsible for closing
+	return s.DB(), nil
 }
 
 // markOrphanedWrapper opens the database, marks events as orphaned, and closes.

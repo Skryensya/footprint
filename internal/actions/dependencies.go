@@ -6,14 +6,14 @@ import (
 	"github.com/footprint-tools/cli/internal/app"
 )
 
-type actionDependencies struct {
+type Deps struct {
 	Printf  func(format string, a ...any) (n int, err error)
 	Println func(a ...any) (n int, err error)
 	Version func() string
 }
 
-func defaultDeps() actionDependencies {
-	return actionDependencies{
+func DefaultDeps() Deps {
+	return Deps{
 		Printf:  fmt.Printf,
 		Println: fmt.Println,
 		Version: func() string { return app.Version },
