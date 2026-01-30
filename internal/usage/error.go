@@ -6,6 +6,7 @@ type ErrorKind int
 const (
 	ErrUnknown ErrorKind = iota
 	ErrInvalidFlag
+	ErrConflictingFlags
 	ErrMissingArgument
 	ErrUnknownCommand
 	ErrNotInGitRepo
@@ -32,12 +33,14 @@ const (
 //
 //	Exit 2: User input errors
 //	  - Invalid flag
+//	  - Conflicting flags
 //	  - Missing argument
 //	  - Missing remote
 //	  - Ambiguous remote
 var exitCodes = map[ErrorKind]int{
 	ErrUnknown:          1,
 	ErrInvalidFlag:      2,
+	ErrConflictingFlags: 2,
 	ErrMissingArgument:  2,
 	ErrUnknownCommand:   1,
 	ErrNotInGitRepo:     1,
