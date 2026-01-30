@@ -12,8 +12,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/footprint-tools/cli/internal/app"
-	"github.com/footprint-tools/cli/internal/completions"
 	"github.com/footprint-tools/cli/internal/dispatchers"
 )
 
@@ -43,10 +41,10 @@ type githubAsset struct {
 
 // Update checks for updates and installs the latest or specified version.
 func Update(args []string, flags *dispatchers.ParsedFlags) error {
-	return update(args, flags, NewDependencies(app.Version))
+	return update(args, flags, DefaultDeps())
 }
 
-func update(args []string, flags *dispatchers.ParsedFlags, deps Dependencies) error {
+func update(args []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	useTag := flags.Has("--tag")
 
 	var targetVersion string
@@ -66,7 +64,7 @@ func update(args []string, flags *dispatchers.ParsedFlags, deps Dependencies) er
 	return installFromRelease(deps, targetVersion)
 }
 
-func installFromRelease(deps Dependencies, targetVersion string) error {
+func installFromRelease(deps Deps, targetVersion string) error {
 	// Fetch release info
 	release, err := fetchRelease(deps, targetVersion)
 	if err != nil {
@@ -106,13 +104,10 @@ func installFromRelease(deps Dependencies, targetVersion string) error {
 
 	_, _ = fmt.Fprintf(deps.Stdout, "Updated to %s\n", release.TagName)
 
-	// Update shell completions silently
-	completions.InstallSilently()
-
 	return nil
 }
 
-func fetchRelease(deps Dependencies, version string) (*githubRelease, error) {
+func fetchRelease(deps Deps, version string) (*githubRelease, error) {
 	var url string
 	if version == "" {
 		url = apiURL + "/releases/latest"
@@ -138,7 +133,7 @@ func fetchRelease(deps Dependencies, version string) (*githubRelease, error) {
 	return &release, nil
 }
 
-func downloadAndInstall(deps Dependencies, url string) error {
+func downloadAndInstall(deps Deps, url string) error {
 	// Get current executable path
 	execPath, err := deps.ExecutablePath()
 	if err != nil {
@@ -270,7 +265,7 @@ func copyFile(src, dst string) error {
 	return out.Close()
 }
 
-func installFromSource(deps Dependencies, version string) error {
+func installFromSource(deps Deps, version string) error {
 	// Check if Go is available
 	if err := deps.RunCommand("go", "version"); err != nil {
 		return fmt.Errorf("fp: go is not installed (needed to build from source)")
@@ -287,9 +282,6 @@ func installFromSource(deps Dependencies, version string) error {
 
 	_, _ = fmt.Fprintf(deps.Stdout, "Installed %s (via go install)\n", version)
 	_, _ = fmt.Fprintf(deps.Stdout, "Note: binary is in $GOPATH/bin or $HOME/go/bin\n")
-
-	// Update shell completions silently
-	completions.InstallSilently()
 
 	return nil
 }

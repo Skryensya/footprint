@@ -24,8 +24,8 @@ var sourceStylers = map[store.Source]func(string) string{
 	store.SourceManual:       style.Color7,
 }
 
-// FormatEvent formats a single event for display.
-func FormatEvent(e store.RepoEvent, oneline bool) string {
+// formatEvent formats a single event for display.
+func formatEvent(e store.RepoEvent, oneline bool) string {
 	if oneline {
 		// source(colored) commit(bold) repo(muted) branch
 		return fmt.Sprintf(
@@ -55,9 +55,9 @@ func formatSource(source store.Source) string {
 	return source.String()
 }
 
-// FormatEventEnriched formats a single event with git metadata (author, commit message).
+// formatEventEnriched formats a single event with git metadata (author, commit message).
 // If oneline is true, uses compact single-line format with truncated subject.
-func FormatEventEnriched(e store.RepoEvent, meta git.CommitMetadata, oneline bool) string {
+func formatEventEnriched(e store.RepoEvent, meta git.CommitMetadata, oneline bool) string {
 	if oneline {
 		// source commit repo branch "message"
 		subject := meta.Subject

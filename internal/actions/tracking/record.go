@@ -26,6 +26,7 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 	showErrors := verbose || manual
 
 	if !deps.GitIsAvailable() {
+		log.Error("record: git not available in PATH")
 		if showErrors {
 			_, _ = deps.Println("git not available")
 		}
@@ -34,6 +35,7 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	repoRoot, err := deps.RepoRoot(".")
 	if err != nil {
+		log.Debug("record: not in a git repository: %v", err)
 		if showErrors {
 			_, _ = deps.Println("not in a git repository")
 		}
@@ -44,6 +46,7 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	repoID, err := deps.DeriveID(remoteURL, repoRoot)
 	if err != nil {
+		log.Error("record: could not derive repo id for %s: %v", repoRoot, err)
 		if showErrors {
 			_, _ = deps.Println("could not derive repo id")
 		}
@@ -52,6 +55,7 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	commit, err := deps.HeadCommit()
 	if err != nil {
+		log.Error("record: could not read HEAD commit in %s: %v", repoRoot, err)
 		if showErrors {
 			_, _ = deps.Println("could not read HEAD commit")
 		}
@@ -116,7 +120,7 @@ func record(_ []string, flags *dispatchers.ParsedFlags, deps Deps) error {
 
 	// Check if we should auto-export
 	if err == nil {
-		MaybeExport(db, deps)
+		maybeExport(db, deps)
 	}
 
 	return nil

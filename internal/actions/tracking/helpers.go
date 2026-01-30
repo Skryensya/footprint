@@ -63,8 +63,8 @@ func parseSource(s string) (store.Source, bool) {
 	return source, ok
 }
 
-// ValidStatuses returns a list of valid status values for use in error messages.
-func ValidStatuses() []string {
+// validStatuses returns a list of valid status values for use in error messages.
+func validStatuses() []string {
 	keys := make([]string, 0, len(statusMap))
 	for k := range statusMap {
 		keys = append(keys, k)
@@ -72,8 +72,8 @@ func ValidStatuses() []string {
 	return keys
 }
 
-// ValidSources returns a list of valid source values for use in error messages.
-func ValidSources() []string {
+// validSources returns a list of valid source values for use in error messages.
+func validSources() []string {
 	keys := make([]string, 0, len(sourceMap))
 	for k := range sourceMap {
 		keys = append(keys, k)
