@@ -6,22 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-01-29
 
 ### Added
 
+- Add output package for centralized JSON formatting
+- Add themed UI components and layout utilities
+- Add help topics for exporting, interactive mode, and privacy
+- Add release build target with stripped binary
+- Add 30-second timeout for git commands
+- Add mutex protection for pager global state
 - Add shell completions command with auto-install support
-
+- Add verbose flag and update CLI tree
+- Add conflicting flags error helper
+- Add fields and interfaces to domain package
 
 ### Changed
 
-- update docs, improve test coverage
-- Improve test coverage and rename demo target to simulate-activity
-
+- Improve SQLite reliability with WAL mode and better error handling
+- Increase HTTP timeout for update checks from 3s to 10s
+- Use output package for JSON formatting across commands
+- Refactor hooks package with unexported functions
+- Simplify completions package and remove unused code
+- Simplify config package internals
+- Refactor dispatchers with cleaner structure
+- Improve UI utilities and styling
+- Improve interactive modes with themed components
+- Refactor action dependencies for better testability
+- Simplify action implementations
+- Clean up paths and repo packages
+- Update gitignore and main entry point
+- Update dependencies
+- Use safe type assertions in tests
 
 ### Fixed
 
+- Add git state detection to prevent export during merge/rebase
 - Fix completions: create parent dirs, add to global setup, simplify messages
-
 
 ---
 ## [0.0.11] - 2026-01-26
@@ -209,7 +230,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-[Unreleased]: https://github.com/footprint-tools/cli/compare/v0.0.11...HEAD
+[Unreleased]: https://github.com/footprint-tools/cli/compare/v0.0.12...HEAD
+[0.0.12]: https://github.com/footprint-tools/cli/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/footprint-tools/cli/compare/v0.0.6...v0.0.11
 [0.0.6]: https://github.com/footprint-tools/cli/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/footprint-tools/cli/compare/v0.0.4...v0.0.5
